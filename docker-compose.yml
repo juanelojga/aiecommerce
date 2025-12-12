@@ -1,10 +1,7 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
     restart: always
-    # We pass the variables defined in .env to the container
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
