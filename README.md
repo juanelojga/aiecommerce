@@ -20,10 +20,13 @@ git clone <repository-url> cd django-projects
 
 Create and activate a virtual environment:
 Create virtual environment
+
 ```
 python3 -m venv venv
 ```
+
 Activate virtual environment
+
 ```
 source venv/bin/activate # On Linux/macOS
 venv\Scripts\activate # On Windows
@@ -34,7 +37,9 @@ venv\Scripts\activate # On Windows
 ```bash
 pip install -r requirements.txt
 ```
+
 - Environment Configuration
+
 Copy the example environment file and configure it:``` bash
 
 ```
@@ -44,33 +49,41 @@ cp .env.example .env
 Edit the.env file with your configuration settings.
 
 - Start Docker Services
+
 Start PostgreSQL and Redis containers:
+
 ``` bash
 docker-compose up -d
 ```
 
 To stop the services:
+
 ``` bash
 docker-compose down
 ```
 
 To view logs:
+
 ``` bash
 docker-compose logs -f
 ```
 
 - Run Database Migrations
+
 ``` bash
 python manage.py migrate
 ```
 
 - Create Superuser
+
 Create an admin account:
+
 ``` bash
 python manage.py createsuperuser
 ```
 
 - Run Development Server
+
 ``` bash
 python manage.py runserver
 ```
