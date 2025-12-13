@@ -1,0 +1,6 @@
+-r requirements.txt  # This includes the base requirements
+ruff
+mypy
+django-stubs
+djangorestframework-stubs
+pre-commit
