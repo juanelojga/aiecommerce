@@ -12,7 +12,7 @@ Django-based ecommerce application with PostgreSQL and Redis support.
 
 ### 1. Clone the Repository
 
-```bash 
+```bash
 git clone <repository-url> cd django-projects
 ```
 
@@ -161,7 +161,7 @@ deactivate
 ```
 
 Project Structure
-``` 
+```
 django-projects/
 ├── aiecommerce/        # Django project settings
 ├── venv/               # Virtual environment
@@ -194,6 +194,25 @@ django-projects/
 - Try resetting migrations (development only!)
 - Ensure a database is running
 - Check for circular dependencies in models
+
+### Code Quality & Tooling
+This project uses Ruff (linting/formatting) and Mypy (static typing). These run automatically on git commit, but you can run them manually:
+
+``` bash
+# Format code and fix linting errors
+ruff format .
+ruff check . --fix
+
+# Run type checking
+mypy .
+```
+
+One last tip for you
+Since you installed these packages manually, remember to freeze them into a requirements file so you don't lose track of them:
+
+``` bash
+pip freeze > requirements.txt
+```
 
 ## License
 [Specify your license here]
