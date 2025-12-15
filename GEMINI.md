@@ -13,7 +13,7 @@ This is a robust **Django + PostgreSQL** backend project.
 ### App Layout
 New functionality must follow this directory structure:
 ```text
-apps/<app_name>/
+aiecommerce/
 ├── models/             # MODULE: Split models by domain entity
 │   ├── __init__.py     # MUST export models: `from .user import User`
 │   ├── user.py
