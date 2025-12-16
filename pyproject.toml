@@ -26,3 +26,11 @@ disallow_untyped_calls = true
 
 [tool.django-stubs]
 django_settings_module = "aiecommerce.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "aiecommerce.settings"
+python_files = [
+  "tests.py",
+  "test_*.py",
+  "*_tests.py",
+]
