@@ -10,31 +10,26 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-import os
 from pathlib import Path
 
 import environ  # Import environ
 
 # Initialize environ
 env = environ.Env(
-    # set casting, default value
-    DEBUG=(bool, False)
+    DEBUG=(bool, False),
 )
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Read .env file
-environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    environ.Env.read_env(str(env_file))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env("SECRET_KEY")
+# Provide a dev default so the server can start locally without a .env.
+SECRET_KEY = env("SECRET_KEY", default="change-me-in-env")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env("DEBUG")
+DEBUG = env("DEBUG", default=False)
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
@@ -47,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "aiecommerce",
 ]
 
 MIDDLEWARE = [
@@ -83,7 +79,9 @@ WSGI_APPLICATION = "aiecommerce.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": env.db(),
+    "default": env.db(
+        default=f"sqlite:///{(BASE_DIR / 'db.sqlite3')}",
+    ),
 }
 
 
@@ -124,5 +122,6 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 # Celery Configuration
-CELERY_BROKER_URL = env("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = env("CELERY_BROKER_URL")
+# Default to local Redis (matches your docker-compose redis service).
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
