@@ -4,7 +4,7 @@ import factory
 from factory.django import DjangoModelFactory
 from faker import Faker
 
-from .models.product import ProductMaster, ProductRawPDF, ProductRawWeb
+from aiecommerce.models.product import ProductMaster, ProductRawPDF, ProductRawWeb
 
 fake = Faker()
 

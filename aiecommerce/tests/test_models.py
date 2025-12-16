@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from aiecommerce.factories import (
+from aiecommerce.tests.factories import (
     ProductMasterFactory,
     ProductRawPDFFactory,
     ProductRawWebFactory,
