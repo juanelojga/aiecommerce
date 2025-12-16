@@ -207,6 +207,24 @@ ruff check . --fix
 mypy .
 ```
 
+## Testing
+
+To run the test suite, first ensure all development dependencies are installed:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+Then, you can execute tests using `pytest`:
+
+```bash
+# Run all tests
+venv/bin/python -m pytest
+
+# Run tests for a specific file
+venv/bin/python -m pytest aiecommerce/tests/test_models.py
+```
+
 One last tip for you
 Since you installed these packages manually, remember to freeze them into a requirements file so you don't lose track of them:
 
