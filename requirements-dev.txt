@@ -4,3 +4,7 @@ mypy
 django-stubs
 djangorestframework-stubs
 pre-commit
+factory-boy
+Faker
+pytest
+pytest-django
