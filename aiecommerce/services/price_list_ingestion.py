@@ -33,56 +33,67 @@ class PriceListIngestionService:
 
     def parse(self, file_content: io.BytesIO) -> List[Dict[str, Any]]:
         """
-        Parses an XLS file content into a list of product dictionaries.
+        Parses a paginated, multi-column XLS file into a list of product dictionaries.
+
+        This method implements a specific algorithm to handle a complex document structure:
+        1.  It identifies pages, which are separated by blocks of empty rows.
+        2.  It linearizes the data by reading column pairs in a "zig-zag" sequence
+            (Page 1 Col 1 -> P1 Col 2 -> ... -> P2 Col 1 -> ...), creating a
+            single continuous list.
+        3.  It applies category logic globally, propagating category headers from the
+            end of one page-column to the start of the next.
 
         Args:
             file_content: A BytesIO stream of the XLS file.
 
         Returns:
-            A list of dictionaries, where each dictionary represents a product
-            with 'raw_description', 'distributor_price', and 'category_header'.
+            A list of dictionaries, where each dictionary represents a product.
         """
-        # Ensure stream is at the beginning
         try:
             file_content.seek(0)
-        except Exception:
+        except (AttributeError, io.UnsupportedOperation):
             pass
 
-        # Read the XLS file into a pandas DataFrame
-        xls = pd.ExcelFile(file_content)
-        df = xls.parse(header=None)
+        # 1. Load & Detect Pages
+        df = pd.read_excel(file_content, header=None)
+        page_breaks = df[df.isnull().all(axis=1)].index
+        pages_df = []
+        last_break = -1
+        for pb_index in page_breaks:
+            # Check if it's a real break (more than one empty row)
+            if pb_index > last_break + 1:
+                pages_df.append(df.iloc[last_break + 1 : pb_index])
+            last_break = pb_index
+        pages_df.append(df.iloc[last_break + 1 :])  # Add the last page
 
-        all_products = []
+        # 2. Linearize Data (The "Zig-Zag" Unroll)
+        all_rows = []
         column_pairs = [(0, 1), (2, 3), (4, 5), (6, 7), (8, 9)]
 
-        for desc_col, price_col in column_pairs:
-            # Check if the column pair exists in the DataFrame
-            if desc_col not in df.columns or price_col not in df.columns:
-                continue
+        for i, page_df in enumerate(pages_df):
+            start_row = 3 if i == 0 else 0  # Skip headers only on the first page
+            for desc_col, price_col in column_pairs:
+                if desc_col < len(page_df.columns) and price_col < len(page_df.columns):
+                    # Extract the two columns for the current pair
+                    chunk = page_df.iloc[start_row:, [desc_col, price_col]].copy()
+                    chunk.columns = ["raw_description", "distributor_price"]
+                    all_rows.append(chunk)
 
-            # Create a temporary DataFrame for the current column pair
-            pair_df = df[[desc_col, price_col]].copy()
-            pair_df.columns = ["raw_description", "distributor_price"]
+        # 3. Apply Category Logic (Global Context)
+        if not all_rows:
+            return []
 
-            # Identify category headers
-            # A header is where price is NaN but description is not
-            pair_df["category_header"] = pair_df.apply(
-                lambda row: row["raw_description"]
-                if pd.isna(row["distributor_price"]) and pd.notna(row["raw_description"])
-                else None,
-                axis=1,
-            )
+        continuous_df = pd.concat(all_rows, ignore_index=True).dropna(how="all")
 
-            # Forward-fill the category header
-            pair_df["category_header"].ffill(inplace=True)
+        # Identify Headers: price is NaN but description has text
+        is_header = continuous_df["distributor_price"].isna() & continuous_df["raw_description"].notna()
+        continuous_df["category_header"] = continuous_df.loc[is_header, "raw_description"]
 
-            # Clean the data
-            # 1. Drop rows that were only headers (price is still NaN)
-            # 2. Drop rows where both description and price are missing
-            cleaned_df = pair_df.dropna(subset=["distributor_price"])
-            cleaned_df = cleaned_df.dropna(subset=["raw_description", "distributor_price"], how="all")
+        # Propagate the last valid category forward
+        continuous_df["category_header"].ffill(inplace=True)
 
-            # Convert to list of dictionaries
-            all_products.extend(cleaned_df.to_dict(orient="records"))
+        # 4. Final Clean
+        # Remove header rows and rows with no price
+        final_df = continuous_df.dropna(subset=["distributor_price"])
 
-        return all_products
+        return final_df.to_dict(orient="records")
