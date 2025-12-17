@@ -1,4 +1,5 @@
 import io
+import re
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -9,6 +10,29 @@ class PriceListIngestionService:
     """
     A service to fetch and parse a multi-column XLS price list into a structured format.
     """
+
+    def get_xls_url(self) -> str:
+        """
+        Finds the downloadable XLS file URL by following a redirect and swapping the extension.
+
+        This method navigates a common pattern where a generic link redirects to a
+        monthly, timestamped file (e.g., .../LISTA-PRECIOS202512.pdf). It captures
+        the final URL and modifies it to point to the corresponding XLS version.
+
+        Returns:
+            The resolved URL for the XLS file.
+        """
+        base_url = "http://www.tecnomega.com/envio_promocion_precios.php"
+
+        # Use a context manager for safety. We set stream=True to avoid downloading
+        # the whole file, as we only need the final redirected URL from the headers.
+        with requests.get(base_url, stream=True) as response:
+            final_url = response.url
+
+        # Replace the .pdf extension with .xls, case-insensitively
+        xls_url = re.sub(r"\.pdf$", ".xls", final_url, flags=re.IGNORECASE)
+
+        return xls_url
 
     def fetch(self, url: str) -> Optional[io.BytesIO]:
         """
@@ -91,6 +115,13 @@ class PriceListIngestionService:
 
         # Propagate the last valid category forward
         continuous_df["category_header"].ffill(inplace=True)
+
+        # Fallback rule for items at the start that missed a header
+        # If a category is still NaN, check if the description starts with "CASE"
+        continuous_df.loc[
+            continuous_df["category_header"].isna() & continuous_df["raw_description"].str.startswith("CASE", na=False),
+            "category_header",
+        ] = "CASE"
 
         # 4. Final Clean
         # Remove header rows and rows with no price

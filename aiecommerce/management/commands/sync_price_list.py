@@ -46,7 +46,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("-- DRY RUN --"))
             self.stdout.write(f"Total items that would be ingested: {total_items}")
             self.stdout.write("Showing first 5 items:")
-            for item in parsed_data[:1000]:
+            for item in parsed_data[:5]:
                 self.stdout.write(str(item))
             self.stdout.write(self.style.SUCCESS("Dry run complete. No database changes were made."))
             return
