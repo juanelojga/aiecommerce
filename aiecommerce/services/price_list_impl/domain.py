@@ -9,7 +9,7 @@ from aiecommerce.services.price_list_impl.interfaces import CategoryResolver
 
 @dataclass
 class ParserConfig:
-    header_row_offset: int = 3
+    header_row_offset: int = 1
     column_pairs: List[Tuple[int, int]] = field(default_factory=lambda: [(0, 1), (2, 3), (4, 5), (6, 7)])
     start_row_index: int = 5
 

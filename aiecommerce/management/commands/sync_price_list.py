@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from aiecommerce.models import ProductRawPDF
@@ -16,25 +17,33 @@ class Command(BaseCommand):
             action="store_true",
             help="Run the command without saving any data to the database.",
         )
+        parser.add_argument(
+            "--base-url",
+            type=str,
+            help="Optional override for the base URL to resolve the price list download link from.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
 
+        # Prefer CLI override, otherwise use env-backed setting
+        base_url = options.get("base_url") or getattr(settings, "PRICE_LIST_BASE_URL", "")
+
+        if not base_url:
+            raise CommandError(
+                "PRICE_LIST_BASE_URL is not set. " "Define it in your environment (or .env file) or pass --base-url."
+            )
+
         ingestion_service = PriceListIngestionService()
 
-        url = ingestion_service.get_xls_url()
+        self.stdout.write(self.style.NOTICE(f"Starting price list ingestion from base URL: {base_url}..."))
 
-        self.stdout.write(self.style.NOTICE(f"Starting price list ingestion from {url}..."))
-
-        file_content = ingestion_service.fetch(url)
-        if not file_content:
-            self.stdout.write(self.style.WARNING("Failed to download price list. Exiting."))
-            return
-        parsed_data = ingestion_service.parse(file_content)
+        # Unified API: resolves URL, downloads and parses internally
+        parsed_data = ingestion_service.process(base_url)
 
         if not parsed_data:
-            self.stdout.write(self.style.WARNING("No data was parsed from the URL. Exiting."))
+            self.stdout.write(self.style.WARNING("No data was parsed from the price list. Exiting."))
             return
 
         total_items = len(parsed_data)

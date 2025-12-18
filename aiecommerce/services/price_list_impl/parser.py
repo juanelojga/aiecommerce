@@ -32,7 +32,7 @@ class XlsPriceListParser(PriceListParser):
 
         all_pages_data = []
         for i, page_df in enumerate(pages):
-            # Per instruction: Skip first 3 rows only for Page 1.
+            # Per instruction: Skip the first row only for Page 1.
             if i == 0:
                 page_df = page_df.iloc[self.config.header_row_offset :]
 
