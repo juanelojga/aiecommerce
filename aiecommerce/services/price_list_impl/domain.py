@@ -18,9 +18,4 @@ class StandardCategoryResolver(CategoryResolver):
     def resolve_categories(self, df: pd.DataFrame) -> pd.DataFrame:
         df["category_header"] = np.where((df["price"].isna()) & (df["desc"].notna()), df["desc"], np.nan)
         df["category_header"] = df["category_header"].ffill()
-        df["category_header"] = np.where(
-            (df["category_header"].isna()) & (df["desc"].str.startswith("CASE")),
-            "CASE",
-            df["category_header"],
-        )
         return df
