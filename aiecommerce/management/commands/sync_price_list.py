@@ -1,10 +1,11 @@
-from datetime import datetime
+import json
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 
-from aiecommerce.models import ProductRawPDF
+from aiecommerce.services.price_list_impl.exceptions import IngestionError
+from aiecommerce.services.price_list_impl.repository import ProductRawRepository
+from aiecommerce.services.price_list_impl.use_case import PriceListIngestionUseCase
 from aiecommerce.services.price_list_ingestion import PriceListIngestionService
 
 
@@ -23,70 +24,35 @@ class Command(BaseCommand):
             help="Optional override for the base URL to resolve the price list download link from.",
         )
 
-    @transaction.atomic
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
-
-        # Prefer CLI override, otherwise use env-backed setting
         base_url = options.get("base_url") or getattr(settings, "PRICE_LIST_BASE_URL", "")
 
         if not base_url:
-            raise CommandError(
-                "PRICE_LIST_BASE_URL is not set. " "Define it in your environment (or .env file) or pass --base-url."
-            )
+            raise CommandError("PRICE_LIST_BASE_URL is not set. Define it in your environment or use --base-url.")
 
-        ingestion_service = PriceListIngestionService()
-
-        self.stdout.write(self.style.NOTICE(f"Starting price list ingestion from base URL: {base_url}..."))
-
-        # Unified API: resolves URL, downloads and parses internally
-        parsed_data = ingestion_service.process(base_url)
-
-        if not parsed_data:
-            self.stdout.write(self.style.WARNING("No data was parsed from the price list. Exiting."))
-            return
-
-        total_items = len(parsed_data)
-        self.stdout.write(f"Found {total_items} items to process.")
-
-        if dry_run:
-            self.stdout.write(self.style.SUCCESS("-- DRY RUN --"))
-            self.stdout.write(f"Total items that would be ingested: {total_items}")
-            self.stdout.write("Showing first 5 items:")
-            for item in parsed_data[:5]:
-                self.stdout.write(str(item))
-            self.stdout.write(self.style.SUCCESS("Dry run complete. No database changes were made."))
-            return
-
-        # --- Live Mode ---
-        self.stdout.write(self.style.NOTICE("Executing live run. Database will be modified."))
+        self.stdout.write(self.style.NOTICE(f"Starting price list ingestion from: {base_url}"))
 
         try:
-            # 1. Truncate the table
-            self.stdout.write(f"Deleting all {ProductRawPDF.objects.count()} existing records...")
-            ProductRawPDF.objects.all().delete()
-            self.stdout.write(self.style.SUCCESS("Successfully cleared ProductRawPDF table."))
+            # Instantiate dependencies and the use case
+            service = PriceListIngestionService()
+            repo = ProductRawRepository()
+            use_case = PriceListIngestionUseCase(service, repo)
 
-            # 2. Prepare data for bulk creation
-            now = datetime.now()
-            products_to_create = [
-                ProductRawPDF(
-                    raw_description=item.get("raw_description"),
-                    distributor_price=item.get("distributor_price"),
-                    category_header=item.get("category_header"),
-                    created_at=now,
-                )
-                for item in parsed_data
-            ]
+            # Execute the use case
+            result = use_case.execute(base_url, dry_run=dry_run)
 
-            # 3. Load data using bulk_create
-            self.stdout.write(f"Inserting {len(products_to_create)} new records in batches...")
-            ProductRawPDF.objects.bulk_create(products_to_create, batch_size=1000)
+            # Handle the output based on the result
+            if result["status"] == "dry_run":
+                self.stdout.write(self.style.SUCCESS("-- DRY RUN --"))
+                self.stdout.write(f"Total items that would be ingested: {result['count']}")
+                self.stdout.write("Showing first 5 items (preview):")
+                self.stdout.write(json.dumps(result["preview"], indent=2, ensure_ascii=False))
+                self.stdout.write(self.style.SUCCESS("Dry run complete. No database changes were made."))
+            elif result["status"] == "success":
+                self.stdout.write(self.style.SUCCESS(f"Successfully ingested {result['count']} records."))
 
-            self.stdout.write(
-                self.style.SUCCESS(f"Successfully ingested {len(products_to_create)} records into ProductRawPDF.")
-            )
-
+        except IngestionError as e:
+            raise CommandError(f"An error occurred during ingestion: {e}")
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"An error occurred during the database operation: {e}"))
-            self.stdout.write(self.style.WARNING("Transaction rolled back. No data was committed."))
+            raise CommandError(f"An unexpected error occurred: {e}")
