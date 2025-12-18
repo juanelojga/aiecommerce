@@ -1,4 +1,5 @@
 import io
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -22,7 +23,7 @@ class PriceListIngestionService:
         Returns:
             The resolved URL for the XLS file.
         """
-        base_url = "http://www.tecnomega.com/envio_promocion_precios.php"
+        base_url = os.environ.get("PRICE_LIST_BASE_URL", "https://example.com/dummy-price-list.xls")
 
         # Use a context manager for safety. We set stream=True to avoid downloading
         # the whole file, as we only need the final redirected URL from the headers.

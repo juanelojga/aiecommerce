@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 
 from django.core.management.base import BaseCommand
@@ -21,14 +20,13 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
-        # Use a dummy URL or an environment variable.
-        # For this example, a placeholder is used.
-        # In a real application, this should be fetched from settings or env.
-        url = os.environ.get("PRICE_LIST_URL", "https://example.com/dummy-price-list.xls")
+
+        ingestion_service = PriceListIngestionService()
+
+        url = ingestion_service.get_xls_url()
 
         self.stdout.write(self.style.NOTICE(f"Starting price list ingestion from {url}..."))
 
-        ingestion_service = PriceListIngestionService()
         file_content = ingestion_service.fetch(url)
         if not file_content:
             self.stdout.write(self.style.WARNING("Failed to download price list. Exiting."))
