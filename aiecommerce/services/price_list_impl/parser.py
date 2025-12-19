@@ -33,13 +33,16 @@ class XlsPriceListParser(PriceListParser):
 
         pages = self._split_into_pages(df)
 
-        raw_items_df = self._extract_raw_items(pages)
+        # Step 1: Extract raw data. Result contains headers w/ NaN prices.
+        df = self._extract_raw_items(pages)
 
-        resolved_df = self.category_resolver.resolve_categories(raw_items_df)
+        # Step 2: Resolve categories. Uses headers to fill categories.
+        df = self.category_resolver.resolve_categories(df)
 
-        cleaned_items = self._clean_and_normalize(resolved_df)
+        # Step 3: Clean and normalize. Removes headers, keeps items.
+        result = self._clean_and_normalize(df)
 
-        return cleaned_items
+        return result
 
     def _load_workbook(self, content: io.BytesIO) -> pd.DataFrame:
         """
@@ -88,58 +91,56 @@ class XlsPriceListParser(PriceListParser):
     def _extract_raw_items(self, pages: List[pd.DataFrame]) -> pd.DataFrame:
         """
         Extracts and linearizes items from the given pages into a single
-        DataFrame with 'desc' and 'price' columns for internal processing.
+        DataFrame with 'raw_description' and 'distributor_price' columns.
+        Raw data is preserved, including rows with NaN prices (headers),
+        for category resolution in a later step.
         """
-
         all_pages_data = []
-
         for i, page_df in enumerate(pages):
             if i == 0:
                 page_df = page_df.iloc[self.config.header_row_offset :]
 
             page_linear_data = []
-
             for desc_col, price_col in self.config.column_pairs:
                 if price_col < page_df.shape[1]:
                     chunk = page_df[[desc_col, price_col]].copy()
-
-                    chunk.columns = ["desc", "price"]
-
+                    chunk.columns = ["raw_description", "distributor_price"]
                     page_linear_data.append(chunk)
 
             if page_linear_data:
                 concatenated_page = pd.concat(page_linear_data, ignore_index=True)
-
                 all_pages_data.append(concatenated_page)
 
         if not all_pages_data:
-            return pd.DataFrame(columns=["desc", "price"])
+            return pd.DataFrame(columns=["raw_description", "distributor_price"])
 
-        linear_df = pd.concat(all_pages_data, ignore_index=True)
-
-        return linear_df.dropna(how="all")
+        return pd.concat(all_pages_data, ignore_index=True)
 
     def _clean_and_normalize(self, df: pd.DataFrame) -> List[Dict]:
         """
-        Cleans and normalizes the DataFrame, converting data types,
-        dropping invalid rows, and renaming columns for the final output.
+        Cleans and normalizes the DataFrame after category resolution.
+        This includes converting data types, dropping rows with invalid prices,
+        and preparing the data for final output.
         """
+        # Work on a copy to avoid SettingWithCopyWarning
+        df = df.copy()
 
-        df["price"] = pd.to_numeric(df["price"], errors="coerce")
+        # Step A: Convert price to numeric, coercing errors
+        df["distributor_price"] = pd.to_numeric(df["distributor_price"], errors="coerce")
 
-        df.dropna(subset=["price"], inplace=True)
+        # Step C: NOW (and only now) drop rows where distributor_price is NaN
+        df.dropna(subset=["distributor_price"], inplace=True)
 
-        df["desc"] = df["desc"].astype(str).str.strip()
+        # Step B: Convert raw_description to string and strip whitespace
+        df["raw_description"] = df["raw_description"].astype(str).str.strip()
 
-        df = df[df["desc"] != ""]
+        df = df[df["raw_description"] != ""]
 
-        df = df.rename(columns={"desc": "raw_description", "price": "distributor_price"})
-
+        # Final columns for the output
         final_columns = [
             "raw_description",
             "distributor_price",
-            "category",
-            "subcategory",
+            "category_header",
         ]
 
         output_columns = [col for col in final_columns if col in df.columns]
