@@ -20,7 +20,8 @@ def test_missing_base_url_raises_command_error():
 def test_success_path_uses_settings_base_url_and_reports_count():
     fake_result = {"status": "success", "count": 10}
 
-    with patch("aiecommerce.services.price_list_impl.use_case.PriceListIngestionUseCase") as MockUseCase:
+    # Patch the symbol where it is used (inside the management command module)
+    with patch("aiecommerce.management.commands.sync_price_list.PriceListIngestionUseCase") as MockUseCase:
         instance = MockUseCase.return_value
         instance.execute.return_value = fake_result
 
@@ -40,7 +41,8 @@ def test_dry_run_outputs_preview_and_count_json():
     preview = [{"sku": "A1"}, {"sku": "B2"}]
     fake_result = {"status": "dry_run", "count": 7, "preview": preview}
 
-    with patch("aiecommerce.services.price_list_impl.use_case.PriceListIngestionUseCase") as MockUseCase:
+    # Patch the symbol where it is used (inside the management command module)
+    with patch("aiecommerce.management.commands.sync_price_list.PriceListIngestionUseCase") as MockUseCase:
         instance = MockUseCase.return_value
         instance.execute.return_value = fake_result
 
@@ -61,7 +63,8 @@ def test_dry_run_outputs_preview_and_count_json():
 def test_cli_argument_base_url_overrides_settings():
     # Settings has a different URL, but CLI arg should win
     with override_settings(PRICE_LIST_BASE_URL="https://settings-url.invalid"):
-        with patch("aiecommerce.services.price_list_impl.use_case.PriceListIngestionUseCase") as MockUseCase:
+        # Patch the symbol where it is used (inside the management command module)
+        with patch("aiecommerce.management.commands.sync_price_list.PriceListIngestionUseCase") as MockUseCase:
             instance = MockUseCase.return_value
             instance.execute.return_value = {"status": "success", "count": 1}
 
@@ -78,7 +81,8 @@ def test_cli_argument_base_url_overrides_settings():
 
 @override_settings(PRICE_LIST_BASE_URL="https://example.com/base")
 def test_ingestion_error_is_wrapped_into_command_error():
-    with patch("aiecommerce.services.price_list_impl.use_case.PriceListIngestionUseCase") as MockUseCase:
+    # Patch the symbol where it is used (inside the management command module)
+    with patch("aiecommerce.management.commands.sync_price_list.PriceListIngestionUseCase") as MockUseCase:
         instance = MockUseCase.return_value
         instance.execute.side_effect = IngestionError("failed to parse")
 
@@ -89,7 +93,8 @@ def test_ingestion_error_is_wrapped_into_command_error():
 
 @override_settings(PRICE_LIST_BASE_URL="https://example.com/base")
 def test_unexpected_exception_is_wrapped_into_command_error():
-    with patch("aiecommerce.services.price_list_impl.use_case.PriceListIngestionUseCase") as MockUseCase:
+    # Patch the symbol where it is used (inside the management command module)
+    with patch("aiecommerce.management.commands.sync_price_list.PriceListIngestionUseCase") as MockUseCase:
         instance = MockUseCase.return_value
         instance.execute.side_effect = RuntimeError("boom")
 
