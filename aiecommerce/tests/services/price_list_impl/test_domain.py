@@ -7,21 +7,23 @@ from aiecommerce.services.price_list_impl.domain import ParserConfig, StandardCa
 def test_parser_config_defaults() -> None:
     cfg = ParserConfig()
     assert cfg.header_row_offset == 1
-    assert cfg.column_pairs == [(0, 1), (2, 3), (4, 5), (6, 7)]
+    # Expect the full set of default column pairs
+    assert cfg.column_pairs == [(0, 1), (2, 3), (4, 5), (6, 7), (8, 9)]
     assert cfg.start_row_index == 5
 
 
 def test_standard_category_resolver_resolves_and_ffills_headers() -> None:
     df = pd.DataFrame(
         {
-            "desc": [
+            # StandardCategoryResolver expects these specific columns
+            "raw_description": [
                 "CAT A",  # header row (price is NaN)
                 "item 1",
                 np.nan,  # empty row
                 "CAT B",  # header row (price is NaN)
                 "item 2",
             ],
-            "price": [
+            "distributor_price": [
                 np.nan,  # header -> NaN
                 10.0,
                 np.nan,  # empty row
