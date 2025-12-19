@@ -13,9 +13,8 @@ from aiecommerce.services.price_list_impl.parser import XlsPriceListParser
 class _FakeCategoryResolver:
     def resolve_categories(self, df: pd.DataFrame) -> pd.DataFrame:  # mimic Protocol
         out = df.copy()
-        # Add deterministic category fields so parser passes them through
-        out["category"] = "General"
-        out["subcategory"] = "Default"
+        # Add deterministic category header so parser passes it through
+        out["category_header"] = "General"
         return out
 
 
@@ -55,7 +54,9 @@ def test_parse_end_to_end_multiple_pages_and_columns(monkeypatch: Any) -> None:
 
     # Column names and presence of category fields
     for row in result:
-        assert set(row.keys()) >= {"raw_description", "distributor_price", "category", "subcategory"}
+        # Parser guarantees these columns; category info is exposed via 'category_header'
+        assert set(row.keys()) >= {"raw_description", "distributor_price"}
+        assert "category_header" in row
 
     # Values normalized and stripped
     descriptions = [r["raw_description"] for r in result]
@@ -87,10 +88,11 @@ def test_load_workbook_wraps_errors(monkeypatch: Any) -> None:
 def test_clean_and_normalize_trims_and_filters() -> None:
     parser = _make_parser()
 
+    # _clean_and_normalize expects 'raw_description' and 'distributor_price' columns
     raw = pd.DataFrame(
         {
-            "desc": ["  alpha  ", "", "   ", None, "beta"],
-            "price": ["9", None, "5.5", 7, "not-a-number"],
+            "raw_description": ["  alpha  ", "", "   ", None, "beta"],
+            "distributor_price": ["9", None, "5.5", 7, "not-a-number"],
         }
     )
 
