@@ -1,141 +1,111 @@
-import time
-from typing import Any, List
+import logging
+import uuid
 
-import requests
-from bs4 import BeautifulSoup
 from django.conf import settings
-from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.core.management.base import BaseCommand, CommandError
 
-# Adjust import according to your app structure
-from aiecommerce.models.product import ProductRawWeb
+from aiecommerce.services.scrape_tecnomega_impl.fetcher import HtmlFetcher
+from aiecommerce.services.scrape_tecnomega_impl.mapper import ProductMapper
+from aiecommerce.services.scrape_tecnomega_impl.parser import HtmlParser
+from aiecommerce.services.scrape_tecnomega_impl.persister import ProductPersister
+
+# Configure logger for the command
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Scrapes product data from tecnomega.com for specific categories."
+    help = "Scrapes product data from TECNOMEGA based on predefined categories."
+
+    # Categories to be scraped. The string is used as the 'search' query parameter.
+    CATEGORIES_TO_SCRAPE = [
+        "audifonos",
+        "teclados",
+        "monitores",
+        "impresoras",
+        "laptops",
+        "proyectores",
+    ]
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Scrape only the first 5 items per category and print to stdout.",
+            help="Run the command without saving any data to the database.",
         )
-        # NEW ARGUMENT: Accepts multiple categories
+
         parser.add_argument(
-            "--categories",
-            nargs="+",
-            default=["notebook"],  # Default if nothing is provided
-            help="List of categories/search terms to scrape (e.g. notebook monitor cpu)",
+            "--base-url",
+            type=str,
+            help="Optional override for the TECNOMEGA base URL.",
         )
 
-    def handle(self, *args: Any, **options: Any):
-        start_time = time.time()
-        # Single session ID for the whole run
-        scrape_session_id = f"tecnomega_{int(start_time)}"
+    def handle(self, *args, **options):
+        dry_run = options["dry_run"]
+        base_url = options.get("base_url") or getattr(settings, "TECNOMEGA_BASE_URL", None)
 
-        base_url: str = options.get("base_url") or getattr(settings, "STOCK_LIST_BASE_URL", "") or ""
-        dry_run = options.get("dry_run")
-        target_categories: List[str] = options.get("categories") or ["notebook"]
-
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            )
-        }
-
-        self.stdout.write(f"Starting Session: {scrape_session_id}")
-        self.stdout.write(f"Categories to scrape: {', '.join(target_categories)}")
+        if not base_url:
+            raise CommandError("TECNOMEGA_BASE_URL is not set. Define it in your settings or use --base-url.")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("Running in DRY-RUN mode."))
+            self.stdout.write(self.style.WARNING("-- DRY RUN MODE --"))
 
-        # --- LOOP STARTS HERE ---
-        for category in target_categories:
-            self.stdout.write(self.style.MIGRATE_HEADING(f"--- Processing: {category} ---"))
+        self.stdout.write(self.style.NOTICE(f"Starting scrape process for {base_url}"))
 
-            # Reset the list for this category
-            products_to_create: List[ProductRawWeb] = []
+        scrape_session_id = str(uuid.uuid4())
+        self.stdout.write(self.style.NOTICE(f"Scrape Session ID: {scrape_session_id}"))
 
-            # Update params dynamically
-            params = {
-                "buscar": category,
-            }
+        # 1. Initialize Services
+        try:
+            fetcher = HtmlFetcher(base_url=base_url)
+            parser = HtmlParser()
+            mapper = ProductMapper()
+            persister = ProductPersister()
+        except Exception as e:
+            raise CommandError(f"Failed to initialize services: {e}")
 
+        total_scraped_count = 0
+        failed_categories = []
+
+        # 2. Iterate, Fetch, Parse, Map, Persist for each category
+        for category in self.CATEGORIES_TO_SCRAPE:
+            self.stdout.write(self.style.HTTP_INFO(f"Processing category: '{category}'..."))
             try:
-                response = requests.get(base_url, params=params, headers=headers, timeout=60)
-                response.raise_for_status()
-                response.encoding = "utf-8"
-            except requests.RequestException as e:
-                self.stderr.write(self.style.ERROR(f"Failed to fetch category '{category}': {e}"))
-                continue  # Skip to next category
-
-            soup = BeautifulSoup(response.content, "html.parser", from_encoding="utf-8")
-
-            product_table = soup.find("table", class_="table-hover")
-            if not product_table:
-                self.stderr.write(self.style.ERROR(f"No table found for category '{category}'"))
-                continue
-
-            tbody = product_table.find("tbody")
-            if not tbody:
-                rows = product_table.find_all("tr")
-                rows = rows[1:] if len(rows) > 0 else []
-            else:
-                rows = tbody.find_all("tr")
-
-            for row in rows:
-                cols = row.find_all("td")
-
-                if len(cols) < 10:
+                # Execute the flow: Fetch -> Parse -> Map -> Persist
+                html_content = fetcher.fetch_html(params={"search": category})
+                raw_products = parser.parse(html_content)
+                if not raw_products:
+                    self.stdout.write(self.style.WARNING(f"No products found for category '{category}'."))
                     continue
 
-                distributor_code = cols[0].get_text(strip=True)
-                raw_description = cols[1].get_text(strip=True)
-                stock_principal = cols[2].get_text(strip=True)
-                stock_colon = cols[3].get_text(strip=True)
-                stock_sur = cols[4].get_text(strip=True)
-                stock_gye_norte = cols[5].get_text(strip=True)
-                stock_gye_sur = cols[6].get_text(strip=True)
+                product_models = mapper.map_to_models(
+                    raw_products=raw_products,
+                    scrape_session_id=scrape_session_id,
+                    search_term=category,
+                )
+                persister.persist(products=product_models, dry_run=dry_run)
 
-                image_tag = cols[9].find("img")
-                image_url = image_tag.get("src", "") if image_tag else ""
+                total_scraped_count += len(product_models)
+                self.stdout.write(
+                    self.style.SUCCESS(f"Successfully processed {len(product_models)} items for category '{category}'.")
+                )
 
-                if not distributor_code:
-                    continue
+            except Exception as e:
+                self.stderr.write(self.style.ERROR(f"Failed to process category '{category}': {e}"))
+                logger.error(f"Error processing category {category}", exc_info=True)
+                failed_categories.append(category)
+                # Continue to the next category as per requirements
 
-                if dry_run:
-                    if len(products_to_create) < 5:
-                        self.stdout.write(f"  [{category}] {distributor_code} - {raw_description[:30]}...")
-                        products_to_create.append(
-                            ProductRawWeb(distributor_code=distributor_code, raw_description=raw_description)
-                        )
-                    else:
-                        break  # Stop parsing this category in dry run
-                else:
-                    product = ProductRawWeb(
-                        distributor_code=distributor_code,
-                        raw_description=raw_description,
-                        stock_principal=stock_principal,
-                        stock_colon=stock_colon,
-                        stock_sur=stock_sur,
-                        stock_gye_norte=stock_gye_norte,
-                        stock_gye_sur=stock_gye_sur,
-                        image_url=image_url,
-                        scrape_session_id=scrape_session_id,
-                        search_term=category,  # <--- Saving the category here
-                    )
-                    products_to_create.append(product)
+        # 3. Final Report
+        self.stdout.write(self.style.NOTICE("--------------------"))
+        self.stdout.write(self.style.NOTICE("Scrape process finished."))
+        self.stdout.write(f"Total items processed: {total_scraped_count}")
 
-            # Save per category
-            if not dry_run and products_to_create:
-                try:
-                    with transaction.atomic():
-                        ProductRawWeb.objects.bulk_create(products_to_create, batch_size=100)
-                    self.stdout.write(self.style.SUCCESS(f"Saved {len(products_to_create)} items for '{category}'"))
-                except Exception as e:
-                    self.stderr.write(self.style.ERROR(f"Error saving '{category}': {e}"))
-            elif not products_to_create:
-                self.stdout.write(self.style.WARNING(f"No items found for '{category}'"))
+        if failed_categories:
+            self.stderr.write(
+                self.style.ERROR(f"Completed with errors. Failed categories: {', '.join(failed_categories)}")
+            )
+        else:
+            self.stdout.write(self.style.SUCCESS("All categories processed successfully."))
 
-        self.stdout.write(self.style.SUCCESS(f"Run complete. Session ID: {scrape_session_id}"))
+        if dry_run:
+            self.stdout.write(self.style.WARNING("Dry run complete. No database changes were made."))
