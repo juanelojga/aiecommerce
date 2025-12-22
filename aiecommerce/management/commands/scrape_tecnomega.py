@@ -116,6 +116,16 @@ class Command(BaseCommand):
                 scrape_session_id=scrape_session_id,
                 search_term=category,
             )
+
+            # --- NEW SECTION: PRINT PREVIEW IF DRY RUN ---
+            if dry_run and product_models:
+                self.stdout.write(self.style.WARNING(f"\n--- [DRY RUN] Preview (First 5 items for '{category}') ---"))
+                for i, item in enumerate(product_models[:5], 1):
+                    # Uses the __str__ representation of your model/object
+                    self.stdout.write(f"{i}. {item}")
+                self.stdout.write(self.style.WARNING("----------------------------------------------------------\n"))
+            # ---------------------------------------------
+
             persister.persist(products=product_models, dry_run=dry_run)
 
             self.stdout.write(
