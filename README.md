@@ -236,3 +236,60 @@ pip freeze > requirements.txt
 [Specify your license here]
 ## Contributing
 [Add contribution guidelines here]
+
+## Management Commands: Scraping and Price List
+
+This project includes custom Django management commands to scrape product data and sync price lists.
+
+### 1) Scrape Tecnomega
+
+Fetches product data from Tecnomega and stores raw rows in the database.
+
+- Command:
+
+```bash
+python manage.py scrape_tecnomega [--categories <terms...>] [--dry-run]
+```
+
+- Arguments:
+  - `--categories`: One or more search terms/categories to scrape. Defaults to `notebook` if omitted. Example: `notebook monitor "tarjeta video"`.
+  - `--dry-run`: If set, only the first 5 items per category are printed to stdout and nothing is saved to the database.
+
+- Example usages:
+
+```bash
+# Example from docs: multiple categories + dry-run
+python manage.py scrape_tecnomega --categories notebook monitor "tarjeta video" --dry-run
+
+# Scrape and persist results (no dry-run)
+python manage.py scrape_tecnomega --categories notebook monitor
+
+# Use the default category (notebook)
+python manage.py scrape_tecnomega
+```
+
+- Notes:
+  - The command relies on a base URL configured via Django settings `STOCK_LIST_BASE_URL`. Ensure it is set in your environment (e.g., in `.env`) and loaded in `aiecommerce/settings.py`.
+  - In `--dry-run` mode, the command logs a preview of up to 5 items per category and does not write to the database.
+  - Without `--dry-run`, scraped rows are bulk-inserted as `ProductRawWeb` entries with a shared session ID and the `search_term` set to the category.
+
+### 2) Sync Price List
+
+Synchronizes processed price list information from the scraped data.
+
+- Command:
+
+```bash
+python manage.py sync_price_list
+```
+
+- Example usage:
+
+```bash
+# Run with the active virtual environment
+python manage.py sync_price_list
+```
+
+- Notes:
+  - Ensure you have already scraped data (e.g., via `scrape_tecnomega`) before running this command so there is data to process.
+  - Review environment variables in `.env` as required by your setup.
