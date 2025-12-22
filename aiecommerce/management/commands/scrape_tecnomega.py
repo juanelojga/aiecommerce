@@ -1,6 +1,5 @@
 import logging
 import uuid
-from typing import Tuple
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -98,7 +97,7 @@ class Command(BaseCommand):
         parser: HtmlParser,
         mapper: ProductMapper,
         persister: ProductPersister,
-    ) -> Tuple[bool, int]:
+    ) -> tuple[bool, int]:
         """
         Helper method to handle the Fetch -> Parse -> Map -> Persist flow for a single category.
         Returns a tuple: (success: bool, count: int)
@@ -119,10 +118,27 @@ class Command(BaseCommand):
 
             # --- NEW SECTION: PRINT PREVIEW IF DRY RUN ---
             if dry_run and product_models:
-                self.stdout.write(self.style.WARNING(f"\n--- [DRY RUN] Preview (First 5 items for '{category}') ---"))
+                self.stdout.write(
+                    self.style.WARNING(f"\n--- [DRY RUN] Detailed Preview (First 5 items for '{category}') ---")
+                )
+
                 for i, item in enumerate(product_models[:5], 1):
-                    # Uses the __str__ representation of your model/object
-                    self.stdout.write(f"{i}. {item}")
+                    self.stdout.write(self.style.SUCCESS(f"Item #{i}:"))
+
+                    # Determine how to extract data (Object vs Dict)
+                    data = item if isinstance(item, dict) else vars(item)
+
+                    if isinstance(data, dict):
+                        for key, value in data.items():
+                            # Skip internal Django state or private attributes
+                            if not key.startswith("_"):
+                                self.stdout.write(f"  {key}: {value}")
+                    else:
+                        # Fallback if vars() fails
+                        self.stdout.write(f"  {item}")
+
+                    self.stdout.write("")  # Empty line for readability
+
                 self.stdout.write(self.style.WARNING("----------------------------------------------------------\n"))
             # ---------------------------------------------
 
