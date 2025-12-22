@@ -23,10 +23,9 @@ class ProductRawWebFactory(DjangoModelFactory):
     class Meta:
         model = ProductRawWeb
 
-    sku = factory.Faker("ean", length=13)
+    distributor_code = factory.Faker("ean", length=13)
     raw_description = factory.Faker("text")
-    scraped_availability = factory.Faker("text", max_nb_chars=50)
-    product_url = factory.Faker("url")
+    image_url = factory.Faker("url")
     raw_html = "<html><body><p>Test HTML</p></body></html>"
     search_term = factory.Faker("word")
     created_at = factory.Faker("date_time", tzinfo=datetime.timezone.utc)

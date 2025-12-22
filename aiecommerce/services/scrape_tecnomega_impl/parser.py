@@ -1,6 +1,6 @@
 # --- services/scrape_tecnomega_impl/parser.py ---
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 from bs4 import BeautifulSoup
 
@@ -66,7 +66,8 @@ class HtmlParser:
                 "stock_sur": cols[4].get_text(strip=True),
                 "stock_gye_norte": cols[5].get_text(strip=True),
                 "stock_gye_sur": cols[6].get_text(strip=True),
-                "image_url": image_tag.get("src") if image_tag else None,
+                # BeautifulSoup may return AttributeValueList for src; cast to Optional[str] for typing
+                "image_url": cast(Optional[str], image_tag.get("src")) if image_tag else None,
             }
 
             # A row must have at least a distributor code to be valid
