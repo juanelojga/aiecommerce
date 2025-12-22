@@ -34,7 +34,7 @@ class Command(BaseCommand):
             "buscar": "notebook",
         }
 
-        dry_run = options["dry_run"]
+        dry_run = options.get("dry_run")
 
         # Add headers to look like a real browser (prevents some blocking)
         headers = {
@@ -48,7 +48,7 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("Running in --dry-run mode. Data will not be saved."))
 
-        products_to_create: List[ProductRawWeb] = []  # Fix type annotation
+        products_to_create: List[ProductRawWeb] = []
 
         try:
             response = requests.get(base_url, params=params, headers=headers, timeout=60)
