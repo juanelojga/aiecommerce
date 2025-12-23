@@ -1,10 +1,9 @@
-# Avoid importing celery at module initialization to prevent issues with mypy and pre-commit hooks
-# The celery app is still available when needed via: from aiecommerce.config.celery import app
+try:
+    # When Celery is installed, expose the real Celery app for Django/Celery integration
+    from aiecommerce.config.celery import app as celery_app  # type: ignore
+except ModuleNotFoundError:
+    # Allow type checkers (e.g., MyPy with Django plugin) to import settings
+    # without requiring Celery to be installed. Provide a minimal stub.
+    celery_app = None  # type: ignore[assignment]
 
-
-def __getattr__(name):
-    if name == "celery_app":
-        from aiecommerce.config.celery import app as celery_app
-
-        return celery_app
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+__all__ = ("celery_app",)
