@@ -27,14 +27,14 @@ def test_product_raw_pdf_str_no_description():
 
 def test_product_raw_web_str():
     """Verify the __str__ method for ProductRawWeb returns the expected format."""
-    web_product = ProductRawWebFactory(sku="TEST-SKU-123")
+    web_product = ProductRawWebFactory(distributor_code="TEST-SKU-123")
     expected_str = f"Web Scrape ({web_product.id}) - SKU: TEST-SKU-123"
     assert str(web_product) == expected_str
 
 
 def test_product_raw_web_str_no_sku():
     """Verify the __str__ method for ProductRawWeb handles no SKU."""
-    web_product = ProductRawWebFactory(sku=None)
+    web_product = ProductRawWebFactory(distributor_code=None)
     expected_str = f"Web Scrape ({web_product.id}) - SKU: N/A"
     assert str(web_product) == expected_str
 
@@ -51,14 +51,6 @@ def test_product_master_str_no_description():
     master_product = ProductMasterFactory(sku="MASTER-SKU-789", description=None)
     expected_str = "Master: MASTER-SKU-789 - No description"
     assert str(master_product) == expected_str
-
-
-def test_product_raw_web_scraped_availability_integrity():
-    """Test that the 'scraped_availability' text field saves and retrieves correctly."""
-    availability_text = "Main Warehouse: 50+, North Store: 10, Online: 25"
-    web_product = ProductRawWebFactory(scraped_availability=availability_text)
-    web_product.refresh_from_db()
-    assert web_product.scraped_availability == availability_text
 
 
 def test_product_master_price_precision():
