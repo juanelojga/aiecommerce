@@ -10,6 +10,28 @@ logger = logging.getLogger(__name__)
 class ProductMapper:
     """Maps raw extracted data to ProductRawWeb model instances."""
 
+    def to_entity(
+        self,
+        raw_product: Dict[str, Optional[str]],
+        scrape_session_id: str,
+        search_term: str,
+    ) -> ProductRawWeb:
+        """
+        Transforms a single raw product dictionary into a ProductRawWeb object.
+        """
+        return ProductRawWeb(
+            distributor_code=raw_product.get("distributor_code"),
+            raw_description=raw_product.get("raw_description"),
+            stock_principal=raw_product.get("stock_principal"),
+            stock_colon=raw_product.get("stock_colon"),
+            stock_sur=raw_product.get("stock_sur"),
+            stock_gye_norte=raw_product.get("stock_gye_norte"),
+            stock_gye_sur=raw_product.get("stock_gye_sur"),
+            image_url=raw_product.get("image_url", ""),
+            scrape_session_id=scrape_session_id,
+            search_term=search_term,
+        )
+
     def map_to_models(
         self,
         raw_products: List[Dict[str, Optional[str]]],

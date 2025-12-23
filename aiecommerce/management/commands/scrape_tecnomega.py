@@ -1,10 +1,14 @@
 import logging
-import uuid
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, cast
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from aiecommerce.services.scrape_tecnomega_impl.config import (
+    DEFAULT_CATEGORIES,
+    ScrapeConfig,
+    ScrapeConfigurationError,
+)
+from aiecommerce.services.scrape_tecnomega_impl.coordinator import ScrapeCoordinator
 from aiecommerce.services.scrape_tecnomega_impl.fetcher import HtmlFetcher
 from aiecommerce.services.scrape_tecnomega_impl.mapper import ProductMapper
 from aiecommerce.services.scrape_tecnomega_impl.parser import HtmlParser
@@ -16,99 +20,77 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Scrapes product data from TECNOMEGA based on provided categories."
+    """
+    A thin wrapper around the ScrapeCoordinator to orchestrate product scraping
+    from a Django management command.
+    """
+
+    help = "Scrapes product data from TECNOMEGA by orchestrating a coordinator."
 
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--categories",
             nargs="*",
-            default=["notebook"],
-            help="Optional: List of categories to scrape. Defaults to 'notebook' if not provided.",
+            help=("Optional: List of categories to scrape. " f"Defaults to: {', '.join(DEFAULT_CATEGORIES)}"),
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Run the command without saving any data to the database.",
         )
-        parser.add_argument(
-            "--base-url",
-            type=str,
-            help="Optional override for the TECNOMEGA base URL.",
-        )
 
     def handle(self, *args: Any, **options: Dict[str, Any]) -> None:
-        # Extract and cast CLI options to precise types for mypy safety
-        dry_run: bool = bool(options.get("dry_run", False))
-        categories: List[str] = cast(List[str], options.get("categories", ["notebook"]))
-        base_url_opt: Optional[str] = cast(Optional[str], options.get("base_url"))
-        settings_base_url: Optional[str] = cast(Optional[str], getattr(settings, "TECNOMEGA_STOCK_LIST_BASE_URL", None))
-        base_url: Optional[str] = base_url_opt or settings_base_url
-
-        if not base_url:
-            raise CommandError("TECNOMEGA_STOCK_LIST_BASE_URL is not set. Define it in settings or use --base-url.")
-
-        if dry_run:
-            self.stdout.write(self.style.WARNING("-- DRY RUN MODE --"))
-
-        self.stdout.write(self.style.NOTICE(f"Starting scrape process for {base_url}"))
-        scrape_session_id = str(uuid.uuid4())
-        self.stdout.write(self.style.NOTICE(f"Scrape Session ID: {scrape_session_id}"))
+        self.stdout.write(self.style.NOTICE("Initializing scrape process..."))
 
         try:
-            fetcher = HtmlFetcher(base_url=base_url)
+            # 1. Create Configuration from CLI arguments
+            config = self._create_config(options)
+
+            if config.dry_run:
+                self.stdout.write(self.style.WARNING("-- DRY RUN MODE --"))
+
+            # 2. Wire up dependencies
+            fetcher = HtmlFetcher()
             parser = HtmlParser()
             mapper = ProductMapper()
             persister = ProductPersister()
-            previewer = ProductPreviewer(self)
+            # Services requiring command output can be passed `self`
             reporter = ScrapeReporter(self)
-        except Exception as e:
-            raise CommandError(f"Failed to initialize services: {e}")
+            previewer = ProductPreviewer(self)
 
-        for category in categories:
-            self.stdout.write(self.style.HTTP_INFO(f"Processing category: '{category}'..."))
-            self._process_category(
-                category,
-                scrape_session_id,
-                dry_run,
-                fetcher,
-                parser,
-                mapper,
-                persister,
-                previewer,
-                reporter,
+            # 3. Instantiate and run the coordinator
+            self.stdout.write(self.style.NOTICE(f"Starting scrape for categories: {config.categories}"))
+
+            coordinator = ScrapeCoordinator(
+                config=config,
+                fetcher=fetcher,
+                parser=parser,
+                mapper=mapper,
+                persister=persister,
+                reporter=reporter,
+                previewer=previewer,
             )
+            coordinator.run()
 
-        reporter.print_summary(dry_run)
+            self.stdout.write(self.style.SUCCESS("Scrape process completed successfully."))
 
-    def _process_category(
-        self,
-        category: str,
-        scrape_session_id: str,
-        dry_run: bool,
-        fetcher: HtmlFetcher,
-        parser: HtmlParser,
-        mapper: ProductMapper,
-        persister: ProductPersister,
-        previewer: ProductPreviewer,
-        reporter: ScrapeReporter,
-    ) -> None:
-        try:
-            html_content = fetcher.fetch_html(params={"buscar": category})
-            raw_products = parser.parse(html_content)
-
-            if not raw_products:
-                self.stdout.write(self.style.WARNING(f"No products found for category '{category}'."))
-                reporter.track_success(category, 0)
-                return
-
-            product_models = mapper.map_to_models(raw_products, scrape_session_id, category)
-
-            if dry_run:
-                previewer.show_preview(category, product_models)
-
-            persister.persist(product_models, dry_run)
-            reporter.track_success(category, len(product_models))
-
+        except ScrapeConfigurationError as e:
+            raise CommandError(f"Configuration error: {e}")
         except Exception as e:
-            logger.error(f"Error processing category {category}", exc_info=True)
-            reporter.track_failure(category, e)
+            logger.exception("An unexpected error occurred during the handle execution.")
+            raise CommandError(f"An unexpected error occurred: {e}")
+
+    def _create_config(self, options: Dict[str, Any]) -> ScrapeConfig:
+        """Builds the ScrapeConfig dataclass from command options."""
+        dry_run: bool = bool(options.get("dry_run", False))
+        # Use provided categories, otherwise None will make the dataclass use its default
+        categories: List[str] | None = cast(List[str] | None, options.get("categories"))
+
+        # Explicitly annotate to avoid mypy inferring Dict[str, bool]
+        config_kwargs: Dict[str, Any] = {
+            "dry_run": dry_run,
+        }
+        if categories is not None:
+            config_kwargs["categories"] = categories
+
+        return ScrapeConfig(**config_kwargs)
