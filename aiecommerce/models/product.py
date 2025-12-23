@@ -57,5 +57,7 @@ class ProductMaster(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
 
+    specs = models.JSONField(default=dict, blank=True, null=True)
+
     def __str__(self):
         return f"Master: {self.code} - {self.description or 'No description'}"
