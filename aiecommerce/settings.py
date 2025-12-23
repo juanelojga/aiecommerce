@@ -109,7 +109,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/Guayaquil"
 
 USE_I18N = True
 
@@ -125,6 +125,8 @@ STATIC_URL = "static/"
 # Default to local Redis (matches your docker-compose redis service).
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
+CELERY_TIMEZONE = "America/Guayaquil"  # Ensures 8am means 8am in your local time
+CELERY_ENABLE_UTC = True
 
 PRICE_LIST_BASE_URL = env("PRICE_LIST_BASE_URL", default="")
 

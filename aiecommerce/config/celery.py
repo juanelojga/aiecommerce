@@ -1,16 +1,33 @@
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
-# Set the default Django settings module for the 'celery' program.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+# Set the default Django settings module to 'aiecommerce.settings'
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "aiecommerce.settings")
 
-app = Celery("config")
+# Use the name of your project package
+app = Celery("aiecommerce")
 
-# Using a string here means the worker doesn't have to serialize
-# the configuration object to child processes.
-# - namespace='CELERY' means all celery-related config keys should have a `CELERY_` prefix.
+# Load config from Django settings, namespace='CELERY' means keys must start with CELERY_
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
+
+
+# Celery Beat Settings
+app.conf.beat_schedule = {
+    "scrape-hourly-mon-sat": {
+        "task": "aiecommerce.tasks.periodic.run_scrape_tecnomega",
+        "schedule": crontab(minute=0, hour="8-19", day_of_week="mon-sat"),
+    },
+    "sync-price-list-daily": {
+        "task": "aiecommerce.tasks.periodic.run_sync_price_list",
+        "schedule": crontab(minute=0, hour=10),
+    },
+    "prune-scrapes-daily": {
+        "task": "aiecommerce.tasks.periodic.run_prune_scrapes",
+        "schedule": crontab(minute=0, hour=0),
+    },
+}
