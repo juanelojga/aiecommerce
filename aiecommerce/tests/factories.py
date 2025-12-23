@@ -35,9 +35,9 @@ class ProductMasterFactory(DjangoModelFactory):
     class Meta:
         model = ProductMaster
 
-    sku = factory.Faker("ean", length=13)
+    code = factory.Faker("ean", length=13)
     description = factory.Faker("text")
-    brand = factory.Faker("company")
-    price_distributor = factory.Faker("pydecimal", left_digits=8, right_digits=2, positive=True)
-    availability_status = factory.Faker("word")
+    category = factory.Faker("word")
+    price = factory.Faker("pydecimal", left_digits=8, right_digits=2, positive=True)
+    is_active = factory.Faker("pybool")
     last_updated = factory.Faker("date_time", tzinfo=datetime.timezone.utc)

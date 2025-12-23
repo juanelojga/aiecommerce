@@ -30,4 +30,8 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_prune_scrapes",
         "schedule": crontab(minute=0, hour=0),
     },
+    "normalize-hourly-mon-sat": {
+        "task": "aiecommerce.tasks.periodic.run_normalize_products",
+        "schedule": crontab(minute=5, hour="8-19", day_of_week="mon-sat"),
+    },
 }

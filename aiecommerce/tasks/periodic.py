@@ -19,3 +19,9 @@ def run_sync_price_list():
 def run_prune_scrapes():
     """Run the prune_scrapes management command."""
     call_command("prune_scrapes")
+
+
+@shared_task
+def run_normalize_products():
+    """Run the normalize_products management command."""
+    call_command("normalize_products")
