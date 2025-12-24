@@ -1,10 +1,12 @@
 import logging
+import os
 from typing import Optional, Set
 
 from django.db import transaction
 from django.utils import timezone
 
 from aiecommerce.models import ProductMaster, ProductRawPDF, ProductRawWeb
+from aiecommerce.services.enrichment_impl import ProductEnrichmentService
 
 from .matcher import FuzzyMatcher
 
@@ -17,8 +19,11 @@ class ProductNormalizationService:
     into a unified ProductMaster record.
     """
 
-    def __init__(self, matcher: Optional[FuzzyMatcher] = None):
+    def __init__(self, matcher: Optional[FuzzyMatcher] = None, enrichment_service: Optional[ProductEnrichmentService] = None):
         self.matcher = matcher or FuzzyMatcher()
+        # 2. Initialize the enrichment service
+        # We allow passing it in for testing purposes, otherwise we create a new instance.
+        self.enrichment_service = enrichment_service or ProductEnrichmentService()
 
     @transaction.atomic
     def normalize_products(self, scrape_session_id: Optional[str] = None):
@@ -53,6 +58,7 @@ class ProductNormalizationService:
         processed_codes: Set[str] = set()
         update_count = 0
         create_count = 0
+        enriched_count = 0
 
         # 3. Process & Match
         for web_item in web_items:
@@ -86,6 +92,30 @@ class ProductNormalizationService:
                 update_count += 1
 
             processed_codes.add(web_item.distributor_code)
+
+            # --- 4. AI ENRICHMENT INTEGRATION ---
+            # We check if specs are empty to avoid re-burning tokens on unchanged products.
+            # (Or you can remove the check if you want to force update every time)
+            if not product_master.specs:
+                try:
+                    # Build minimal payload expected by enrichment service
+                    product_data = {
+                        "code": product_master.code,
+                        "description": product_master.description,
+                        "category": product_master.category,
+                    }
+                    model_name = os.environ.get("OPENROUTER_CLASSIFICATION_MODEL")
+                    if not model_name:
+                        logger.error("OPENROUTER_CLASSIFICATION_MODEL env var is not set. Skipping enrichment.")
+                    else:
+                        extracted = self.enrichment_service.enrich_product(product_data, model_name)
+                        # Treat any non-None extraction as success; saving behavior is handled elsewhere.
+                        if extracted:
+                            enriched_count += 1
+                except Exception as e:
+                    # We catch generic errors here so one AI failure doesn't stop the whole
+                    # normalization process.
+                    logger.error(f"Enrichment failed for {product_master.code}: {e}")
 
         logger.info(f"Processed {len(web_items)} web items. Created: {create_count}, Updated: {update_count}.")
 
