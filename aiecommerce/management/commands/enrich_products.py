@@ -6,6 +6,7 @@ from django.db.models import Q
 
 from aiecommerce.models import ProductMaster
 from aiecommerce.services.enrichment_impl import ProductEnrichmentService
+from aiecommerce.services.enrichment_impl.service import ConfigurationError
 
 
 class Command(BaseCommand):
@@ -33,8 +34,12 @@ class Command(BaseCommand):
         force = options["force"]
         dry_run = options["dry_run"]
 
-        self.stdout.write(self.style.HTTP_INFO("Initializing Enrichment Service..."))
-        service = ProductEnrichmentService()
+        try:
+            self.stdout.write(self.style.HTTP_INFO("Initializing Enrichment Service..."))
+            service = ProductEnrichmentService()
+        except ConfigurationError as e:
+            self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))
+            return
 
         # --- QUERY CONSTRUCTION ---
         query = ProductMaster.objects.filter(is_active=True)
@@ -42,20 +47,12 @@ class Command(BaseCommand):
         if category_filter:
             query = query.filter(category__icontains=category_filter)
 
-        # Logic:
-        # If dry-run: We grab the first 3 products we find (doesn't matter if they have specs).
-        # If normal run: We grab ALL products missing specs (unless --force is used).
-
         if dry_run:
             self.stdout.write(self.style.WARNING("--- DRY RUN MODE ACTIVATED ---"))
             self.stdout.write("Fetching first 3 products for testing (Database will NOT be modified)...")
-            # Just grab 3 random active products
             products_queryset = query.order_by("id")[:3]
-
         else:
-            # Normal Mode
             if not force:
-                # Filter for empty specs (None or {})
                 query = query.filter(Q(specs__isnull=True) | Q(specs={}))
 
             products_queryset = query.order_by("id")
@@ -68,30 +65,35 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Found {total_count} products to enrich."))
 
         # --- EXECUTION LOOP ---
-        # We use iterator() with chunk_size=10 to handle memory efficiently ("10 by 10")
         processed_count = 0
+        success_count = 0
 
         for product in products_queryset.iterator(chunk_size=10):
             self.stdout.write(f"[{product.id}] {product.description[:60]}...")
 
-            # CALL SERVICE
-            # pass save=False if dry_run
-            is_success = service.enrich_product_specs(product, save=(not dry_run))
+            # 1. CALL SERVICE
+            extracted_specs = service.enrich_product_specs(product)
 
-            if is_success:
+            # 2. HANDLE RESPONSE
+            if extracted_specs:
+                success_count += 1
+                # Convert Pydantic model to a dict for storing in JSONField
+                product.specs = extracted_specs.model_dump(exclude_none=True)
                 cat_type = product.specs.get("category_type", "UNKNOWN")
                 self.stdout.write(self.style.SUCCESS(f"   -> Enriched as: {cat_type}"))
 
                 if dry_run:
-                    # Print the full JSON in dry run so you can inspect it
+                    # Print the full JSON for inspection
                     formatted_json = json.dumps(product.specs, indent=2)
                     self.stdout.write(self.style.MIGRATE_HEADING(formatted_json))
+                else:
+                    # 3. SAVE (only if not a dry run)
+                    product.save(update_fields=["specs"])
+
             else:
                 self.stdout.write(self.style.ERROR("   -> Failed to extract specs"))
 
             processed_count += 1
+            time.sleep(0.5)  # Rate limiting
 
-            # Simple rate limiting (2 products per second)
-            time.sleep(0.5)
-
-        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {processed_count} products."))
+        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {processed_count} products ({success_count} successful)."))

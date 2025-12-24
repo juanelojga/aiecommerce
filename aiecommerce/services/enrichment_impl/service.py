@@ -1,66 +1,77 @@
 import logging
 import os
-from typing import Optional
+from typing import Optional, cast
 
 import instructor
-from openai import OpenAI
+from instructor.client import Instructor
+from openai import APIError, OpenAI
+from pydantic import ValidationError
 
 from aiecommerce.models import ProductMaster
 
+from .exceptions import ConfigurationError
 from .schemas import ProductSpecUnion
 
 logger = logging.getLogger(__name__)
 
 
 class ProductEnrichmentService:
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, client: Optional[Instructor] = None):
         """
-        Initializes the service with an Instructor client pointing to OpenRouter.
+        Initializes the service.
+
+        Args:
+            client: An optional `instructor.Instructor` client instance.
+                    If not provided, a default client is created.
+
+        Raises:
+            ConfigurationError: If required environment variables are not set.
         """
-        # Fetch API key from arguments or environment
-        self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-        if not self.api_key:
-            logger.warning("OPENROUTER_API_KEY is not set. Enrichment service will fail if called.")
+        if client:
+            self.client = client
+        else:
+            # --- Configuration & Validation ---
+            api_key = os.environ.get("OPENROUTER_API_KEY")
+            base_url = os.environ.get("OPENROUTER_BASE_URL")
+            self.model_name = os.environ.get("OPENROUTER_CLASSIFICATION_MODEL")
 
-        # Initialize the OpenAI client pointing to OpenRouter
-        base_client = OpenAI(
-            base_url=os.environ.get("OPENROUTER_BASE_URL"),
-            api_key=self.api_key,
-        )
+            if not all([api_key, base_url, self.model_name]):
+                raise ConfigurationError(
+                    "The following environment variables are required: "
+                    "OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_CLASSIFICATION_MODEL"
+                )
 
-        # Wrap with Instructor to enable structured output (response_model)
-        self.client = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
+            # Initialize the OpenAI client pointing to OpenRouter
+            base_client = OpenAI(base_url=base_url, api_key=api_key)
+            # Wrap with Instructor to enable structured output
+            self.client = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
 
-        # Model selection:
-        # "openai/gpt-4o-mini" is currently the best balance of cost/speed/accuracy for JSON extraction.
-        self.model_name = os.environ.get("OPENROUTER_CLASSIFICATION_MODEL")
-
-    def enrich_product_specs(self, product: ProductMaster, save: bool = True) -> bool:
+    def enrich_product_specs(self, product: ProductMaster) -> ProductSpecUnion | None:
         """
-        Analyzes the product's text fields, extracts structured specifications,
-        and saves them to the 'specs' JSONField.
+        Analyzes product data and returns structured specifications.
+
+        Args:
+            product: The ProductMaster instance to analyze.
 
         Returns:
-            bool: True if successful, False otherwise.
+            A Pydantic model instance from ProductSpecUnion on success, or None on failure.
         """
-        # 1. Prepare the input context
-        # We combine code, description, and existing category to give the LLM maximum context.
+        # 1. Prepare the input context with clear labels
         parts = [
-            str(product.code) if product.code else "",
-            str(product.description) if product.description else "",
-            str(product.category) if product.category else "",
+            f"Code: {product.code}" if product.code else "",
+            f"Description: {product.description}" if product.description else "",
+            f"Category: {product.category}" if product.category else "",
         ]
-        text_to_analyze = " ".join(parts).strip()
+        text_to_analyze = "\n".join(filter(None, parts)).strip()
 
         if not text_to_analyze:
             logger.warning(f"Product {product.id} has no text data to analyze. Skipping.")
-            return False
+            return None
 
         try:
             # 2. Call the LLM with Instructor
-            # The 'response_model' argument tells Instructor to enforce our Union schema.
-            extracted_data: ProductSpecUnion = self.client.chat.completions.create(
-                model=self.model_name,
+            extracted_data = self.client.chat.completions.create(
+                model=cast(str, self.model_name),  # Ensure mypy knows model_name is a string
                 response_model=ProductSpecUnion,
                 messages=[
                     {
@@ -72,27 +83,21 @@ class ProductEnrichmentService:
                             "If specific details are missing, leave them as null."
                         ),
                     },
-                    {"role": "user", "content": f"Product Text: {text_to_analyze}"},
+                    {"role": "user", "content": text_to_analyze},
                 ],
-                # OpenRouter metadata (optional but recommended)
                 extra_headers={
-                    "HTTP-Referer": "https://localhost:8000",  # Replace with your production domain
+                    "HTTP-Referer": "https://localhost:8000",
                     "X-Title": "AI Ecommerce Enrichment",
                 },
             )
+            return extracted_data  # Return the Pydantic model directly
 
-            # 3. Save to Database
-            # Convert Pydantic model to a standard dict, removing empty keys to save DB space
-            product.specs = extracted_data.model_dump(exclude_none=True)
-
-            if save:
-                product.save(update_fields=["specs"])
-                logger.info(f"Enriched Product {product.id}")
-            else:
-                logger.info(f"Dry-run enrichment for Product {product.id}")
-
-            return True
-
+        except (APIError, TimeoutError) as e:
+            logger.error(f"API/Network error for product {product.id}: {e}", exc_info=True)
+            return None
+        except ValidationError as e:
+            logger.error(f"Validation error for product {product.id}: Could not parse LLM response. {e}", exc_info=True)
+            return None
         except Exception as e:
-            logger.error(f"Failed to enrich product {product.id} ({product.code}): {e}", exc_info=True)
-            return False
+            logger.critical(f"An unexpected error occurred for product {product.id}: {e}", exc_info=True)
+            return None
