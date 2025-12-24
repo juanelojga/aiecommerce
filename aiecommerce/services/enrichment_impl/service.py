@@ -35,7 +35,7 @@ class ProductEnrichmentService:
         # "openai/gpt-4o-mini" is currently the best balance of cost/speed/accuracy for JSON extraction.
         self.model_name = os.environ.get("OPENROUTER_CLASSIFICATION_MODEL")
 
-    def enrich_product_specs(self, product: ProductMaster) -> bool:
+    def enrich_product_specs(self, product: ProductMaster, save: bool = True) -> bool:
         """
         Analyzes the product's text fields, extracts structured specifications,
         and saves them to the 'specs' JSONField.
@@ -85,10 +85,12 @@ class ProductEnrichmentService:
             # Convert Pydantic model to a standard dict, removing empty keys to save DB space
             product.specs = extracted_data.model_dump(exclude_none=True)
 
-            # Use update_fields to avoid race conditions with other fields
-            product.save(update_fields=["specs"])
+            if save:
+                product.save(update_fields=["specs"])
+                logger.info(f"Enriched Product {product.id}")
+            else:
+                logger.info(f"Dry-run enrichment for Product {product.id}")
 
-            logger.info(f"Successfully enriched Product {product.id} ({product.code}) " f"as category '{extracted_data.category_type}'")
             return True
 
         except Exception as e:
