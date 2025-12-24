@@ -84,9 +84,7 @@ class TestFetch:
                 fetcher.fetch(url, category)
 
         # Ensure an error log was written with the URL
-        assert any(
-            "Failed to fetch content from" in rec.getMessage() and url in rec.getMessage() for rec in caplog.records
-        )
+        assert any("Failed to fetch content from" in rec.getMessage() and url in rec.getMessage() for rec in caplog.records)
 
     def test_fetch_logs_info_on_start_and_success(self, caplog):
         fetcher = HtmlFetcher()

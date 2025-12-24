@@ -108,9 +108,7 @@ class TestProcessSingleCategory:
 
 class TestRunAndReporting:
     def test_run_reports_success_for_each_category_and_prints_summary(self):
-        coord, cfg, fetcher, parser, mapper, persister, reporter, previewer = make_coordinator(
-            dry_run=True, categories=["c1", "c2"]
-        )
+        coord, cfg, fetcher, parser, mapper, persister, reporter, previewer = make_coordinator(dry_run=True, categories=["c1", "c2"])
 
         # Make internals simple: always return N fake products
         fetcher.fetch.return_value = "<html>ok</html>"

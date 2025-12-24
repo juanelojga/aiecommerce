@@ -6,9 +6,7 @@ from pydantic import BaseModel, Field
 # --- Base Components ---
 class BaseProductSpecs(BaseModel):
     manufacturer: Optional[str] = Field(None, description="The brand, e.g., Samsung, Dell, Asus, Apple, Epson")
-    model_name: Optional[str] = Field(
-        None, description="The specific model identifier (e.g., Galaxy S24, MacBook Pro, PRO Q670M-C-CSM)"
-    )
+    model_name: Optional[str] = Field(None, description="The specific model identifier (e.g., Galaxy S24, MacBook Pro, PRO Q670M-C-CSM)")
     part_number: Optional[str] = Field(None, description="The SKU, MPN, or specific part number if found")
     color: Optional[str] = Field(None, description="Product color")
 

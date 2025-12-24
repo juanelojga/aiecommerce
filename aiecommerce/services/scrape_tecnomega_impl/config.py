@@ -27,9 +27,7 @@ class ScrapeConfig:
 
     base_url: str = getattr(settings, "TECNOMEGA_STOCK_LIST_BASE_URL", "https://www.tecnomega.com/buscar")
 
-    categories: List[str] = field(
-        default_factory=lambda: _parse_categories(getattr(settings, "TECNOMEGA_SCRAPE_CATEGORIES", ""))
-    )
+    categories: List[str] = field(default_factory=lambda: _parse_categories(getattr(settings, "TECNOMEGA_SCRAPE_CATEGORIES", "")))
 
     dry_run: bool = False
 
