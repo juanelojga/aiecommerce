@@ -31,7 +31,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--categories",
             nargs="*",
-            help=("Optional: List of categories to scrape. " f"Defaults to: {', '.join(DEFAULT_CATEGORIES)}"),
+            help=(f"Optional: List of categories to scrape. Defaults to: {', '.join(DEFAULT_CATEGORIES)}"),
         )
         parser.add_argument(
             "--dry-run",

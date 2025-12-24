@@ -13,9 +13,7 @@ class ScrapeReporter:
 
     def track_success(self, category: str, count: int) -> None:
         """Tracks a successfully processed category."""
-        self.command.stdout.write(
-            self.command.style.SUCCESS(f"Successfully processed {count} items for category '{category}'.")
-        )
+        self.command.stdout.write(self.command.style.SUCCESS(f"Successfully processed {count} items for category '{category}'."))
         self.total_scraped_count += count
 
     def track_failure(self, category: str, error: Exception) -> None:
@@ -31,9 +29,7 @@ class ScrapeReporter:
 
         if self.failed_categories:
             self.command.stderr.write(
-                self.command.style.ERROR(
-                    f"Completed with errors. Failed categories: {', '.join(self.failed_categories)}"
-                )
+                self.command.style.ERROR(f"Completed with errors. Failed categories: {', '.join(self.failed_categories)}")
             )
         else:
             self.command.stdout.write(self.command.style.SUCCESS("All categories processed successfully."))

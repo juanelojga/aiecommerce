@@ -64,9 +64,7 @@ class XlsPriceListParser(PriceListParser):
         max_col_index = max(col for pair in self.config.column_pairs for col in pair)
 
         if df.shape[1] <= max_col_index:
-            raise ParsingError(
-                f"Workbook has {df.shape[1]} columns, but parsing configuration requires at least {max_col_index + 1}."
-            )
+            raise ParsingError(f"Workbook has {df.shape[1]} columns, but parsing configuration requires at least {max_col_index + 1}.")
 
     def _split_into_pages(self, df: pd.DataFrame) -> List[pd.DataFrame]:
         """

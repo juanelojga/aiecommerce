@@ -32,6 +32,10 @@ app.conf.beat_schedule = {
     },
     "normalize-hourly-mon-sat": {
         "task": "aiecommerce.tasks.periodic.run_normalize_products",
-        "schedule": crontab(minute=5, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=10, hour="8-19", day_of_week="mon-sat"),
+    },
+    "enrich-hourly-mon-sat": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products",
+        "schedule": crontab(minute=15, hour="8-19", day_of_week="mon-sat"),
     },
 }

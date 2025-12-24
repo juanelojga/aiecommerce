@@ -1,4 +1,5 @@
 """Periodic tasks for Celery Beat."""
+
 from celery import shared_task
 from django.core.management import call_command
 
@@ -25,3 +26,9 @@ def run_prune_scrapes():
 def run_normalize_products():
     """Run the normalize_products management command."""
     call_command("normalize_products")
+
+
+@shared_task
+def run_enrich_products():
+    """Run the enrich_products management command."""
+    call_command("enrich_products")

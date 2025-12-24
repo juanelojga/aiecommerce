@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from aiecommerce.models import ProductMaster, ProductRawPDF, ProductRawWeb
+from aiecommerce.services.enrichment_impl import ProductEnrichmentService
 
 from .matcher import FuzzyMatcher
 
@@ -17,7 +18,7 @@ class ProductNormalizationService:
     into a unified ProductMaster record.
     """
 
-    def __init__(self, matcher: Optional[FuzzyMatcher] = None):
+    def __init__(self, matcher: Optional[FuzzyMatcher] = None, enrichment_service: Optional[ProductEnrichmentService] = None):
         self.matcher = matcher or FuzzyMatcher()
 
     @transaction.atomic

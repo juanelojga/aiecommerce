@@ -11,9 +11,7 @@ from aiecommerce.services.scrape_tecnomega_impl.config import ScrapeConfig
 class _FakeCoordinator:
     """Test double for ScrapeCoordinator that records constructor args and run calls."""
 
-    def __init__(
-        self, *, config: Any, fetcher: Any, parser: Any, mapper: Any, persister: Any, reporter: Any, previewer: Any
-    ):
+    def __init__(self, *, config: Any, fetcher: Any, parser: Any, mapper: Any, persister: Any, reporter: Any, previewer: Any):
         self.config = config
         self.fetcher = fetcher
         self.parser = parser

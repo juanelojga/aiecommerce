@@ -33,9 +33,11 @@ class TestProductPersister:
         products = cast("List[ProductRawWeb]", [DummyProduct(), DummyProduct()])
 
         # Patch ProductRawWeb and transaction.atomic within the persister module
-        with patch("aiecommerce.services.scrape_tecnomega_impl.persister.ProductRawWeb") as ProductRawWebMock, patch(
-            "aiecommerce.services.scrape_tecnomega_impl.persister.transaction"
-        ) as transaction_mock, caplog.at_level(logging.INFO):
+        with (
+            patch("aiecommerce.services.scrape_tecnomega_impl.persister.ProductRawWeb") as ProductRawWebMock,
+            patch("aiecommerce.services.scrape_tecnomega_impl.persister.transaction") as transaction_mock,
+            caplog.at_level(logging.INFO),
+        ):
             # Configure the mocked manager and atomic context manager
             bulk_create_mock = MagicMock()
             ProductRawWebMock.objects.bulk_create = bulk_create_mock
@@ -66,9 +68,11 @@ class TestProductPersister:
         persister = ProductPersister(batch_size=10)
         products = cast("List[ProductRawWeb]", [DummyProduct()])
 
-        with patch("aiecommerce.services.scrape_tecnomega_impl.persister.ProductRawWeb") as ProductRawWebMock, patch(
-            "aiecommerce.services.scrape_tecnomega_impl.persister.transaction"
-        ) as transaction_mock, caplog.at_level(logging.ERROR):
+        with (
+            patch("aiecommerce.services.scrape_tecnomega_impl.persister.ProductRawWeb") as ProductRawWebMock,
+            patch("aiecommerce.services.scrape_tecnomega_impl.persister.transaction") as transaction_mock,
+            caplog.at_level(logging.ERROR),
+        ):
             # Configure transaction context manager
             cm = MagicMock()
             cm.__enter__.return_value = None

@@ -32,6 +32,4 @@ class ProductPreviewer:
 
             self.command.stdout.write("")
 
-        self.command.stdout.write(
-            self.command.style.WARNING("----------------------------------------------------------\n")
-        )
+        self.command.stdout.write(self.command.style.WARNING("----------------------------------------------------------\n"))
