@@ -1,18 +1,20 @@
 import json
 import time
+from typing import Any
 
 from django.core.management.base import BaseCommand
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from aiecommerce.models import ProductMaster
 from aiecommerce.services.enrichment_impl import ProductEnrichmentService
+from aiecommerce.services.enrichment_impl.exceptions import EnrichmentError
 from aiecommerce.services.enrichment_impl.service import ConfigurationError
 
 
 class Command(BaseCommand):
     help = "Enriches ProductMaster records with structured specs using AI"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--category",
             type=str,
@@ -26,13 +28,72 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Test mode: Processes 3 products, prints results, DOES NOT save to DB.",
+            help="API calls are performed, but no data is saved to the database.",
+        )
+        parser.add_argument(
+            "--delay",
+            type=float,
+            default=0.5,
+            help="Delay in seconds between processing each product.",
         )
 
-    def handle(self, *args, **options):
+    def _build_queryset(self, **options: Any) -> QuerySet[ProductMaster, ProductMaster]:
+        """Encapsulates all filtering logic for the command."""
         category_filter = options["category"]
         force = options["force"]
         dry_run = options["dry_run"]
+
+        query = ProductMaster.objects.filter(is_active=True)
+
+        if category_filter:
+            query = query.filter(category__icontains=category_filter)
+
+        if dry_run:
+            self.stdout.write(self.style.WARNING("--- DRY RUN MODE ACTIVATED ---"))
+            self.stdout.write("Fetching first 3 products for testing...")
+            return query.order_by("id")[:3]
+
+        if not force:
+            query = query.filter(Q(specs__isnull=True) | Q(specs={}))
+
+        return query.order_by("id")
+
+    def _enrich_single_product(self, product: ProductMaster, service: ProductEnrichmentService, dry_run: bool) -> bool:
+        """Handles the invocation, persistence, and user feedback for a single item."""
+        desc_preview = (product.description or "")[:60]
+        self.stdout.write(f"[{product.id}] {desc_preview}...")
+        try:
+            # 1. CALL SERVICE
+            extracted_specs = service.enrich_product_specs(product)
+
+            # 2. HANDLE RESPONSE
+            if not extracted_specs:
+                self.stdout.write(self.style.ERROR("   -> Failed to extract specs (no data returned)"))
+                return False
+
+            product.specs = extracted_specs.model_dump(exclude_none=True)
+            cat_type = product.specs.get("category_type", "UNKNOWN")
+            self.stdout.write(self.style.SUCCESS(f"   -> Enriched as: {cat_type}"))
+
+            if dry_run:
+                formatted_json = json.dumps(product.specs, indent=2)
+                self.stdout.write(self.style.MIGRATE_HEADING(formatted_json))
+            else:
+                # 3. SAVE (only if not a dry run)
+                product.save(update_fields=["specs"])
+
+            return True
+
+        except EnrichmentError as e:
+            self.stdout.write(self.style.ERROR(f"   -> Service Error: {e}"))
+            return False
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"   -> An unexpected error occurred: {e}"))
+            return False
+
+    def handle(self, *args: Any, **options: Any) -> None:
+        dry_run = options["dry_run"]
+        delay = options["delay"]
 
         try:
             self.stdout.write(self.style.HTTP_INFO("Initializing Enrichment Service..."))
@@ -41,59 +102,25 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))
             return
 
-        # --- QUERY CONSTRUCTION ---
-        query = ProductMaster.objects.filter(is_active=True)
+        products_queryset = self._build_queryset(**options)
 
-        if category_filter:
-            query = query.filter(category__icontains=category_filter)
+        # Acknowledging .count() can be expensive, but useful for user feedback.
+        total_count = products_queryset.count()
 
-        if dry_run:
-            self.stdout.write(self.style.WARNING("--- DRY RUN MODE ACTIVATED ---"))
-            self.stdout.write("Fetching first 3 products for testing (Database will NOT be modified)...")
-            products_queryset = query.order_by("id")[:3]
-        else:
-            if not force:
-                query = query.filter(Q(specs__isnull=True) | Q(specs={}))
+        if total_count == 0:
+            self.stdout.write(self.style.SUCCESS("No products need enrichment."))
+            return
 
-            products_queryset = query.order_by("id")
-            total_count = products_queryset.count()
-
-            if total_count == 0:
-                self.stdout.write(self.style.SUCCESS("No products need enrichment."))
-                return
-
-            self.stdout.write(self.style.SUCCESS(f"Found {total_count} products to enrich."))
+        self.stdout.write(self.style.SUCCESS(f"Found {total_count} products to enrich."))
 
         # --- EXECUTION LOOP ---
         processed_count = 0
         success_count = 0
 
         for product in products_queryset.iterator(chunk_size=10):
-            self.stdout.write(f"[{product.id}] {product.description[:60]}...")
-
-            # 1. CALL SERVICE
-            extracted_specs = service.enrich_product_specs(product)
-
-            # 2. HANDLE RESPONSE
-            if extracted_specs:
+            if self._enrich_single_product(product, service, dry_run):
                 success_count += 1
-                # Convert Pydantic model to a dict for storing in JSONField
-                product.specs = extracted_specs.model_dump(exclude_none=True)
-                cat_type = product.specs.get("category_type", "UNKNOWN")
-                self.stdout.write(self.style.SUCCESS(f"   -> Enriched as: {cat_type}"))
-
-                if dry_run:
-                    # Print the full JSON for inspection
-                    formatted_json = json.dumps(product.specs, indent=2)
-                    self.stdout.write(self.style.MIGRATE_HEADING(formatted_json))
-                else:
-                    # 3. SAVE (only if not a dry run)
-                    product.save(update_fields=["specs"])
-
-            else:
-                self.stdout.write(self.style.ERROR("   -> Failed to extract specs"))
-
             processed_count += 1
-            time.sleep(0.5)  # Rate limiting
+            time.sleep(delay)
 
         self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {processed_count} products ({success_count} successful)."))
