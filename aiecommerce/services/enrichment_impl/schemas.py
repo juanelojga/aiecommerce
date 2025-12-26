@@ -99,9 +99,9 @@ class PowerSupplySpecs(BaseProductSpecs):
 class StorageSpecs(BaseProductSpecs):
     """HDDs, SSDs, SD Cards, Flash Memory"""
 
-    category_type: Literal[
-        "UNIDADES DE ESTADO SOLIDO Y DISCOS DUROS", "MEMORIA SD", "FLASH MEMORY"
-    ] = "UNIDADES DE ESTADO SOLIDO Y DISCOS DUROS"
+    category_type: Literal["UNIDADES DE ESTADO SOLIDO Y DISCOS DUROS", "MEMORIA SD", "FLASH MEMORY"] = (
+        "UNIDADES DE ESTADO SOLIDO Y DISCOS DUROS"
+    )
     type: Optional[str] = Field(None, description="HDD, SSD, Micro-SD, USB Flash")
     capacity: Optional[str] = Field(None, description="Size, e.g., 2TB, 128GB")
     interface: Optional[str] = Field(None, description="e.g., SATA 6.0GB/s, USB 3.2")
