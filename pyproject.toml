@@ -23,6 +23,8 @@ plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 ignore_missing_imports = true
 check_untyped_defs = true
 disallow_untyped_calls = true
+# Add this line to exclude the tests directory
+exclude = ["aiecommerce/tests/", "venv/"]
 
 [tool.django-stubs]
 django_settings_module = "aiecommerce.settings"

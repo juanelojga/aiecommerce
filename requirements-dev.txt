@@ -1,10 +1,26 @@
--r requirements.txt  # This includes the base requirements
-ruff
-mypy
-django-stubs
-djangorestframework-stubs
-pre-commit
-factory-boy
-Faker
-pytest
-pytest-django
+-r requirements.txt
+celery-types==0.23.0
+cfgv==3.5.0
+distlib==0.4.0
+django-stubs==5.2.8
+django-stubs-ext==5.2.8
+djangorestframework-stubs==3.16.6
+factory_boy==3.3.3
+Faker==38.2.0
+identify==2.6.15
+iniconfig==2.3.0
+mock==5.2.0
+mypy==1.19.0
+mypy_extensions==1.1.0
+nodeenv==1.9.1
+pandas-stubs==2.3.3.251201
+platformdirs==4.5.1
+pluggy==1.6.0
+pre_commit==4.5.0
+pytest==9.0.2
+pytest-django==4.11.1
+ruff==0.14.9
+types-pytz==2025.2.0.20251108
+types-PyYAML==6.0.12.20250915
+types-requests==2.32.4.20250913
+virtualenv==20.35.4

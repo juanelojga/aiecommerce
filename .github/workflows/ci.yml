@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    # Service containers to match your docker-compose.yml
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: myproject_db
+          POSTGRES_USER: myproject_user
+          POSTGRES_PASSWORD: myproject_password
+        ports:
+          - 5432:5432
+        # Health check to ensure DB is ready before tests run
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Ruff Linting
+        run: |
+          # Check for linting errors
+          ruff check .
+          # Check for formatting errors
+          ruff format --check .
+
+      - name: Run Mypy Type Checking
+        run: mypy .
+
+      - name: Run Tests
+        env:
+          # Use the service credentials defined above
+          POSTGRES_DB: myproject_db
+          POSTGRES_USER: myproject_user
+          POSTGRES_PASSWORD: myproject_password
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          SECRET_KEY: "testing-secret-key"
+          DEBUG: "False"
+          TECNOMEGA_STOCK_LIST_BASE_URL: "http://buscador.tecnomega.com/busqueda.php"
+        run: |
+          pytest
