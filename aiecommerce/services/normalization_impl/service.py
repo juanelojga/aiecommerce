@@ -57,7 +57,7 @@ class ProductNormalizationService:
 
         # 3. Process & Match
         for web_item in web_items:
-            if not web_item.distributor_code:
+            if not web_item.distributor_code or not web_item.raw_description:
                 continue
 
             # Find best match in PDF data based on description
