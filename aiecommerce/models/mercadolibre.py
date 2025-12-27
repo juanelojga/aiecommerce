@@ -58,4 +58,4 @@ class MercadoLibreListing(models.Model):
         ordering = ["-updated_at"]
 
     def __str__(self):
-        return f"{self.product_master.description} ({self.ml_id or 'N/A'})"
+        return f"{self.product_master} ({self.ml_id or 'N/A'})"
