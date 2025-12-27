@@ -61,4 +61,11 @@ class MercadoLibreListing(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.product_master} ({self.ml_id or 'N/A'})"
+        """
+        String representation used in tests:
+        "Master: {code} - {description} (ml_id)".
+        """
+        return (
+            f"Master: {self.product_master.code} - {self.product_master.description} "
+            f"({self.ml_id or 'N/A'})"
+        )
