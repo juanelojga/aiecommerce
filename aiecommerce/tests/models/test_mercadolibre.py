@@ -73,10 +73,7 @@ def test_ml_id_can_be_null():
     baker.make(MercadoLibreListing, ml_id=None)
 
     # Act
-    try:
-        baker.make(MercadoLibreListing, ml_id=None)
-    except IntegrityError:
-        pytest.fail("Should be able to create multiple listings with ml_id=None")
+    baker.make(MercadoLibreListing, ml_id=None)
 
     # Assert
     assert MercadoLibreListing.objects.filter(ml_id=None).count() == 2
