@@ -1,4 +1,5 @@
 import pytest
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from model_bakery import baker
 
@@ -77,3 +78,28 @@ def test_ml_id_can_be_null():
 
     # Assert
     assert MercadoLibreListing.objects.filter(ml_id=None).count() == 2
+
+
+@pytest.mark.parametrize("status_choice", MercadoLibreListing.Status.values)
+def test_mercadolibre_listing_valid_statuses(status_choice):
+    """
+    Test that all defined status choices are accepted.
+    """
+    # Arrange & Act
+    listing = baker.make(MercadoLibreListing, status=status_choice)
+
+    # Assert
+    listing.full_clean()  # Should not raise any error
+    assert listing.status == status_choice
+
+
+def test_mercadolibre_listing_invalid_status():
+    """
+    Test that invalid status values are rejected by Django's field validation.
+    """
+    # Arrange
+    listing = baker.make(MercadoLibreListing, status="INVALID")
+
+    # Act & Assert
+    with pytest.raises(ValidationError):
+        listing.full_clean()
