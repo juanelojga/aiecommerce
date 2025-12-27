@@ -32,11 +32,12 @@ def test_mercadolibre_listing_str_representation():
     # Arrange
     product_master = baker.make(ProductMaster, description="Test Product")
     listing_with_id = baker.make(MercadoLibreListing, product_master=product_master, ml_id="MLA12345")
-    listing_without_id = baker.make(MercadoLibreListing)
+    product_master_no_id = baker.make(ProductMaster, description="Test Product No ID")
+    listing_without_id = baker.make(MercadoLibreListing, product_master=product_master_no_id)
 
     # Act & Assert
     assert str(listing_with_id) == "Test Product (MLA12345)"
-    assert str(listing_without_id) == f"{listing_without_id.product_master.description} (N/A)"
+    assert str(listing_without_id) == "Test Product No ID (N/A)"
 
 
 def test_onetoone_constraint_with_product_master():
