@@ -41,3 +41,12 @@ class ProductMasterFactory(DjangoModelFactory):
     price = factory.Faker("pydecimal", left_digits=8, right_digits=2, positive=True)
     is_active = factory.Faker("pybool")
     last_updated = factory.Faker("date_time", tzinfo=datetime.timezone.utc)
+
+
+class MercadoLibreListingFactory(DjangoModelFactory):
+    class Meta:
+        model = "aiecommerce.MercadoLibreListing"
+
+    product_master = factory.SubFactory(ProductMasterFactory)
+    ml_id = factory.Sequence(lambda n: f"MCO{100000 + n}")
+    status = "PENDING"
