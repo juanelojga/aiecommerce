@@ -65,7 +65,4 @@ class MercadoLibreListing(models.Model):
         String representation used in tests:
         "Master: {code} - {description} (ml_id)".
         """
-        return (
-            f"Master: {self.product_master.code} - {self.product_master.description} "
-            f"({self.ml_id or 'N/A'})"
-        )
+        return f"Master: {self.product_master.code} - {self.product_master.description or 'No description'} ({self.ml_id or 'N/A'})"
