@@ -30,13 +30,13 @@ def test_mercadolibre_listing_str_representation():
     Test the string representation of a MercadoLibreListing instance.
     """
     # Arrange
-    product_master = baker.make(ProductMaster, name="Test Product")
+    product_master = baker.make(ProductMaster, description="Test Product")
     listing_with_id = baker.make(MercadoLibreListing, product_master=product_master, ml_id="MLA12345")
     listing_without_id = baker.make(MercadoLibreListing)
 
     # Act & Assert
     assert str(listing_with_id) == "Test Product (MLA12345)"
-    assert str(listing_without_id) == f"{listing_without_id.product_master.name} (N/A)"
+    assert str(listing_without_id) == f"{listing_without_id.product_master.description} (N/A)"
 
 
 def test_onetoone_constraint_with_product_master():
