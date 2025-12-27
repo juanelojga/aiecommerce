@@ -56,6 +56,9 @@ class MercadoLibreListing(models.Model):
         verbose_name = _("Mercado Libre Listing")
         verbose_name_plural = _("Mercado Libre Listings")
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["status", "last_synced"]),
+        ]
 
     def __str__(self):
         return f"{self.product_master} ({self.ml_id or 'N/A'})"
