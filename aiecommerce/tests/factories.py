@@ -47,6 +47,6 @@ class MercadoLibreListingFactory(DjangoModelFactory):
     class Meta:
         model = "aiecommerce.MercadoLibreListing"
 
-    product = factory.SubFactory(ProductMasterFactory)
+    product_master = factory.SubFactory(ProductMasterFactory)
     ml_id = factory.Sequence(lambda n: f"MCO{100000 + n}")
     status = "PENDING"
