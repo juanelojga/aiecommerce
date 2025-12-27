@@ -31,7 +31,7 @@ class MercadoLibreListing(models.Model):
         help_text=_("The unique identifier for the listing on Mercado Libre."),
     )
     status = models.CharField(
-        max_length=7,
+        max_length=10,
         choices=Status.choices,
         default=Status.PENDING,
         db_index=True,
