@@ -236,7 +236,7 @@ pip freeze > requirements.txt
 
 For detailed information on setting up and verifying the Mercado Libre integration, see the following guides:
 
-- [HTTPS Setup for Local Development](README_HTTPS.md) - Required for OAuth2 callbacks.
+- [HTTPS Setup for Local Development](docs/README_HTTPS.md) - Required for OAuth2 callbacks.
 - [Verifying Credentials and Tokens](docs/mercadolibre-verification.md) - Example of how to verify the API handshake.
 
 ## License
