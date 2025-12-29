@@ -36,6 +36,12 @@ def test_get_valid_token_existing_valid(auth_service):
 
 
 def test_get_valid_token_expired_refreshes(auth_service, mock_client):
+    baker.make(
+        MercadoLibreToken,
+        user_id="user1",
+        refresh_token="old_refresh",
+        expires_at=timezone.now() - timedelta(minutes=1),
+    )
     mock_client.refresh_token.return_value = {
         "access_token": "new_access",
         "refresh_token": "new_refresh",
