@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from aiecommerce.models import MercadoLibreListing, ProductMaster, ProductRawPDF, ProductRawWeb
+from aiecommerce.models import MercadoLibreListing, MercadoLibreToken, ProductMaster, ProductRawPDF, ProductRawWeb
 
 
 # Register your models
@@ -16,6 +16,16 @@ class MercadoLibreListingAdmin(admin.ModelAdmin):
     list_display = ("product_master", "ml_id", "status", "last_synced")
     list_filter = ("status",)
     search_fields = ("ml_id", "product_master__code", "product_master__description")
+
+
+@admin.register(MercadoLibreToken)
+class MercadoLibreTokenAdmin(admin.ModelAdmin):
+    list_display = ("user_id", "expires_at", "is_expired", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
+    search_fields = ("user_id",)
+
+    def is_expired(self, obj):
+        return obj.is_expired()
 
 
 admin.site.register(ProductRawPDF)

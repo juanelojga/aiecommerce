@@ -27,4 +27,5 @@ repos:
             'types-requests',
             'django-environ',
             'psycopg2-binary',
+            'django-extensions',
         ]
