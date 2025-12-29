@@ -2,6 +2,8 @@ import logging
 from typing import Any, Dict, Optional
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from .exceptions import MLAPIError, MLRateLimitError, MLTokenExpiredError
 
@@ -9,49 +11,73 @@ logger = logging.getLogger(__name__)
 
 
 class MercadoLibreClient:
-    """Resilient client for Mercado Libre API with OAuth2 support."""
+    """
+    Resilient client for Mercado Libre API with OAuth2 support and multiple user contexts.
+    """
 
     BASE_URL = "https://api.mercadolibre.com"
 
     def __init__(self, access_token: Optional[str] = None):
-        # Support dynamic injection for Sandbox/Test Users [cite: 56, 60]
+        """
+        Initializes the client. Supports dynamic access_token injection
+        to toggle between Real and Test Users.
+        """
         self.access_token = access_token
-        self._session = requests.Session()
+        self._session = self._create_session()
+
+    def _create_session(self) -> requests.Session:
+        """Configures a session with retry logic for rate limits (429) and server errors (5xx)."""
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET", "POST", "PUT", "DELETE"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        return session
 
     def _get_headers(self) -> Dict[str, str]:
+        """Ensures the Authorization header is sent in every request."""
         if not self.access_token:
-            raise MLAPIError("No access token provided.")
+            raise MLAPIError("No access token provided. Client must be initialized with a token.")
         return {
             "Authorization": f"Bearer {self.access_token}",
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
 
-    def request(self, method: str, path: str, **kwargs) -> Dict[str, Any]:
-        """Wrapper for HTTP requests with 401/429 handling[cite: 212, 257]."""
+    def request(self, method: str, path: str, **kwargs: Any) -> Dict[str, Any]:
+        """
+        Orchestrates API calls. Handles 401s for token lifecycle
+        and 429s for rate limiting.
+        """
         url = f"{self.BASE_URL}/{path.lstrip('/')}"
 
         try:
-            response = self._session.request(method, url, headers=self._get_headers(), **kwargs)
+            response = self._session.request(method, url, headers=self._get_headers(), timeout=30, **kwargs)
 
             if response.status_code == 401:
-                # Potential token expiration [cite: 257, 341]
-                raise MLTokenExpiredError("Access token expired.")
+                logger.warning("Mercado Libre access token expired (401).")
+                raise MLTokenExpiredError("Token expired. Refresh required.")
 
             if response.status_code == 429:
-                # Rate limit hit [cite: 271]
+                logger.error("Mercado Libre rate limit reached (429).")
                 raise MLRateLimitError("Rate limit exceeded.")
 
             response.raise_for_status()
-            return response.json()
+            return response.json() if response.content else {}
 
+        except requests.HTTPError as e:
+            logger.error(f"ML API HTTP Error: {e.response.text}")
+            raise MLAPIError(f"HTTP Error: {e}")
         except requests.RequestException as e:
-            logger.error(f"ML API request failed: {e}")
-            raise MLAPIError(f"Request failed: {e}")
+            logger.error(f"ML API Network Error: {e}")
+            raise MLAPIError(f"Network Error: {e}")
 
-    # Helper methods for standard operations
     def get(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         return self.request("GET", path, params=params)
 
     def post(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
         return self.request("POST", path, json=data)
+
+    def put(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+        return self.request("PUT", path, json=data)
