@@ -33,6 +33,13 @@ DEBUG = env("DEBUG", default=False)
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
+
+# Security settings for HTTPS development
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -42,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_extensions",
     "aiecommerce",
 ]
 
@@ -136,4 +144,4 @@ TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
 # --- Mercado Libre Configuration ---
 MERCADOLIBRE_CLIENT_ID: str = env("MERCADOLIBRE_CLIENT_ID", default="")
 MERCADOLIBRE_CLIENT_SECRET: str = env("MERCADOLIBRE_CLIENT_SECRET", default="")
-MERCADOLIBRE_REDIRECT_URI: str = env("MERCADOLIBRE_REDIRECT_URI", default="http://localhost:8000/mercadolibre/callback")
+MERCADOLIBRE_REDIRECT_URI: str = env("MERCADOLIBRE_REDIRECT_URI", default="https://127.0.0.1:8000/mercadolibre/callback/")
