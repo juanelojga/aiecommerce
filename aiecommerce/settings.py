@@ -134,6 +134,6 @@ TECNOMEGA_STOCK_LIST_BASE_URL = env("TECNOMEGA_STOCK_LIST_BASE_URL", default="")
 TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
 
 # --- Mercado Libre Configuration ---
-ML_APP_ID = env("ML_APP_ID", default="")
-ML_CLIENT_SECRET = env("ML_CLIENT_SECRET", default="")
-ML_REDIRECT_URI = env("ML_REDIRECT_URI", default="http://localhost:8000/mercadolibre/callback")
+MERCADOLIBRE_CLIENT_ID: str = env("MERCADOLIBRE_CLIENT_ID", default="")
+MERCADOLIBRE_CLIENT_SECRET: str = env("MERCADOLIBRE_CLIENT_SECRET", default="")
+MERCADOLIBRE_REDIRECT_URI: str = env("MERCADOLIBRE_REDIRECT_URI", default="http://localhost:8000/mercadolibre/callback")

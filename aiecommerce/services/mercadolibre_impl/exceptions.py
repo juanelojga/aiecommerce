@@ -1,22 +1,22 @@
 class MLAPIError(Exception):
-    """Base exception for Mercado Libre API errors."""
-
-    pass
-
-
-class MLTokenExpiredError(MLAPIError):
-    """Raised when the access token is expired and needs refreshing."""
-
-    pass
-
-
-class MLInvalidGrantError(MLAPIError):
-    """Raised when the refresh token is also invalid (requires re-authorization)[cite: 268]."""
+    """Base exception for all Mercado Libre API-related errors."""
 
     pass
 
 
 class MLRateLimitError(MLAPIError):
-    """Raised when the API returns a 429 status code[cite: 271]."""
+    """Raised when the API rate limit is exceeded (HTTP 429)."""
+
+    pass
+
+
+class MLTokenExpiredError(MLAPIError):
+    """Raised when the access token is expired (HTTP 401)."""
+
+    pass
+
+
+class MLTokenError(MLAPIError):
+    """Custom exception for token-related errors during OAuth flows."""
 
     pass
