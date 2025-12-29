@@ -18,6 +18,7 @@ class MercadoLibreConfig:
 
     client_id: str
     client_secret: str
+    base_url: str = "https://api.mercadolibre.com"
     timeout: int = 30
     max_retries: int = 3
     backoff_factor: float = 2.0
@@ -27,8 +28,6 @@ class MercadoLibreClient:
     """
     Resilient client for Mercado Libre API with OAuth2 support and multiple user contexts.
     """
-
-    BASE_URL = "https://api.mercadolibre.com"
 
     def __init__(self, access_token: Optional[str] = None, config: Optional[MercadoLibreConfig] = None):
         """
@@ -41,6 +40,7 @@ class MercadoLibreClient:
         self.config = config or MercadoLibreConfig(
             client_id=getattr(settings, "MERCADOLIBRE_CLIENT_ID", ""),
             client_secret=getattr(settings, "MERCADOLIBRE_CLIENT_SECRET", ""),
+            base_url=getattr(settings, "MERCADOLIBRE_BASE_URL", "https://api.mercadolibre.com"),
         )
         self._session = self._create_session()
 
@@ -121,7 +121,7 @@ class MercadoLibreClient:
 
     def _oauth_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Dedicated method for OAuth2 token requests."""
-        url = f"{self.BASE_URL}/oauth/token"
+        url = f"{self.config.base_url}/oauth/token"
         masked_data = self._mask_sensitive_data(data)
         logger.debug(f"Sending OAuth request with payload: {masked_data}")
         return self._send_request("POST", url, use_auth=False, json=data)
@@ -152,7 +152,7 @@ class MercadoLibreClient:
         Orchestrates API calls. Handles 401s for token lifecycle
         and 429s for rate limiting.
         """
-        url = f"{self.BASE_URL}/{path.lstrip('/')}"
+        url = f"{self.config.base_url}/{path.lstrip('/')}"
         return self._send_request(method, url, use_auth=True, **kwargs)
 
     def get(self, path: str, params: Optional[Dict] = None, **kwargs: Any) -> Dict[str, Any]:
