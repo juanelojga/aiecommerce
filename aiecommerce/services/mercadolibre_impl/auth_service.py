@@ -1,12 +1,19 @@
 import logging
 from datetime import timedelta
-from typing import Optional
+from typing import Any, Dict, Optional
 
+from django.db import transaction
 from django.utils import timezone
 
 from aiecommerce.models import MercadoLibreToken
 from aiecommerce.services.mercadolibre_impl.client import MercadoLibreClient
-from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
+from aiecommerce.services.mercadolibre_impl.exceptions import (
+    MLAPIError,
+    MLTokenError,
+    MLTokenExchangeError,
+    MLTokenRefreshError,
+    MLTokenValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,24 +21,33 @@ logger = logging.getLogger(__name__)
 class MercadoLibreAuthService:
     """Orchestrates the Mercado Libre OAuth2 token lifecycle."""
 
-    def __init__(self, client: Optional[MercadoLibreClient] = None):
+    def __init__(self, client: Optional[MercadoLibreClient] = None, clock=timezone):
         self.client = client or MercadoLibreClient()
+        self.clock = clock
 
     def get_valid_token(self, user_id: str) -> MercadoLibreToken:
         """
         Retrieves a valid token for a user, refreshing it if it's expired.
+        Uses database-level locking to prevent race conditions during refresh.
         """
-        try:
-            token_record = MercadoLibreToken.objects.get(user_id=user_id)
-        except MercadoLibreToken.DoesNotExist:
-            logger.error(f"No Mercado Libre token found for user_id: {user_id}")
-            raise MLTokenError(f"No token record for user_id: {user_id}")
+        with transaction.atomic():
+            try:
+                # Use select_for_update to lock the row for the duration of the transaction
+                token_record = MercadoLibreToken.objects.select_for_update().get(user_id=user_id)
+            except MercadoLibreToken.DoesNotExist:
+                logger.error(f"No Mercado Libre token found for user_id: {user_id}")
+                raise MLTokenError(f"No token record for user_id: {user_id}")
 
-        if token_record.is_expired():
-            logger.info(f"Token for user {user_id} is expired. Refreshing now.")
-            return self.refresh_token_for_user(token_record)
+            if self._is_token_expired(token_record):
+                logger.debug(f"Token for user {user_id} is expired or nearing expiration. Refreshing.")
+                return self.refresh_token_for_user(token_record)
 
-        return token_record
+            return token_record
+
+    def _is_token_expired(self, token_record: MercadoLibreToken) -> bool:
+        """Checks if the token is expired or close to expiring (buffer of 5 minutes)."""
+        # We use the injected clock instead of hard dependency on timezone.now()
+        return self.clock.now() >= (token_record.expires_at - timedelta(minutes=5))
 
     def refresh_token_for_user(self, token_record: MercadoLibreToken) -> MercadoLibreToken:
         """
@@ -40,17 +56,22 @@ class MercadoLibreAuthService:
         """
         try:
             token_data = self.client.refresh_token(token_record.refresh_token)
-            logger.info(f"Successfully refreshed token for user {token_record.user_id}")
+            self._validate_token_data(token_data)
+            logger.debug(f"Successfully retrieved new token data for user {token_record.user_id}")
+        except (MLAPIError, MLTokenValidationError) as e:
+            logger.error(f"Failure while refreshing ML token for user {token_record.user_id}: {e}")
+            raise MLTokenRefreshError(f"Token refresh failed for user {token_record.user_id}") from e
         except Exception as e:
-            logger.error(f"Failed to refresh ML token for user {token_record.user_id}: {e}")
-            raise MLTokenError(f"Token refresh failed for user {token_record.user_id}") from e
+            logger.exception(f"Unexpected error refreshing ML token for user {token_record.user_id}")
+            raise MLTokenRefreshError("An unexpected error occurred during token refresh") from e
 
-        # Overwrite existing token details with the new ones
+        # Update token details
         token_record.access_token = token_data["access_token"]
-        token_record.refresh_token = token_data["refresh_token"]  # ML returns a new refresh token
-        token_record.expires_at = timezone.now() + timedelta(seconds=token_data["expires_in"])
+        token_record.refresh_token = token_data["refresh_token"]
+        token_record.expires_at = self.clock.now() + timedelta(seconds=token_data["expires_in"])
         token_record.save()
 
+        logger.info(f"Token record updated for user {token_record.user_id} after refresh.")
         return token_record
 
     def init_token_from_code(self, code: str, redirect_uri: str) -> MercadoLibreToken:
@@ -59,15 +80,18 @@ class MercadoLibreAuthService:
         """
         try:
             token_data = self.client.exchange_code_for_token(code=code, redirect_uri=redirect_uri)
-            logger.info(f"Successfully exchanged code for token for user {token_data.get('user_id')}")
+            self._validate_token_data(token_data)
+            logger.debug(f"Successfully exchanged code for token for user {token_data.get('user_id')}")
+        except (MLAPIError, MLTokenValidationError) as e:
+            logger.error(f"Failure while exchanging ML code: {e}")
+            raise MLTokenExchangeError("Code exchange failed") from e
         except Exception as e:
-            logger.error(f"Failed to exchange ML code for token: {e}")
-            raise MLTokenError("Code exchange failed") from e
+            logger.exception("Unexpected error during ML code exchange")
+            raise MLTokenExchangeError("An unexpected error occurred during code exchange") from e
 
         user_id = token_data["user_id"]
-        expires_at = timezone.now() + timedelta(seconds=token_data["expires_in"])
+        expires_at = self.clock.now() + timedelta(seconds=token_data["expires_in"])
 
-        # Use update_or_create to handle re-authentication seamlessly
         token_record, created = MercadoLibreToken.objects.update_or_create(
             user_id=user_id,
             defaults={
@@ -76,5 +100,12 @@ class MercadoLibreAuthService:
                 "expires_at": expires_at,
             },
         )
-        logger.info(f"Token record {'created' if created else 'updated'} for user {user_id}.")
+        logger.info(f"Token record {'created' if created else 'updated'} for user {user_id} from code.")
         return token_record
+
+    def _validate_token_data(self, token_data: Dict[str, Any]) -> None:
+        """Validates that the token response contains all required fields."""
+        required_fields = ["access_token", "refresh_token", "expires_in", "user_id"]
+        missing_fields = [field for field in required_fields if field not in token_data]
+        if missing_fields:
+            raise MLTokenValidationError(f"Token response missing required fields: {', '.join(missing_fields)}")

@@ -20,3 +20,21 @@ class MLTokenError(MLAPIError):
     """Custom exception for token-related errors during OAuth flows."""
 
     pass
+
+
+class MLTokenExchangeError(MLTokenError):
+    """Raised when the initial code exchange fails."""
+
+    pass
+
+
+class MLTokenRefreshError(MLTokenError):
+    """Raised when the token refresh fails."""
+
+    pass
+
+
+class MLTokenValidationError(MLTokenError):
+    """Raised when the token response from ML is invalid or incomplete."""
+
+    pass
