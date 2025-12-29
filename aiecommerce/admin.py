@@ -18,6 +18,15 @@ class MercadoLibreListingAdmin(admin.ModelAdmin):
     search_fields = ("ml_id", "product_master__code", "product_master__description")
 
 
+@admin.register(MercadoLibreToken)
+class MercadoLibreTokenAdmin(admin.ModelAdmin):
+    list_display = ("user_id", "expires_at", "is_expired", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
+    search_fields = ("user_id",)
+
+    def is_expired(self, obj):
+        return obj.is_expired()
+
+
 admin.site.register(ProductRawPDF)
 admin.site.register(ProductRawWeb)
-admin.site.register(MercadoLibreToken)
