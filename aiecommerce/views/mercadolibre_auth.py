@@ -26,8 +26,7 @@ class MercadoLibreLoginView(RedirectView):
             "client_id": settings.MERCADOLIBRE_CLIENT_ID,
             "redirect_uri": settings.MERCADOLIBRE_REDIRECT_URI,
         }
-        self.url = f"{auth_url}?{urlencode(params)}"
-        return super().get_redirect_url(*args, **kwargs)
+        return f"{auth_url}?{urlencode(params)}"
 
 
 class MercadoLibreCallbackView(View):
