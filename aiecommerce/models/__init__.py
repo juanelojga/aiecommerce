@@ -1,4 +1,5 @@
 from .mercadolibre import MercadoLibreListing
+from .mercadolibre_token import MercadoLibreToken
 from .product import ProductMaster, ProductRawPDF, ProductRawWeb
 
 __all__ = [
@@ -6,4 +7,5 @@ __all__ = [
     "ProductMaster",
     "ProductRawPDF",
     "ProductRawWeb",
+    "MercadoLibreToken",
 ]

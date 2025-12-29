@@ -128,7 +128,12 @@ CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
 CELERY_TIMEZONE = "America/Guayaquil"  # Ensures 8am means 8am in your local time
 CELERY_ENABLE_UTC = True
 
+# Tecnomega Configuration
 PRICE_LIST_BASE_URL = env("PRICE_LIST_BASE_URL", default="")
-
 TECNOMEGA_STOCK_LIST_BASE_URL = env("TECNOMEGA_STOCK_LIST_BASE_URL", default="")
 TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
+
+# --- Mercado Libre Configuration ---
+ML_APP_ID = env("ML_APP_ID", default="")
+ML_CLIENT_SECRET = env("ML_CLIENT_SECRET", default="")
+ML_REDIRECT_URI = env("ML_REDIRECT_URI", default="http://localhost:8000/mercadolibre/callback")
