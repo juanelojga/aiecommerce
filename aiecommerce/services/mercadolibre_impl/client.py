@@ -166,10 +166,3 @@ class MercadoLibreClient:
 
     def delete(self, path: str, **kwargs: Any) -> Dict[str, Any]:
         return self.request("DELETE", path, **kwargs)
-
-    def create_test_user(self, site_id: str) -> Dict[str, Any]:
-        """
-        Creates a test user for a given site.
-        https://developers.mercadolibre.com/en_us/test-users
-        """
-        return self.post("/users/test_user", json={"site_id": site_id})
