@@ -18,7 +18,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from aiecommerce.views.mercadolibre_auth import MercadoLibreCallbackView, MercadoLibreLoginView
+from aiecommerce.views.mercadolibre_callback import MercadoLibreCallbackView
+from aiecommerce.views.mercadolibre_login import MercadoLibreLoginView
 
 urlpatterns = [
     path("admin/", admin.site.urls),

@@ -15,7 +15,7 @@ class MercadoLibreToken(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def is_expired(self) -> bool:
-        # Check if the token is expired or close to expiring (buffer of 5 minutes) [cite: 341]
+        # Check if the token is expired or close to expiring (buffer of 5 minutes)
         return timezone.now() >= (self.expires_at - timedelta(minutes=5))
 
     def __str__(self):
