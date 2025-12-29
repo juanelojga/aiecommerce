@@ -32,7 +32,7 @@ httpx==0.28.1
 idna==3.11
 instructor==1.13.0
 Jinja2==3.1.6
-jiter==0.12.0
+jiter==0.11.0
 kombu==5.6.1
 Levenshtein==0.27.3
 librt==0.7.5
