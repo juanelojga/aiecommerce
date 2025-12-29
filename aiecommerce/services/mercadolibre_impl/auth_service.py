@@ -25,24 +25,56 @@ class MercadoLibreAuthService:
         self.client = client or MercadoLibreClient()
         self.clock = clock
 
-    def get_valid_token(self, user_id: str) -> MercadoLibreToken:
+    def get_valid_token(self, user_id: str, use_sandbox: bool = False) -> MercadoLibreToken:
         """
-        Retrieves a valid token for a user, refreshing it if it's expired.
+        Retrieves a valid token, refreshing it if it's expired.
+        - If use_sandbox is True, ignores user_id and fetches the first available test user token.
+        - Otherwise, fetches the token for the specified user_id.
         Uses database-level locking to prevent race conditions during refresh.
         """
         with transaction.atomic():
             try:
-                # Use select_for_update to lock the row for the duration of the transaction
-                token_record = MercadoLibreToken.objects.select_for_update().get(user_id=user_id)
+                if use_sandbox:
+                    token_record = MercadoLibreToken.objects.select_for_update().filter(is_test_user=True).first()
+                    if not token_record:
+                        logger.error("No sandbox (test user) token found in the database.")
+                        raise MLTokenError("No sandbox token record available.")
+                else:
+                    token_record = MercadoLibreToken.objects.select_for_update().get(user_id=user_id)
             except MercadoLibreToken.DoesNotExist:
                 logger.error(f"No Mercado Libre token found for user_id: {user_id}")
                 raise MLTokenError(f"No token record for user_id: {user_id}")
 
             if self._is_token_expired(token_record):
-                logger.debug(f"Token for user {user_id} is expired or nearing expiration. Refreshing.")
+                logger.debug(f"Token for user {token_record.user_id} is expired or nearing expiration. Refreshing.")
                 return self.refresh_token_for_user(token_record)
 
             return token_record
+
+    def save_test_user_token(self, token_data: Dict[str, Any]) -> MercadoLibreToken:
+        """
+        Handles the creation or update of a sandbox test user token.
+        """
+        try:
+            self._validate_token_data(token_data)
+        except MLTokenValidationError as e:
+            logger.error(f"Invalid token data for test user: {e}")
+            raise
+
+        user_id = token_data["user_id"]
+        expires_at = self.clock.now() + timedelta(seconds=token_data["expires_in"])
+
+        token_record, created = MercadoLibreToken.objects.update_or_create(
+            user_id=user_id,
+            defaults={
+                "access_token": token_data["access_token"],
+                "refresh_token": token_data["refresh_token"],
+                "expires_at": expires_at,
+                "is_test_user": True,
+            },
+        )
+        logger.info(f"Sandbox token record {'created' if created else 'updated'} for test user {user_id}.")
+        return token_record
 
     def _is_token_expired(self, token_record: MercadoLibreToken) -> bool:
         """Checks if the token is expired or close to expiring (buffer of 5 minutes)."""
