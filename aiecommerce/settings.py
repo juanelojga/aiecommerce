@@ -142,6 +142,15 @@ TECNOMEGA_STOCK_LIST_BASE_URL = env("TECNOMEGA_STOCK_LIST_BASE_URL", default="")
 TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
 
 # --- Mercado Libre Configuration ---
+MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS = env.int("MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS", default=24)
+MERCADOLIBRE_PUBLICATION_RULES = env.json(
+    "MERCADOLIBRE_PUBLICATION_RULES",
+    default={
+        "NOTEBOOK": {"price_threshold": 1000.00},
+        "MONITOR": {"price_threshold": 0.00},
+        "COMPUTER": {"price_threshold": 500.00},
+    },
+)
 MERCADOLIBRE_BASE_URL = env("MERCADOLIBRE_BASE_URL", default="https://api.mercadolibre.com")
 MERCADOLIBRE_AUTH_URL = env("MERCADOLIBRE_AUTH_URL", default="https://auth.mercadolibre.com.ec")
 MERCADOLIBRE_CLIENT_ID = env("MERCADOLIBRE_CLIENT_ID", default="")
