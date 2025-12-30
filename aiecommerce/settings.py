@@ -158,6 +158,10 @@ MERCADOLIBRE_CLIENT_ID = env("MERCADOLIBRE_CLIENT_ID", default="")
 MERCADOLIBRE_CLIENT_SECRET = env("MERCADOLIBRE_CLIENT_SECRET", default="")
 MERCADOLIBRE_REDIRECT_URI = env("MERCADOLIBRE_REDIRECT_URI", default="https://127.0.0.1:8000/mercadolibre/callback/")
 
+# --- Google API Configuration ---
+GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")
+GOOGLE_SEARCH_ENGINE_ID = env("GOOGLE_SEARCH_ENGINE_ID", default="")
+
 # --- Mercado Price Engine ---
 MERCADOLIBRE_IVA_RATE = env("MERCADOLIBRE_IVA_RATE", cast=Decimal, default=Decimal("0.15"))
 MERCADOLIBRE_COMMISSION_RATE = env("MERCADOLIBRE_COMMISSION_RATE", cast=Decimal, default=Decimal("0.10"))
