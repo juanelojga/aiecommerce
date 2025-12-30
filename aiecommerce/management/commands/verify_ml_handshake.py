@@ -28,6 +28,11 @@ class Command(BaseCommand):
             action="store_true",
             help="List all users with available Mercado Libre tokens and exit.",
         )
+        parser.add_argument(
+            "--sandbox",
+            action="store_true",
+            help="Use sandbox environment for verification.",
+        )
 
     def handle(self, *args, **options) -> None:
         if options["list"]:
@@ -37,51 +42,59 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("--- Starting Mercado Libre Handshake Verification ---"))
 
         user_id = options.get("user_id")
+        is_sandbox_mode = options["sandbox"]
+        mode = "SANDBOX" if is_sandbox_mode else "PRODUCTION"
 
         # 1. Get the user_id if not provided
         if not user_id:
-            token_record = MercadoLibreToken.objects.first()
+            token_record = MercadoLibreToken.objects.filter(is_test_user=is_sandbox_mode).first()
             if not token_record:
-                self.stdout.write(self.style.ERROR("No tokens found in the database. Cannot verify handshake."))
+                self.stdout.write(self.style.ERROR(f"No {mode} tokens found in the database. Cannot verify handshake."))
                 self.stdout.write(
-                    self.style.WARNING("Please ensure at least one user has gone through the OAuth2 flow at /mercadolibre/auth/")
+                    self.style.WARNING(
+                        f"Please ensure at least one user has gone through the OAuth2 flow at /mercadolibre/auth/ for {mode} environment."
+                    )
                 )
                 return
             user_id = token_record.user_id
-            self.stdout.write(f"No User ID provided. Using first available: {user_id}")
+            self.stdout.write(f"No User ID provided. Using first available {mode} user: {user_id}")
         else:
-            self.stdout.write(f"Verifying handshake for User ID: {user_id}")
+            self.stdout.write(f"Verifying handshake for User ID: {user_id} in {mode} mode")
 
         # 2. Initialize the auth service and get a valid token
         auth_service = MercadoLibreAuthService()
         try:
-            self.stdout.write(f"Attempting to retrieve a valid token for user_id: {user_id}...")
-            token_record = auth_service.get_valid_token(user_id=str(user_id))
-            self.stdout.write(self.style.SUCCESS("Successfully retrieved a valid token."))
+            self.stdout.write(f"Attempting to retrieve a valid {mode} token for user_id: {user_id}...")
+            token_record = auth_service.get_valid_token(user_id=str(user_id), use_sandbox=is_sandbox_mode)
+            self.stdout.write(self.style.SUCCESS(f"Successfully retrieved a valid {mode} token."))
         except MLTokenError as e:
-            self.stdout.write(self.style.ERROR(f"Failed to get token: {e}"))
-            self.stdout.write(self.style.WARNING(f"Please ensure user {user_id} has gone through the OAuth2 flow at /mercadolibre/auth/"))
+            self.stdout.write(self.style.ERROR(f"Failed to get {mode} token: {e}"))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Please ensure user {user_id} has gone through the OAuth2 flow at /mercadolibre/auth/ for {mode} environment."
+                )
+            )
             return
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"An unexpected error occurred: {e}"))
             return
 
         # 3. Initialize the API client with the token
-        self.stdout.write("Initializing Mercado Libre client...")
+        self.stdout.write(f"Initializing Mercado Libre client for {mode}...")
         client = MercadoLibreClient(access_token=token_record.access_token)
 
         # 4. Call the /users/me endpoint
-        self.stdout.write("Attempting to fetch data from the /users/me endpoint...")
+        self.stdout.write(f"Attempting to fetch data from the /users/me endpoint in {mode}...")
         try:
             user_data = client.get("users/me")
-            self.stdout.write(self.style.SUCCESS("--- Handshake Verified Successfully! ---"))
+            self.stdout.write(self.style.SUCCESS(f"--- Handshake Verified Successfully in {mode} Mode! ---"))
             self.stdout.write("Received the following user data:")
             self.stdout.write(str(user_data))
         except MLAPIError as e:
-            self.stdout.write(self.style.ERROR(f"API call failed: {e}"))
-            self.stdout.write(self.style.WARNING("The handshake failed. Check your credentials and HTTPS setup."))
+            self.stdout.write(self.style.ERROR(f"API call failed in {mode} mode: {e}"))
+            self.stdout.write(self.style.WARNING(f"The handshake failed in {mode} mode. Check your credentials and HTTPS setup."))
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"An unexpected API error occurred: {e}"))
+            self.stdout.write(self.style.ERROR(f"An unexpected API error occurred in {mode} mode: {e}"))
 
         self.stdout.write(self.style.SUCCESS("--- Verification Complete ---"))
 
