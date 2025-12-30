@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+from decimal import Decimal
 from pathlib import Path
 
 import environ  # Import environ
@@ -156,3 +157,10 @@ MERCADOLIBRE_AUTH_URL = env("MERCADOLIBRE_AUTH_URL", default="https://auth.merca
 MERCADOLIBRE_CLIENT_ID = env("MERCADOLIBRE_CLIENT_ID", default="")
 MERCADOLIBRE_CLIENT_SECRET = env("MERCADOLIBRE_CLIENT_SECRET", default="")
 MERCADOLIBRE_REDIRECT_URI = env("MERCADOLIBRE_REDIRECT_URI", default="https://127.0.0.1:8000/mercadolibre/callback/")
+
+# --- Mercado Price Engine ---
+MERCADOLIBRE_IVA_RATE = env("MERCADOLIBRE_IVA_RATE", cast=Decimal, default=Decimal("0.15"))
+MERCADOLIBRE_COMMISSION_RATE = env("MERCADOLIBRE_COMMISSION_RATE", cast=Decimal, default=Decimal("0.10"))
+MERCADOLIBRE_SHIPPING_FEE = env("MERCADOLIBRE_SHIPPING_FEE", cast=Decimal, default=Decimal("5.00"))
+MERCADOLIBRE_TARGET_MARGIN = env("MERCADOLIBRE_TARGET_MARGIN", cast=Decimal, default=Decimal("0.15"))
+MERCADOLIBRE_OPERATIONAL_COST = env("MERCADOLIBRE_OPERATIONAL_COST", cast=Decimal, default=Decimal("5.00"))
