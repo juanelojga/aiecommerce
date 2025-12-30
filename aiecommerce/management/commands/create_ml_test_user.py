@@ -17,8 +17,17 @@ class Command(BaseCommand):
 
     help = "Creates a new Mercado Libre test user using a production token for authorization."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--site",
+            type=str,
+            default="MEC",
+            help="The site ID for the test user (default: MEC for ECUADOR)",
+        )
+
     def handle(self, *args, **options) -> None:
-        self.stdout.write(self.style.SUCCESS("--- Starting Mercado Libre Test User Creation ---"))
+        site_id = options["site"]
+        self.stdout.write(self.style.SUCCESS(f"--- Starting Mercado Libre Test User Creation for site {site_id} ---"))
 
         # 1. Get a production token to authorize the request
         self.stdout.write("Fetching a production token to authorize the request...")
@@ -34,10 +43,9 @@ class Command(BaseCommand):
         client = MercadoLibreClient(access_token=prod_token.access_token)
 
         # 3. Call the create_test_user API
-        self.stdout.write("Calling the create_test_user API...")
+        self.stdout.write(f"Calling the create_test_user API for site {site_id}...")
         try:
-            # According to ML docs, site_id for Colombia is MCO
-            test_user_data = client.post("/users/test_user", json={"site_id": "MCO"})
+            test_user_data = client.post("/users/test_user", json={"site_id": site_id})
             self.stdout.write(self.style.SUCCESS("Successfully created test user."))
         except MLAPIError as e:
             self.stdout.write(self.style.ERROR(f"API call failed: {e}"))
