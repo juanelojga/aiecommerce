@@ -98,3 +98,40 @@ def test_clock_injection():
     service._is_token_expired(token)
 
     assert mock_clock.now.called
+
+
+def test_get_valid_token_context_switching(auth_service):
+    # Create a production token
+    prod_token = baker.make(
+        MercadoLibreToken,
+        user_id="prod_user",
+        expires_at=timezone.now() + timedelta(hours=1),
+        is_test_user=False,
+    )
+    # Create a sandbox token
+    sandbox_token = baker.make(
+        MercadoLibreToken,
+        user_id="sandbox_user",
+        expires_at=timezone.now() + timedelta(hours=1),
+        is_test_user=True,
+    )
+
+    # Test with use_sandbox=True
+    result_sandbox = auth_service.get_valid_token("sandbox_user", use_sandbox=True)
+    assert result_sandbox.pk == sandbox_token.pk
+    assert result_sandbox.is_test_user is True
+
+    # Test with use_sandbox=False
+    result_prod = auth_service.get_valid_token("prod_user", use_sandbox=False)
+    assert result_prod.pk == prod_token.pk
+    assert result_prod.is_test_user is False
+
+    # Verify that requesting a sandbox token when no sandbox token is available raises the correct error
+    with pytest.raises(MLTokenError, match="No sandbox token record available."):
+        # Delete sandbox token to ensure it's not found
+        sandbox_token.delete()
+        auth_service.get_valid_token("prod_user", use_sandbox=True)
+
+    # Verify that requesting a production token for a sandbox user (and vice versa) raises the correct error
+    with pytest.raises(MLTokenError, match="No token record for user_id: sandbox_user"):
+        auth_service.get_valid_token("sandbox_user", use_sandbox=False)

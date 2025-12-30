@@ -11,6 +11,7 @@ class MercadoLibreToken(models.Model):
     access_token = models.CharField(max_length=255)
     refresh_token = models.CharField(max_length=255)
     expires_at = models.DateTimeField()
+    is_test_user = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -19,4 +20,5 @@ class MercadoLibreToken(models.Model):
         return timezone.now() >= (self.expires_at - timedelta(minutes=5))
 
     def __str__(self):
-        return f"ML Token - User ID: {self.user_id}"
+        prefix = "[TEST] " if self.is_test_user else ""
+        return f"{prefix}ML Token - User ID: {self.user_id}"

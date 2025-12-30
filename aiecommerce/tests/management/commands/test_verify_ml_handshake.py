@@ -32,13 +32,17 @@ class TestVerifyMLHandshakeCommand:
         out = io.StringIO()
         call_command("verify_ml_handshake", stdout=out)
         output = out.getvalue()
-        assert "No tokens found in the database. Cannot verify handshake." in output
+        assert "No PRODUCTION tokens found in the database. Cannot verify handshake." in output
 
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreAuthService")
     def test_handle_token_error(self, MockAuthService):
         # Create a token so it doesn't fail at step 1
         MercadoLibreToken.objects.create(
-            user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1)
+            user_id="user123",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=timezone.now() + timedelta(hours=1),
+            is_test_user=False,
         )
 
         mock_instance = MockAuthService.return_value
@@ -48,14 +52,19 @@ class TestVerifyMLHandshakeCommand:
         call_command("verify_ml_handshake", stdout=out)
         output = out.getvalue()
 
-        assert "Attempting to retrieve a valid token for user_id: user123..." in output
-        assert "Failed to get token: Token missing" in output
+        assert "No User ID provided. Using first available PRODUCTION user: user123" in output
+        assert "Attempting to retrieve a valid PRODUCTION token for user_id: user123..." in output
+        assert "Failed to get PRODUCTION token: Token missing" in output
 
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreClient")
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreAuthService")
     def test_handle_api_error(self, MockAuthService, MockClient):
         token = MercadoLibreToken.objects.create(
-            user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1)
+            user_id="user123",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=timezone.now() + timedelta(hours=1),
+            is_test_user=False,
         )
 
         MockAuthService.return_value.get_valid_token.return_value = token
@@ -65,14 +74,18 @@ class TestVerifyMLHandshakeCommand:
         call_command("verify_ml_handshake", stdout=out)
         output = out.getvalue()
 
-        assert "Attempting to fetch data from the /users/me endpoint..." in output
-        assert "API call failed: API Error" in output
+        assert "Attempting to fetch data from the /users/me endpoint in PRODUCTION..." in output
+        assert "API call failed in PRODUCTION mode: API Error" in output
 
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreClient")
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreAuthService")
     def test_handle_success(self, MockAuthService, MockClient):
         token = MercadoLibreToken.objects.create(
-            user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1)
+            user_id="user123",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=timezone.now() + timedelta(hours=1),
+            is_test_user=False,
         )
 
         MockAuthService.return_value.get_valid_token.return_value = token
@@ -82,15 +95,20 @@ class TestVerifyMLHandshakeCommand:
         call_command("verify_ml_handshake", "--user-id", "user123", stdout=out)
         output = out.getvalue()
 
-        assert "Verifying handshake for User ID: user123" in output
-        assert "Successfully retrieved a valid token." in output
-        assert "--- Handshake Verified Successfully! ---" in output
+        assert "Verifying handshake for User ID: user123 in PRODUCTION mode" in output
+        assert "Attempting to retrieve a valid PRODUCTION token for user_id: user123..." in output
+        assert "Successfully retrieved a valid PRODUCTION token." in output
+        assert "--- Handshake Verified Successfully in PRODUCTION Mode! ---" in output
         assert "{'id': 123, 'nickname': 'TESTUSER'}" in output
 
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreAuthService")
     def test_handle_unexpected_error(self, MockAuthService):
         MercadoLibreToken.objects.create(
-            user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1)
+            user_id="user123",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=timezone.now() + timedelta(hours=1),
+            is_test_user=False,
         )
         MockAuthService.return_value.get_valid_token.side_effect = Exception("Unexpected")
 
@@ -103,7 +121,11 @@ class TestVerifyMLHandshakeCommand:
     @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreAuthService")
     def test_handle_unexpected_api_error(self, MockAuthService, MockClient):
         token = MercadoLibreToken.objects.create(
-            user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1)
+            user_id="user123",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=timezone.now() + timedelta(hours=1),
+            is_test_user=False,
         )
         MockAuthService.return_value.get_valid_token.return_value = token
         MockClient.return_value.get.side_effect = Exception("Unexpected API boom")
@@ -111,4 +133,28 @@ class TestVerifyMLHandshakeCommand:
         out = io.StringIO()
         call_command("verify_ml_handshake", stdout=out)
         output = out.getvalue()
-        assert "An unexpected API error occurred: Unexpected API boom" in output
+        assert "An unexpected API error occurred in PRODUCTION mode: Unexpected API boom" in output
+
+    @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreClient")
+    @patch("aiecommerce.management.commands.verify_ml_handshake.MercadoLibreAuthService")
+    def test_handle_sandbox_success(self, MockAuthService, MockClient):
+        token = MercadoLibreToken.objects.create(
+            user_id="testuser456",
+            access_token="test_access",
+            refresh_token="test_refresh",
+            expires_at=timezone.now() + timedelta(hours=1),
+            is_test_user=True,
+        )
+
+        MockAuthService.return_value.get_valid_token.return_value = token
+        MockClient.return_value.get.return_value = {"id": 456, "nickname": "SANDBOXUSER"}
+
+        out = io.StringIO()
+        call_command("verify_ml_handshake", "--user-id", "testuser456", "--sandbox", stdout=out)
+        output = out.getvalue()
+
+        assert "Verifying handshake for User ID: testuser456 in SANDBOX mode" in output
+        assert "Attempting to retrieve a valid SANDBOX token for user_id: testuser456..." in output
+        assert "Successfully retrieved a valid SANDBOX token." in output
+        assert "--- Handshake Verified Successfully in SANDBOX Mode! ---" in output
+        assert "{'id': 456, 'nickname': 'SANDBOXUSER'}" in output
