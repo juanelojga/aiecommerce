@@ -13,7 +13,7 @@ class MercadoLibreLoginView(RedirectView):
 
     def get_redirect_url(self, *args, **kwargs):
         """Constructs the full authorization URL."""
-        auth_url = f"{settings.MERCADOLIBRE_BASE_URL}/authorization"
+        auth_url = f"{settings.MERCADOLIBRE_AUTH_URL}/authorization"
         params = {
             "response_type": "code",
             "client_id": settings.MERCADOLIBRE_CLIENT_ID,
