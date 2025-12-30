@@ -92,18 +92,26 @@ class TestMercadoLibreFilter:
         assert filter_service.is_eligible(product) is False
 
     def test_get_eligible_products_efficiency(self):
-        rules = {"Electronics": 100}
+        rules = {"Electronics": 100, "Laptops": {"price_threshold": 500}}
         filter_service = MercadoLibreFilter(publication_rules=rules, freshness_threshold_hours=24)
 
-        # Create eligible product
+        # Create eligible products
         ProductMaster.objects.create(code="E1", price=200, category="Electronics", is_active=True)
-        # Create ineligible product (price too low)
+        ProductMaster.objects.create(code="L1", price=600, category="Laptops", is_active=True)
+
+        # Create ineligible products
         ProductMaster.objects.create(code="E2", price=50, category="Electronics", is_active=True)
-        # Create ineligible product (inactive)
+        ProductMaster.objects.create(code="L2", price=400, category="Laptops", is_active=True)
         ProductMaster.objects.create(code="E3", price=200, category="Electronics", is_active=False)
 
         eligible = filter_service.get_eligible_products()
-        assert eligible.count() == 1
-        first_eligible = eligible.first()
-        assert first_eligible is not None
-        assert first_eligible.code == "E1"
+        assert eligible.count() == 2
+        codes = set(eligible.values_list("code", flat=True))
+        assert codes == {"E1", "L1"}
+
+    def test_get_eligible_products_empty_rules(self):
+        filter_service = MercadoLibreFilter(publication_rules={}, freshness_threshold_hours=24)
+        ProductMaster.objects.create(code="E1", price=200, category="Electronics", is_active=True)
+
+        eligible = filter_service.get_eligible_products()
+        assert eligible.count() == 0

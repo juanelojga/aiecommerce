@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from django.conf import settings
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from aiecommerce.models.product import ProductMaster
@@ -65,21 +65,35 @@ class MercadoLibreFilter:
     def get_eligible_products(self) -> QuerySet[ProductMaster]:
         """
         Retrieves products that are eligible for publication.
-        Pushes basic filtering to the database and evaluates complex rules in Python.
+        Filters by status, freshness, and business rules directly in the database.
         """
         now = timezone.now()
         freshness_limit = self._get_freshness_limit(now=now)
 
-        # 1. Database-level filtering: Reduce the number of products to process in memory
-        initial_queryset = ProductMaster.objects.filter(
+        # 1. Base QuerySet
+        queryset = ProductMaster.objects.filter(
             is_active=True,
             price__isnull=False,
             category__isnull=False,
             last_updated__gte=freshness_limit,
         )
 
-        # 2. Business logic evaluation
-        eligible_ids = [product.id for product in initial_queryset if self.is_eligible(product, freshness_limit=freshness_limit)]
+        # 2. Build Q object for publication rules
+        rules_q = Q()
+        for category_key, rule_config in self.publication_rules.items():
+            if isinstance(rule_config, dict):
+                threshold = rule_config.get("price_threshold")
+            else:
+                threshold = rule_config
 
-        # 3. Return final QuerySet
-        return ProductMaster.objects.filter(id__in=eligible_ids)
+            if threshold is not None:
+                # category__iexact handles case-insensitive matching.
+                # strip() is not easily done in pure Q without Trim function,
+                # but following the previous logic's intent of exact category match.
+                rules_q |= Q(category__iexact=category_key.strip(), price__gte=threshold)
+
+        # 3. Apply rules and return
+        if not rules_q:
+            return ProductMaster.objects.none()
+
+        return queryset.filter(rules_q)
