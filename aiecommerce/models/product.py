@@ -60,4 +60,20 @@ class ProductMaster(models.Model):
     specs = models.JSONField(default=dict, blank=True, null=True)
 
     def __str__(self):
-        return f"Master: {self.code} - {self.description or 'No description'}"
+        has_images = self.images.exists()
+        return f"Master: {self.code} - {self.description or 'No description'} (Images: {'Yes' if has_images else 'No'})"
+
+
+class ProductImage(models.Model):
+    """Stores images associated with a master product."""
+
+    product = models.ForeignKey(ProductMaster, on_delete=models.CASCADE, related_name="images")
+    url = models.URLField(max_length=2000)
+    order = models.PositiveIntegerField(default=0)
+    is_processed = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return f"Image for {self.product.code} ({self.order}) - {self.url}"
