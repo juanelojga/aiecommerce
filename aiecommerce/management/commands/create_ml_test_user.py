@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.core.management.base import BaseCommand
@@ -52,7 +53,6 @@ class Command(BaseCommand):
             return
 
         # 4. Output the credentials
-        import json
 
         output = {
             "id": test_user_data.get("id"),
