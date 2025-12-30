@@ -35,7 +35,7 @@ class TestCreateMLTestUserCommand:
 
         test_user_response = {
             "id": 123456,
-            "nickname": "TETING_USER",
+            "nickname": "TESTING_USER",
             "password": "password123",
             "site_status": "active",
             "other_field": "ignore_me",
@@ -49,7 +49,7 @@ class TestCreateMLTestUserCommand:
         # Check if the output is the expected JSON
         decoded_output = json.loads(output)
         assert decoded_output["id"] == 123456
-        assert decoded_output["nickname"] == "TETING_USER"
+        assert decoded_output["nickname"] == "TESTING_USER"
         assert decoded_output["password"] == "password123"
         assert decoded_output["site_status"] == "active"
         assert "other_field" not in decoded_output

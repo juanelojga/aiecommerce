@@ -51,31 +51,6 @@ class MercadoLibreAuthService:
 
             return token_record
 
-    def save_test_user_token(self, token_data: Dict[str, Any]) -> MercadoLibreToken:
-        """
-        Handles the creation or update of a sandbox test user token.
-        """
-        try:
-            self._validate_token_data(token_data)
-        except MLTokenValidationError as e:
-            logger.error(f"Invalid token data for test user: {e}")
-            raise
-
-        user_id = token_data["user_id"]
-        expires_at = self.clock.now() + timedelta(seconds=token_data["expires_in"])
-
-        token_record, created = MercadoLibreToken.objects.update_or_create(
-            user_id=user_id,
-            defaults={
-                "access_token": token_data["access_token"],
-                "refresh_token": token_data["refresh_token"],
-                "expires_at": expires_at,
-                "is_test_user": True,
-            },
-        )
-        logger.info(f"Sandbox token record {'created' if created else 'updated'} for test user {user_id}.")
-        return token_record
-
     def _is_token_expired(self, token_record: MercadoLibreToken) -> bool:
         """Checks if the token is expired or close to expiring (buffer of 5 minutes)."""
         # We use the injected clock instead of hard dependency on timezone.now()
