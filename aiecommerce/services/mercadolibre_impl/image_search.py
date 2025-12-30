@@ -1,6 +1,7 @@
 import logging
 import re
 from typing import List
+from urllib.parse import urlparse
 
 from django.conf import settings
 from googleapiclient.discovery import build
@@ -16,6 +17,30 @@ class ImageSearchService:
     A service to find product images using Google Custom Search API.
     """
 
+    DOMAIN_BLOCKLIST = {
+        # Social Media
+        "facebook.com",
+        "twitter.com",
+        "instagram.com",
+        "pinterest.com",
+        "linkedin.com",
+        "reddit.com",
+        # E-commerce sites that are often not the source
+        "amazon.com",
+        "ebay.com",
+        "aliexpress.com",
+        "walmart.com",
+        # Stock photos
+        "istockphoto.com",
+        "shutterstock.com",
+        "gettyimages.com",
+        "pexels.com",
+        "unsplash.com",
+        # Other
+        "wikipedia.org",
+        "wikimedia.org",
+    }
+
     def __init__(self) -> None:
         self.api_key = settings.GOOGLE_API_KEY
         self.search_engine_id = settings.GOOGLE_SEARCH_ENGINE_ID
@@ -23,18 +48,19 @@ class ImageSearchService:
             raise ValueError("GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be set in settings.")
         self.service = build("customsearch", "v1", developerKey=self.api_key)
 
-    def find_image_urls(self, query: str) -> List[str]:
+    def find_image_urls(self, query: str, count: int = 5) -> List[str]:
         """
-        Finds the URLs of up to 5 'huge' 'photo' image results for a given query.
+        Finds the URLs of up to a specified count of 'huge' or 'large' 'photo' image results for a given query,
+        filtering out low-quality domains.
 
         Args:
             query: The search term for the image.
+            count: The maximum number of image URLs to return.
 
         Returns:
-            A list of image URLs, or an empty list if no suitable images are found
-            or an error occurs.
+            A list of unique image URLs, or an empty list if no suitable images are found or an error occurs.
         """
-        logger.info(f"Searching for up to 5 images with query: '{query}'")
+        logger.info(f"Searching for up to {count} images with query: '{query}'")
         try:
             result = (
                 self.service.cse()
@@ -42,9 +68,8 @@ class ImageSearchService:
                     q=query,
                     cx=self.search_engine_id,
                     searchType="image",
-                    imgSize="huge",
-                    imgType="photo",
-                    num=5,
+                    imgSize="huge",  # API also supports 'large', 'xlarge', etc.
+                    num=count,
                 )
                 .execute()
             )
@@ -54,9 +79,17 @@ class ImageSearchService:
                 logger.warning(f"No image results found for query: '{query}'")
                 return []
 
-            image_urls = [item.get("link") for item in items if item.get("link")]
-            logger.info(f"Found {len(image_urls)} image URLs for '{query}'")
-            return image_urls
+            image_urls = []
+            for item in items:
+                if link := item.get("link"):
+                    domain = urlparse(link).netloc
+                    if domain not in self.DOMAIN_BLOCKLIST:
+                        image_urls.append(link)
+
+            unique_image_urls = list(dict.fromkeys(image_urls))[:count]  # Remove duplicates and respect count
+
+            logger.info(f"Found {len(unique_image_urls)} unique image URLs for '{query}' after filtering.")
+            return unique_image_urls
 
         except HttpError as e:
             logger.error(f"HTTP error occurred while searching for images for '{query}': {e}", exc_info=True)
