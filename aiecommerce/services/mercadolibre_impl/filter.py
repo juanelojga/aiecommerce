@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
 from django.conf import settings
 from django.db.models import QuerySet
@@ -8,48 +9,77 @@ from aiecommerce.models.product import ProductMaster
 
 
 class MercadoLibreFilter:
-    def __init__(self):
-        self.publication_rules = settings.MERCADOLIBRE_PUBLICATION_RULES
-        self.freshness_threshold_hours = settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
+    def __init__(
+        self,
+        publication_rules: Optional[Dict[str, Any]] = None,
+        freshness_threshold_hours: Optional[int] = None,
+    ):
+        self.publication_rules = publication_rules if publication_rules is not None else settings.MERCADOLIBRE_PUBLICATION_RULES
+        self.freshness_threshold_hours = (
+            freshness_threshold_hours if freshness_threshold_hours is not None else settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
+        )
 
-    def _get_freshness_limit(self) -> datetime:
-        return timezone.now() - timedelta(hours=self.freshness_threshold_hours)
+    def _get_freshness_limit(self, now: Optional[datetime] = None) -> datetime:
+        base_time = now or timezone.now()
+        return base_time - timedelta(hours=self.freshness_threshold_hours)
 
-    def _filter_by_freshness(self, item: ProductMaster) -> bool:
-        freshness_limit = self._get_freshness_limit()
-        return item.last_updated > freshness_limit
-
-    def is_eligible(self, product: ProductMaster) -> bool:
-        # 1. Base Checks:
+    def is_eligible(self, product: ProductMaster, freshness_limit: Optional[datetime] = None) -> bool:
+        """
+        Evaluates if a single product is eligible based on business rules.
+        """
+        # 1. Base Checks: Ensure required fields are present and product is active
         if not product.is_active or product.price is None or product.category is None:
             return False
 
         # 2. Freshness Check:
-        if product.last_updated < self._get_freshness_limit():
+        limit = freshness_limit or self._get_freshness_limit()
+        if product.last_updated is None or product.last_updated < limit:
             return False
 
-        # 3. Category Match:
-        for category_key, rules in self.publication_rules.items():
-            if category_key.lower() in product.category.lower():
-                threshold = rules.get("price_threshold")
+        # 3. Rule Evaluation:
+        return self._matches_rules(product)
+
+    def _matches_rules(self, product: ProductMaster) -> bool:
+        """
+        Check if the product matches any of the publication rules.
+        Uses exact (case-insensitive) category matching to avoid brittle substring matches.
+        """
+        if not product.category:
+            return False
+
+        product_category = product.category.strip().lower()
+
+        for category_key, rule_config in self.publication_rules.items():
+            if category_key.lower() == product_category:
+                # Handle both dict-based rules and simple numeric thresholds
+                if isinstance(rule_config, dict):
+                    threshold = rule_config.get("price_threshold")
+                else:
+                    threshold = rule_config
+
                 if threshold is not None and product.price >= threshold:
                     return True
 
-        # 4. Default:
         return False
 
     def get_eligible_products(self) -> QuerySet[ProductMaster]:
         """
-        Retrieves products that are eligible for publication based on activity, freshness, and category rules.
-
-        The initial filter is broad, and then each product is checked against the more complex `is_eligible` method.
+        Retrieves products that are eligible for publication.
+        Pushes basic filtering to the database and evaluates complex rules in Python.
         """
-        freshness_limit = self._get_freshness_limit()
-        # Start with a broad filter that can be executed efficiently in the database.
-        initial_queryset = ProductMaster.objects.filter(is_active=True, last_updated__gte=freshness_limit)
+        now = timezone.now()
+        freshness_limit = self._get_freshness_limit(now=now)
 
-        # Iterate over the initial queryset and apply the more complex, non-database-optimizable logic.
-        eligible_ids = [product.id for product in initial_queryset if self.is_eligible(product)]
+        # 1. Database-level filtering: Reduce the number of products to process in memory
+        initial_queryset = ProductMaster.objects.filter(
+            is_active=True,
+            price__isnull=False,
+            category__isnull=False,
+            last_updated__gte=freshness_limit,
+        )
 
-        # Return the final, precisely filtered QuerySet.
+        # 2. Business logic evaluation
+        eligible_ids = [product.id for product in initial_queryset if self.is_eligible(product, freshness_limit=freshness_limit)]
+
+        # 3. Return final QuerySet
         return ProductMaster.objects.filter(id__in=eligible_ids)

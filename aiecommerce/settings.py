@@ -146,9 +146,9 @@ MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS = env.int("MERCADOLIBRE_FRESHNESS_THRESHO
 MERCADOLIBRE_PUBLICATION_RULES = env.json(
     "MERCADOLIBRE_PUBLICATION_RULES",
     default={
-        "NOTEBOOK": 1000.00,
-        "MONITOR": 0.00,
-        "COMPUTER": 500.00,
+        "NOTEBOOK": {"price_threshold": 1000.00},
+        "MONITOR": {"price_threshold": 0.00},
+        "COMPUTER": {"price_threshold": 500.00},
     },
 )
 MERCADOLIBRE_BASE_URL = env("MERCADOLIBRE_BASE_URL", default="https://api.mercadolibre.com")
