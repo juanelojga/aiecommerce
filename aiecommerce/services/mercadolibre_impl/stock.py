@@ -18,6 +18,14 @@ class MercadoLibreStockEngine:
         "stock_gye_sur",
     ]
 
+    def _is_available(self, value: str | None) -> bool:
+        """
+        Normalizes a stock value and checks if it indicates availability ('SI').
+        """
+        if not value or not isinstance(value, str):
+            return False
+        return value.strip().upper() == "SI"
+
     def get_available_quantity(self, product: ProductMaster) -> int:
         """
         Calculates the available quantity of a product across different branches.
@@ -33,9 +41,7 @@ class MercadoLibreStockEngine:
         Returns:
             The calculated available stock quantity.
         """
-        stock_principal_normalized = product.stock_principal.strip().upper() if product.stock_principal else ""
-
-        if stock_principal_normalized != "SI":
+        if not self._is_available(product.stock_principal):
             logger.info(
                 "Product %s has non-SI principal stock ('%s'). Setting quantity to 0.",
                 product.code,
@@ -46,7 +52,7 @@ class MercadoLibreStockEngine:
         available_count = 0
         for field in self.BRANCH_FIELDS:
             branch_stock_value = getattr(product, field, None)
-            if branch_stock_value and isinstance(branch_stock_value, str) and branch_stock_value.strip().upper() == "SI":
+            if self._is_available(branch_stock_value):
                 available_count += 1
 
         return available_count
