@@ -118,6 +118,7 @@ aiecommerce/
   - **Plan First:** Always propose a bulleted plan of files to create/edit before generating code.
   - **Incremental Changes:** Break large tasks into small, verifiable steps.
   - **Diffs:** Show diffs for all proposed changes.
+  - **No Auto-Commit:** Do **NOT** automatically commit changes. Committing changes is not allowed.
 
 ## 6. Example Prompts
 
