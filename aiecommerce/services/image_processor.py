@@ -5,6 +5,7 @@ from io import BytesIO
 
 import boto3
 import requests
+from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from PIL import Image
 from rembg import remove
@@ -26,31 +27,28 @@ class ImageProcessorService:
             logger.error(f"Failed to download image from {url}: {e}")
             return None
 
-    def _resize_image(self, image_bytes: bytes) -> bytes:
-        """Resizes an image to 800x800 pixels."""
-        try:
-            with Image.open(BytesIO(image_bytes)) as img_obj:
-                img_obj = img_obj.resize((800, 800), Image.Resampling.LANCZOS)
-                output_buffer = BytesIO()
-                img_obj.save(output_buffer, format="JPEG")
-                return output_buffer.getvalue()
-        except Exception as e:
-            logger.error(f"Error resizing image: {e}")
-            raise
-
-    def remove_background(self, image_bytes: bytes) -> bytes:
+    def remove_background(self, image_bytes: bytes) -> bytes | None:
         """
-        Removes the background from an image using rembg, pads the alpha channel to white,
-        converts to RGB, and resizes to 800x800.
-        """
-        logger.info("Removing background from image.")
-        try:
-            # Use rembg to remove the background
-            image_without_bg_bytes = remove(image_bytes)
+        Removes the background from an image and processes it.
 
-            # Open the image with Pillow
-            with Image.open(BytesIO(image_without_bg_bytes)) as img:
-                # Create a new image with a white background
+        This method is a convenience wrapper around `process_image` with background removal enabled.
+        """
+        return self.process_image(image_bytes, with_background_removal=True)
+
+    def process_image(self, image_bytes: bytes, with_background_removal: bool = False) -> bytes | None:
+        """
+        Processes an image.
+
+        Optionally removes the background, then centers the image on a pure white
+        800x800 pixel canvas, saving it as a high-quality JPEG.
+        """
+        logger.info(f"Processing image. Background removal: {with_background_removal}")
+        try:
+            if with_background_removal:
+                image_bytes = remove(image_bytes)
+
+            with Image.open(BytesIO(image_bytes)) as img:
+                # Handle transparency by pasting on a white background.
                 if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
                     alpha = img.convert("RGBA").split()[-1]
                     bg = Image.new("RGB", img.size, (255, 255, 255))
@@ -59,38 +57,50 @@ class ImageProcessorService:
                 elif img.mode != "RGB":
                     img = img.convert("RGB")
 
-                # Convert to bytes for resizing
+                # Create a white canvas
+                canvas_size = (800, 800)
+                canvas = Image.new("RGB", canvas_size, (255, 255, 255))
+
+                # Resize image to fit within the canvas while maintaining aspect ratio
+                img.thumbnail(canvas_size, Image.Resampling.LANCZOS)
+
+                # Calculate position to center the image
+                paste_x = (canvas_size[0] - img.width) // 2
+                paste_y = (canvas_size[1] - img.height) // 2
+
+                # Paste the resized image onto the canvas
+                canvas.paste(img, (paste_x, paste_y))
+
+                # Save to buffer as high-quality JPEG
                 output_buffer = BytesIO()
-                img.save(output_buffer, format="JPEG")
-                processed_image_bytes = output_buffer.getvalue()
-
-            # Resize the image
-            return self._resize_image(processed_image_bytes)
+                canvas.save(output_buffer, format="JPEG", quality=95)
+                return output_buffer.getvalue()
         except Exception as e:
-            logger.error(f"Error removing background from image: {e}")
-            raise
+            logger.error(f"Error processing image: {e}")
+            return None
 
-    def upload_to_s3(self, image_bytes: bytes, product_id: int, image_name: str) -> str:
-        """Uploads an image to S3."""
+    def upload_to_s3(self, image_bytes: bytes, product_id: int, image_name: str) -> str | None:
+        """Uploads an image to S3 and returns the public URL."""
         logger.info(f"Uploading {image_name} for product {product_id} to S3.")
         try:
-            s3 = boto3.client(
+            s3_client = boto3.client(
                 "s3",
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_S3_REGION_NAME,
             )
             bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-            s3_key = f"{product_id}/{image_name}.jpg"
+            s3_key = f"products/{product_id}/{image_name}.jpg"
 
-            s3.upload_fileobj(
+            s3_client.upload_fileobj(
                 BytesIO(image_bytes),
                 bucket_name,
                 s3_key,
                 ExtraArgs={"ContentType": "image/jpeg", "ACL": "public-read"},
             )
             s3_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_key}"
+            logger.info(f"Successfully uploaded to {s3_url}")
             return s3_url
-        except Exception as e:
+        except (BotoCoreError, ClientError) as e:
             logger.error(f"Error uploading image {image_name} for product {product_id} to S3: {e}")
-            raise
+            return None

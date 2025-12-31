@@ -21,8 +21,9 @@ def process_product_image(product_id: int) -> None:
     1.  Fetch the ProductMaster record.
     2.  Use ImageSearchService to find up to 5 image URLs.
     3.  Loop through the results:
-        - For the first image, download, remove background, and upload to S3.
-        - For subsequent images, just download and upload to S3.
+        - Download the image.
+        - Process the image (resize, center, etc.). Remove background only for the first one.
+        - Upload to S3.
     4.  Create a ProductImage record for each successfully uploaded image.
     5.  If no images are processed, update the MercadoLibreListing status to 'ERROR'.
     """
@@ -60,13 +61,15 @@ def process_product_image(product_id: int) -> None:
         if not image_bytes:
             continue
 
-        if i == 0:
-            # Remove background for the first image
-            image_bytes = image_processor_service.remove_background(image_bytes)
+        # For the first image, remove the background. All images are processed.
+        processed_image_bytes = image_processor_service.process_image(image_bytes, with_background_removal=(i == 0))
+
+        if not processed_image_bytes:
+            continue
 
         # Use a generic name for the image, as we don't have one from the search
         image_name = f"image_{i + 1}"
-        s3_url = image_processor_service.upload_to_s3(image_bytes, product.id, image_name)
+        s3_url = image_processor_service.upload_to_s3(processed_image_bytes, product.id, image_name)
 
         if s3_url:
             product_image = ProductImage(product=product, url=s3_url, order=i, is_processed=True)
@@ -86,4 +89,4 @@ def process_product_image(product_id: int) -> None:
                     "sync_error": "Image processing failed: No images were downloaded or uploaded",
                 },
             )
-        logger.info(f"Updated MercadoLibreListing {listing.id} to ERROR state because no images were processed.")
+            logger.info(f"Updated MercadoLibreListing {listing.id} to ERROR state because no images were processed.")

@@ -1,7 +1,7 @@
 """Tests for image processing tasks."""
 
 import logging
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from model_bakery import baker
@@ -23,14 +23,15 @@ def test_process_product_image_success(mock_image_search_service, mock_image_pro
     caplog.set_level(logging.INFO)
     product = baker.make(ProductMaster)
     fake_urls = [f"http://example.com/image-{i}.jpg" for i in range(5)]
+    raw_image_data = b"raw_image_data"
 
     mock_search_instance = mock_image_search_service.return_value
     mock_search_instance.build_search_query.return_value = "a search query"
     mock_search_instance.find_image_urls.return_value = fake_urls
 
     mock_processor_instance = mock_image_processor_service.return_value
-    mock_processor_instance.download_image.return_value = b"raw_image_data"
-    mock_processor_instance.remove_background.return_value = b"processed_image_data"
+    mock_processor_instance.download_image.return_value = raw_image_data
+    mock_processor_instance.process_image.return_value = b"processed_image_data"
     mock_processor_instance.upload_to_s3.side_effect = lambda _, __, image_name: f"http://s3.com/{image_name}.jpg"
 
     # Act
@@ -43,8 +44,18 @@ def test_process_product_image_success(mock_image_search_service, mock_image_pro
     assert first_image.is_processed
     assert first_image.url == "http://s3.com/image_1.jpg"
 
-    # Verify that remove_background was called only for the first image
-    mock_processor_instance.remove_background.assert_called_once()
+    # Verify that process_image was called correctly
+    assert mock_processor_instance.process_image.call_count == 5
+    mock_processor_instance.process_image.assert_has_calls(
+        [
+            call(raw_image_data, with_background_removal=True),
+            call(raw_image_data, with_background_removal=False),
+            call(raw_image_data, with_background_removal=False),
+            call(raw_image_data, with_background_removal=False),
+            call(raw_image_data, with_background_removal=False),
+        ]
+    )
+
     assert mock_processor_instance.download_image.call_count == 5
     assert mock_processor_instance.upload_to_s3.call_count == 5
 
@@ -95,6 +106,7 @@ def test_process_product_image_download_fails(mock_image_search_service, mock_im
         None,
         b"image_data_3",
     ]
+    mock_processor_instance.process_image.return_value = b"processed_image_data"
     mock_processor_instance.upload_to_s3.side_effect = lambda _, __, image_name: f"http://s3.com/{image_name}.jpg"
 
     # Act
@@ -104,5 +116,6 @@ def test_process_product_image_download_fails(mock_image_search_service, mock_im
     assert ProductImage.objects.filter(product=product).count() == 2
     assert not ProductImage.objects.filter(product=product, order=1).exists()
     assert mock_processor_instance.download_image.call_count == 3
-    # Upload should only be called for the successful downloads
+    # Process and upload should only be called for successful downloads
+    assert mock_processor_instance.process_image.call_count == 2
     assert mock_processor_instance.upload_to_s3.call_count == 2
