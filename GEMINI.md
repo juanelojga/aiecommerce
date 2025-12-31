@@ -52,6 +52,7 @@ aiecommerce/
 ## 4. Test Generation Guidelines
 
 **Strict Rules:**
+- Do **NOT** create unit test cases unless it is specifically specified in the request.
 - Do **NOT** generate tests in the same iteration as feature code unless explicitly asked.
 - Do **NOT** execute unit test cases after a change is made unless specifically requested.
 
