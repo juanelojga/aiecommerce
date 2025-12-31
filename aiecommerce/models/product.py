@@ -56,6 +56,7 @@ class ProductMaster(models.Model):
     image_url = models.URLField(max_length=2000, null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    is_for_mercadolibre = models.BooleanField(default=False)
 
     specs = models.JSONField(default=dict, blank=True, null=True)
 

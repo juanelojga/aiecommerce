@@ -12,6 +12,27 @@ from aiecommerce.models.product import ProductMaster
 logger = logging.getLogger(__name__)
 
 
+class ImageCandidateSelector:
+    """
+    A service to select product candidates for image processing.
+    """
+
+    def find_products_without_images(self) -> List[ProductMaster]:
+        """
+        Finds products that are active, destined for Mercado Libre, and have no associated images.
+
+        Returns:
+            A list of ProductMaster instances.
+        """
+        return list(
+            ProductMaster.objects.filter(
+                is_active=True,
+                is_for_mercadolibre=True,
+                images__isnull=True,
+            )
+        )
+
+
 class ImageSearchService:
     """
     A service to find product images using Google Custom Search API.
