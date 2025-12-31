@@ -1,7 +1,11 @@
-from django.db.models import Q, QuerySet
+import logging
+
+from django.db.models import QuerySet
 
 from aiecommerce.models.product import ProductMaster
 from aiecommerce.services.mercadolibre_impl.filter import MercadoLibreFilter
+
+logger = logging.getLogger(__name__)
 
 
 class ImageCandidateSelector:
@@ -16,5 +20,13 @@ class ImageCandidateSelector:
         """
         Returns products that are eligible for MercadoLibre but are missing an image.
         """
+        logger.debug("Getting eligible products for image search.")
         base_products = self.ml_filter.get_eligible_products()
-        return base_products.filter(Q(image_url__isnull=True) | Q(image_url=""))
+
+        logger.debug("Filtering for products with no images.")
+        image_pending_products = base_products.filter(images__isnull=True)
+
+        count = image_pending_products.count()
+        logger.info(f"Found {count} products pending image search.")
+
+        return image_pending_products
