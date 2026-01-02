@@ -31,43 +31,67 @@ class ImageProcessorService:
             logger.error(f"Failed to download image from {url}: {e}")
             return None
 
-    def remove_background(self, image_bytes: bytes) -> bytes | None:
+    def _is_dark_background(self, img: Image.Image, threshold: int = 45) -> bool:
         """
-        Removes the background from an image and processes it.
+        Detects if the image background is black or dark by sampling the edges.
+        Luminance threshold: 0 (black) to 255 (white). 45 is a safe dark-gray limit.
+        """
+        # Convert to grayscale to analyze luminance
+        gray_img = img.convert("L")
+        width, height = gray_img.size
 
-        This method is a convenience wrapper around `process_image` with background removal enabled.
-        """
-        return self.process_image(image_bytes, with_background_removal=True)
+        # Sample points at the edges and corners where background is expected
+        samples = [
+            (0, 0),
+            (width - 1, 0),
+            (0, height - 1),
+            (width - 1, height - 1),
+            (width // 2, 0),
+            (width // 2, height - 1),
+            (0, height // 2),
+            (width - 1, height // 2),
+        ]
+
+        pixel_values = [gray_img.getpixel(pos) for pos in samples]
+        avg_luminance = sum(pixel_values) / len(pixel_values)
+
+        return avg_luminance < threshold
 
     def process_image(self, image_bytes: bytes, with_background_removal: bool = False) -> bytes | None:
-        """Processes images with Auto-Crop to handle vertical/narrow products like Micro PCs."""
+        """
+        Processes an image. Ignores images with dark or black backgrounds.
+        """
         try:
             with Image.open(BytesIO(image_bytes)) as img:
+                # 1. Background Check: Ignore if dark or black
+                if self._is_dark_background(img):
+                    logger.info("Image detected with dark/black background. Ignoring as per preference.")
+                    return None
+
                 img = img.convert("RGBA")
 
                 if with_background_removal:
-                    # 1. Background removal
+                    # 2. Background removal using the shared session
                     processed_bytes = remove(image_bytes, session=self.session)
                     img = Image.open(BytesIO(processed_bytes)).convert("RGBA")
 
-                    # 2. AUTO-CROP: Trim all transparent/white pixels to find the real product bounds
-                    # This ensures the product 'fills' the 800x800 canvas correctly.
+                    # 3. AUTO-CROP: Remove excess transparency to focus on the product
                     bbox = img.getbbox()
                     if bbox:
                         img = img.crop(bbox)
 
-                # 3. Standardize to 800x800 White Canvas
+                # 4. Create standardized 800x800 White Canvas (Mercado Libre Standard)
                 canvas_size = (800, 800)
                 canvas = Image.new("RGB", canvas_size, (255, 255, 255))
 
-                # Resize to fit (max 760 to leave a small 20px margin)
+                # Resize to fit within 760x760 (leaving a 20px padding margin)
                 img.thumbnail((760, 760), Image.Resampling.LANCZOS)
 
-                # Center on canvas
+                # Center the product
                 paste_x = (canvas_size[0] - img.width) // 2
                 paste_y = (canvas_size[1] - img.height) // 2
 
-                # 4. Paste with mask to preserve colors
+                # 5. Final Paste using the product as the alpha mask
                 canvas.paste(img, (paste_x, paste_y), mask=img)
 
                 output_buffer = BytesIO()
@@ -90,7 +114,6 @@ class ImageProcessorService:
             bucket_name = settings.AWS_STORAGE_BUCKET_NAME
             s3_key = f"products/{product_id}/{image_name}.jpg"
 
-            # REMOVED "ACL": "public-read" from ExtraArgs
             s3_client.upload_fileobj(
                 BytesIO(image_bytes),
                 bucket_name,
