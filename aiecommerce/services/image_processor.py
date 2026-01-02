@@ -22,9 +22,14 @@ class ImageProcessorService:
         # Initialize a session for better consistency in removal
         from typing import Set
 
-        # ...
         self.session = new_session()
         self.seen_hashes: Set[imagehash.ImageHash] = set()
+        self.s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME,
+        )
 
     def clear_session_hashes(self) -> None:
         """Clears the set of seen image hashes for the current session."""
@@ -182,16 +187,10 @@ class ImageProcessorService:
         """Uploads an image to S3 and returns the public URL."""
         logger.info(f"Uploading {image_name} for product {product_id} to S3.")
         try:
-            s3_client = boto3.client(
-                "s3",
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_S3_REGION_NAME,
-            )
             bucket_name = settings.AWS_STORAGE_BUCKET_NAME
             s3_key = f"products/{product_id}/{image_name}.jpg"
 
-            s3_client.upload_fileobj(
+            self.s3_client.upload_fileobj(
                 BytesIO(image_bytes),
                 bucket_name,
                 s3_key,

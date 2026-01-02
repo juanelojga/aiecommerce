@@ -12,7 +12,8 @@ from aiecommerce.services.image_processor import ImageProcessorService
 
 @pytest.fixture
 def image_processor_service():
-    return ImageProcessorService()
+    with patch("boto3.client"):
+        yield ImageProcessorService()
 
 
 @pytest.fixture
@@ -146,11 +147,7 @@ class TestImageProcessorService:
         assert img.getpixel((0, 0)) == (255, 255, 255)
         assert img.getpixel((400, 400)) == (255, 255, 255)
 
-    @patch("boto3.client")
-    def test_upload_to_s3(self, mock_boto_client, image_processor_service, sample_image_bytes):
-        mock_s3_client = MagicMock()
-        mock_boto_client.return_value = mock_s3_client
-
+    def test_upload_to_s3(self, image_processor_service, sample_image_bytes):
         # Mock settings
         with (
             patch.object(settings, "AWS_ACCESS_KEY_ID", "test_key"),
@@ -163,14 +160,11 @@ class TestImageProcessorService:
             expected_s3_key = f"products/{product_id}/{image_name}.jpg"
             expected_s3_url = f"https://test-bucket.s3.us-east-1.amazonaws.com/{expected_s3_key}"
 
+            # Since the client is initialized in __init__, it's already on the service object
+            mock_s3_client = image_processor_service.s3_client
+
             result_url = image_processor_service.upload_to_s3(sample_image_bytes, product_id, image_name)
 
-            mock_boto_client.assert_called_once_with(
-                "s3",
-                aws_access_key_id="test_key",
-                aws_secret_access_key="test_secret",
-                region_name="us-east-1",
-            )
             mock_s3_client.upload_fileobj.assert_called_once()
             args, kwargs = mock_s3_client.upload_fileobj.call_args
             assert args[1] == "test-bucket"
