@@ -37,6 +37,7 @@ def process_product_image(product_id: int) -> None:
 
     image_search_service = ImageSearchService()
     image_processor_service = ImageProcessorService()
+    image_processor_service.clear_session_hashes()
 
     search_query = image_search_service.build_search_query(product)
     image_urls = image_search_service.find_image_urls(search_query, image_search_count=settings.IMAGE_SEARCH_COUNT)
@@ -60,6 +61,10 @@ def process_product_image(product_id: int) -> None:
     for i, image_url in enumerate(image_urls):
         image_bytes = image_processor_service.download_image(image_url)
         if not image_bytes:
+            continue
+
+        # Check for duplicates before processing
+        if image_processor_service.is_duplicate(image_bytes):
             continue
 
         # For the first image, remove the background. All images are processed.

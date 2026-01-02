@@ -1,6 +1,7 @@
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 import requests
 from django.conf import settings
@@ -18,6 +19,16 @@ def image_processor_service():
 def sample_image_bytes():
     # Create a dummy image
     img = Image.new("RGB", (100, 100), color="red")
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+@pytest.fixture
+def another_image_bytes():
+    # Create another dummy image with noise
+    img_array = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+    img = Image.fromarray(img_array, "RGB")
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     return buffer.getvalue()
@@ -55,6 +66,41 @@ class TestImageProcessorService:
 
         assert result is None
         mock_get.assert_called_once_with(url, timeout=10)
+
+    def test_is_duplicate_new_image(self, image_processor_service, sample_image_bytes):
+        """Test that a new image is not marked as a duplicate."""
+        is_dup = image_processor_service.is_duplicate(sample_image_bytes)
+        assert not is_dup
+        assert len(image_processor_service.seen_hashes) == 1
+
+    def test_is_duplicate_same_image(self, image_processor_service, sample_image_bytes):
+        """Test that the same image is detected as a duplicate."""
+        image_processor_service.is_duplicate(sample_image_bytes)  # First encounter
+        is_dup = image_processor_service.is_duplicate(sample_image_bytes)  # Second encounter
+        assert is_dup
+        assert len(image_processor_service.seen_hashes) == 1
+
+    def test_is_duplicate_different_images(self, image_processor_service, sample_image_bytes, another_image_bytes):
+        """Test that different images are not marked as duplicates."""
+        image_processor_service.is_duplicate(sample_image_bytes)
+        is_dup = image_processor_service.is_duplicate(another_image_bytes)
+        assert not is_dup
+        assert len(image_processor_service.seen_hashes) == 2
+
+    def test_clear_session_hashes(self, image_processor_service, sample_image_bytes):
+        """Test that hashes are cleared."""
+        image_processor_service.is_duplicate(sample_image_bytes)
+        assert len(image_processor_service.seen_hashes) == 1
+        image_processor_service.clear_session_hashes()
+        assert len(image_processor_service.seen_hashes) == 0
+
+    @patch("imagehash.phash")
+    def test_is_duplicate_hashing_error(self, mock_phash, image_processor_service, sample_image_bytes):
+        """Test that if hashing fails, the image is not marked as a duplicate."""
+        mock_phash.side_effect = Exception("Hashing failed")
+        is_dup = image_processor_service.is_duplicate(sample_image_bytes)
+        assert not is_dup
+        assert len(image_processor_service.seen_hashes) == 0
 
     def test_process_image_no_background_removal(self, image_processor_service, sample_image_bytes):
         """Test processing without background removal, ensuring centering and resizing."""

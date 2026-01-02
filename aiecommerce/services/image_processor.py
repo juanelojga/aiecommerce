@@ -4,6 +4,7 @@ import logging
 from io import BytesIO
 
 import boto3
+import imagehash
 import requests
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
@@ -19,7 +20,44 @@ class ImageProcessorService:
 
     def __init__(self) -> None:
         # Initialize a session for better consistency in removal
+        from typing import Set
+
+        # ...
         self.session = new_session()
+        self.seen_hashes: Set[imagehash.ImageHash] = set()
+
+    def clear_session_hashes(self) -> None:
+        """Clears the set of seen image hashes for the current session."""
+        self.seen_hashes.clear()
+        logger.info("Cleared session image hashes.")
+
+    def is_duplicate(self, image_bytes: bytes, threshold: int = 2) -> bool:
+        """
+        Checks if an image is a visual duplicate of one already seen in this session.
+
+        Args:
+            image_bytes: The image content in bytes.
+            threshold: The maximum hash distance to be considered a duplicate.
+                       A lower threshold means stricter similarity. Defaults to 2.
+
+        Returns:
+            True if the image is a duplicate, False otherwise.
+        """
+        try:
+            img = Image.open(BytesIO(image_bytes))
+            new_hash = imagehash.phash(img)
+
+            for seen_hash in self.seen_hashes:
+                distance = new_hash - seen_hash
+                if distance <= threshold:
+                    logger.info(f"Visual duplicate detected with distance {distance}. Skipping.")
+                    return True
+
+            self.seen_hashes.add(new_hash)
+            return False
+        except Exception as e:
+            logger.error(f"Could not compute image hash: {e}")
+            return False  # Fail-safe: treat as not a duplicate if hashing fails
 
     def download_image(self, url: str) -> bytes | None:
         """Downloads an image from a URL."""
