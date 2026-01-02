@@ -30,6 +30,7 @@ def test_process_product_image_success(mock_image_search_service, mock_image_pro
     mock_search_instance.find_image_urls.return_value = fake_urls
 
     mock_processor_instance = mock_image_processor_service.return_value
+    mock_processor_instance.is_duplicate.return_value = False
     mock_processor_instance.download_image.return_value = raw_image_data
     mock_processor_instance.process_image.return_value = b"processed_image_data"
     mock_processor_instance.upload_to_s3.side_effect = lambda _, __, image_name: f"http://s3.com/{image_name}.jpg"
@@ -100,6 +101,7 @@ def test_process_product_image_download_fails(mock_image_search_service, mock_im
     mock_search_instance.find_image_urls.return_value = fake_urls
 
     mock_processor_instance = mock_image_processor_service.return_value
+    mock_processor_instance.is_duplicate.return_value = False
     # Fail the download for the second image
     mock_processor_instance.download_image.side_effect = [
         b"image_data_1",
