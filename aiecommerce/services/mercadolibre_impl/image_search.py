@@ -83,6 +83,8 @@ class ImageSearchService:
             A list of unique image URLs, or an empty list if no suitable images are found or an error occurs.
         """
         logger.info(f"Searching for up to {image_search_count} images with query: '{query}'")
+        # Google Custom Search API 'num' parameter must be between 1 and 10.
+        api_num = min(image_search_count, 10)
         try:
             result = (
                 self.service.cse()
@@ -90,8 +92,8 @@ class ImageSearchService:
                     q=query,
                     cx=self.search_engine_id,
                     searchType="image",
-                    imgSize="XLARGE",  # API also supports 'large', 'xlarge', etc.
-                    num=image_search_count,
+                    imgSize="HUGE",  # API also supports 'large', 'xlarge', etc.
+                    num=api_num,
                 )
                 .execute()
             )
