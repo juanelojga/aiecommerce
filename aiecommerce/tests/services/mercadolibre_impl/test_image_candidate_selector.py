@@ -33,6 +33,7 @@ class TestImageCandidateSelector:
         # Test that distinct() is working if multiple search criteria might match (though here it's simple)
         # More importantly, if it had multiple images and we filtered for isnull=False,
         # distinct would be important. For isnull=True it's less likely to duplicate but good to have.
+        baker.make(ProductMaster, is_active=True, is_for_mercadolibre=True)
 
         selector = ImageCandidateSelector()
         results = selector.find_products_without_images()
