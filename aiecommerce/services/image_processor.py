@@ -7,7 +7,7 @@ import boto3
 import requests
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
-from PIL import Image
+from PIL import Image, ImageFilter
 from rembg import new_session, remove
 from requests import RequestException
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ImageProcessorService:
     """A service for processing images."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Initialize a session for better consistency in removal
         self.session = new_session()
 
@@ -36,6 +36,16 @@ class ImageProcessorService:
         Detects if the image background is black or dark by sampling the edges.
         Luminance threshold: 0 (black) to 255 (white). 45 is a safe dark-gray limit.
         """
+        # If image has an alpha channel, it might be transparent, which we don't consider "dark"
+        if img.mode == "RGBA":
+            # Just check the corners, if they are transparent, it's not a dark background
+            width, height = img.size
+            corners = [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
+            for pos in corners:
+                pixel = img.getpixel(pos)
+                if isinstance(pixel, tuple) and len(pixel) == 4 and pixel[3] == 0:
+                    return False
+
         # Convert to grayscale to analyze luminance
         gray_img = img.convert("L")
         width, height = gray_img.size
@@ -52,7 +62,17 @@ class ImageProcessorService:
             (width - 1, height // 2),
         ]
 
-        pixel_values = [gray_img.getpixel(pos) for pos in samples]
+        pixel_values = []
+        for pos in samples:
+            pixel = gray_img.getpixel(pos)
+            if isinstance(pixel, int):
+                pixel_values.append(float(pixel))
+            elif isinstance(pixel, tuple):
+                pixel_values.append(float(pixel[0]))
+
+        if not pixel_values:
+            return False
+
         avg_luminance = sum(pixel_values) / len(pixel_values)
 
         return avg_luminance < threshold
@@ -71,14 +91,30 @@ class ImageProcessorService:
                 img = img.convert("RGBA")
 
                 if with_background_removal:
+                    logger.info("Performing color-safe background removal.")
                     # 2. Background removal using the shared session
                     processed_bytes = remove(image_bytes, session=self.session)
-                    img = Image.open(BytesIO(processed_bytes)).convert("RGBA")
+                    # Extract original ICC profile if available to maintain color accuracy
+                    icc_profile = img.info.get("icc_profile")
+
+                    with Image.open(BytesIO(processed_bytes)) as rembg_img:
+                        rembg_img = rembg_img.convert("RGBA")
+                        # Perform edge dilation on the alpha mask to prevent thin gray borders
+                        # on white backgrounds (common issue with rembg)
+                        split_result = rembg_img.split()
+                        if len(split_result) == 4:
+                            r, g, b, alpha = split_result
+                            dilated_alpha = alpha.filter(ImageFilter.MaxFilter(3))
+                            img = Image.merge("RGBA", (r, g, b, dilated_alpha))
+                        else:
+                            img = rembg_img
 
                     # 3. AUTO-CROP: Remove excess transparency to focus on the product
                     bbox = img.getbbox()
                     if bbox:
                         img = img.crop(bbox)
+                else:
+                    icc_profile = img.info.get("icc_profile")
 
                 # 4. Create standardized 800x800 White Canvas (Mercado Libre Standard)
                 canvas_size = (800, 800)
@@ -95,7 +131,10 @@ class ImageProcessorService:
                 canvas.paste(img, (paste_x, paste_y), mask=img)
 
                 output_buffer = BytesIO()
-                canvas.save(output_buffer, format="JPEG", quality=95, subsampling=0)
+                if icc_profile:
+                    canvas.save(output_buffer, format="JPEG", quality=95, subsampling=0, icc_profile=icc_profile)
+                else:
+                    canvas.save(output_buffer, format="JPEG", quality=95, subsampling=0)
                 return output_buffer.getvalue()
         except Exception as e:
             logger.error(f"Error processing image: {e}")

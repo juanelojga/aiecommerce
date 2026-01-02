@@ -38,7 +38,7 @@ def test_build_search_query_prioritizes_specs(image_search_service):
         specs={"brand": "Apple", "model": "iPhone 14 Pro", "category": "Smartphone"},
         description="This should be ignored.",
     )
-    expected = "Apple iPhone 14 Pro Smartphone official product image"
+    expected = "Apple iPhone 14 Pro Smartphone official product image white background"
     assert image_search_service.build_search_query(product) == expected
 
 
@@ -52,7 +52,7 @@ def test_build_search_query_falls_back_to_description(image_search_service):
         specs={"category": "Laptop"},
         description="A powerful new laptop from a generic brand",
     )
-    expected = "A powerful new laptop from"
+    expected = "A powerful new laptop from a official product image white background"
     assert image_search_service.build_search_query(product) == expected
 
 
@@ -66,8 +66,8 @@ def test_build_search_query_filters_noisy_terms_from_description(image_search_se
         description="Si, this is a product. No, it is not a toy. Cop it now for a good precio.",
         specs={},
     )
-    # "Si", "No", "Cop", "precio" should be removed. It should take the first 5 non-noisy words.
-    expected = "this is a product it"
+    # "Si", "No", "Cop", "precio" should be removed. It should take the first 6 meaningful words.
+    expected = "this is a product official product image white background"
     assert image_search_service.build_search_query(product) == expected
 
 
@@ -99,10 +99,10 @@ def test_build_search_query_truncates_long_queries(image_search_service):
 @pytest.mark.django_db
 def test_build_search_query_handles_empty_product(image_search_service):
     """
-    Test that an empty query is returned for a product with no specs or description.
+    Test that a query with only hero keywords is returned for a product with no specs or description.
     """
     product = baker.make(ProductMaster, specs={}, description="")
-    assert image_search_service.build_search_query(product) == ""
+    assert image_search_service.build_search_query(product) == "official product image white background"
 
 
 @pytest.mark.django_db

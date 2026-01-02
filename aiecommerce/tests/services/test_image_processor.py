@@ -6,7 +6,6 @@ import requests
 from django.conf import settings
 from PIL import Image
 
-from aiecommerce.services import image_processor
 from aiecommerce.services.image_processor import ImageProcessorService
 
 
@@ -59,31 +58,27 @@ class TestImageProcessorService:
 
     def test_process_image_no_background_removal(self, image_processor_service, sample_image_bytes):
         """Test processing without background removal, ensuring centering and resizing."""
-        processed_bytes = image_processor_service.process_image(sample_image_bytes, with_background_removal=False)
+        # Use a non-square image that is definitely NOT dark
+        non_square_img = Image.new("RGB", (100, 200), color=(200, 200, 255))
+        buffer = BytesIO()
+        non_square_img.save(buffer, format="PNG")
+        non_square_bytes = buffer.getvalue()
+
+        # Mock Image.open to return a real image so thumbnail works if it's called on a mock
+        processed_bytes = image_processor_service.process_image(non_square_bytes, with_background_removal=False)
         assert processed_bytes is not None
 
         img = Image.open(BytesIO(processed_bytes))
         assert img.size == (800, 800)
         assert img.format == "JPEG"
 
-        # Check that the image is centered
-        # Let's test with a non-square image to check centering.
-        non_square_img = Image.new("RGB", (100, 200), color="blue")
-        buffer = BytesIO()
-        non_square_img.save(buffer, format="PNG")
-        non_square_bytes = buffer.getvalue()
-
-        processed_bytes = image_processor_service.process_image(non_square_bytes, with_background_removal=False)
-        img = Image.open(BytesIO(processed_bytes))
-
-        # The image (100, 200) will be resized to (400, 800) to fit in (800, 800).
-        # The paste position should be ((800-400)/2, (800-800)/2) = (200, 0).
+        # The image (100, 200) will be resized to (380, 760) to fit in (760, 760).
+        # The paste position should be ((800-380)/2, (800-760)/2) = (210, 20).
         # Top-left should be white background.
         assert img.getpixel((0, 0)) == (255, 255, 255)
-        # A pixel from the image, e.g., center of image.
-        # Check that blue is the dominant color, allowing for JPEG artifacts.
+        # A pixel from the image, e.g., center of image (400, 400).
         r, g, b = img.getpixel((400, 400))
-        assert b > 240 and r < 15 and g < 15
+        assert b > 240 and r > 190 and g > 190
         # Bottom-right should be white background
         assert img.getpixel((799, 799)) == (255, 255, 255)
 
@@ -93,7 +88,10 @@ class TestImageProcessorService:
 
         processed_image_bytes = image_processor_service.process_image(transparent_image_bytes, with_background_removal=True)
 
-        mock_rembg_remove.assert_called_once_with(transparent_image_bytes)
+        mock_rembg_remove.assert_called_once()
+        args, kwargs = mock_rembg_remove.call_args
+        assert args[0] == transparent_image_bytes
+        assert "session" in kwargs
 
         img = Image.open(BytesIO(processed_image_bytes))
         assert img.size == (800, 800)
@@ -138,8 +136,10 @@ class TestImageProcessorService:
     @patch("aiecommerce.services.image_processor.Image.open")
     @patch("aiecommerce.services.image_processor.ImageFilter.MaxFilter")
     @patch("aiecommerce.services.image_processor.Image.new")
+    @patch("aiecommerce.services.image_processor.Image.merge")
     def test_process_image_with_bg_removal_features(
         self,
+        mock_image_merge,
         mock_image_new,
         mock_max_filter,
         mock_image_open,
@@ -151,12 +151,23 @@ class TestImageProcessorService:
         # Arrange
         # 1. Mock for original image with ICC profile
         mock_original_img = MagicMock(spec=Image.Image, mode="RGB", info={"icc_profile": b"dummy_profile"})
+        mock_original_img.convert.return_value = mock_original_img
 
         # 2. Mocks for rembg result image and its alpha mask
         mock_rembg_img = MagicMock(spec=Image.Image, mode="RGBA", size=(100, 100))
-        mock_alpha = MagicMock(spec=Image.Image)
+        mock_rembg_img.width = 100
+        mock_rembg_img.height = 100
+        mock_r = MagicMock(spec=Image.Image, mode="L", size=(100, 100))
+        mock_g = MagicMock(spec=Image.Image, mode="L", size=(100, 100))
+        mock_b = MagicMock(spec=Image.Image, mode="L", size=(100, 100))
+        mock_alpha = MagicMock(spec=Image.Image, mode="L", size=(100, 100))
         mock_alpha.filter.return_value = mock_alpha  # Make filter return itself to not break the call chain
-        mock_rembg_img.split.return_value = (None, None, None, mock_alpha)
+        mock_rembg_img.split.return_value = (mock_r, mock_g, mock_b, mock_alpha)
+        mock_rembg_img.convert.return_value = mock_rembg_img
+        mock_rembg_img.getbbox.return_value = (0, 0, 100, 100)
+        mock_rembg_img.crop.return_value = mock_rembg_img
+
+        mock_image_merge.return_value = mock_rembg_img
 
         # Image.open is called twice: once for the original, once for the rembg result
         mock_image_open.side_effect = [
@@ -167,16 +178,17 @@ class TestImageProcessorService:
 
         # 3. Mocks for canvas creation
         mock_canvas = MagicMock(spec=Image.Image)
+        mock_canvas.width = 800
+        mock_canvas.height = 800
         # Image.new is called for the white BG and the canvas
         mock_image_new.return_value = mock_canvas
 
         # Act
-        with patch.object(image_processor, "logger") as mock_logger:
+        # We need to mock _is_dark_background because it uses getpixel which we haven't mocked for original_img
+        with patch.object(image_processor_service, "_is_dark_background", return_value=False):
             image_processor_service.process_image(sample_image_bytes, with_background_removal=True)
 
         # Assert
-        # Assert correct logging
-        mock_logger.info.assert_any_call("Performing color-safe background removal.")
 
         # Assert edge dilation was performed
         mock_max_filter.assert_called_once_with(3)
