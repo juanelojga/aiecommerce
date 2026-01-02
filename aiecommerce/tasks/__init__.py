@@ -1,4 +1,5 @@
 from .connectivity import test_celery_worker
+from .images import process_product_image
 from .periodic import (
     run_enrich_products,
     run_image_fetcher,
@@ -11,6 +12,7 @@ from .periodic import (
 
 __all__ = (
     "test_celery_worker",
+    "process_product_image",
     "run_prune_scrapes",
     "run_scrape_tecnomega",
     "run_sync_price_list",
