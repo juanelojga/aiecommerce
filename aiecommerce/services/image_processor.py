@@ -41,31 +41,37 @@ class ImageProcessorService:
         return self.process_image(image_bytes, with_background_removal=True)
 
     def process_image(self, image_bytes: bytes, with_background_removal: bool = False) -> bytes | None:
-        """Processes an image using Hybrid Thresholding to prevent product erasure."""
+        """Processes an image efficiently by pre-resizing before background removal."""
         logger.info(f"Processing image. Background removal: {with_background_removal}")
         try:
             with Image.open(BytesIO(image_bytes)) as img:
+                # PRE-RESIZE: If the image is huge, shrink it to a manageable 'working size'
+                # This dramatically speeds up rembg without losing 800x800 quality.
+                working_size = 1000
+                if max(img.size) > working_size:
+                    img.thumbnail((working_size, working_size), Image.Resampling.LANCZOS)
+
                 img = img.convert("RGBA")
                 original_img = img.copy()
 
                 if with_background_removal:
-                    # 1. Try automated removal with alpha matting for better edges
-                    processed_bytes = remove(image_bytes, alpha_matting=True)
+                    # Convert back to bytes for rembg after the pre-resize
+                    working_buffer = BytesIO()
+                    img.save(working_buffer, format="PNG")
+
+                    # 1. Run removal WITHOUT alpha_matting for speed
+                    # Pass the session you initialized in __init__
+                    processed_bytes = remove(working_buffer.getvalue(), session=self.session, alpha_matting=False)
                     processed_img = Image.open(BytesIO(processed_bytes)).convert("RGBA")
 
-                    # 2. ANTI-ERASURE CHECK:
-                    # If the center of the image became transparent, the AI failed.
-                    # We check the alpha channel of the central 50% of the image.
+                    # 2. ANTI-ERASURE CHECK (remains same)
                     w, h = processed_img.size
                     center_box = (w // 4, h // 4, 3 * w // 4, 3 * h // 4)
                     center_alpha = processed_img.getchannel("A").crop(center_box)
 
-                    # If mean alpha in the center is low (< 100), the product was erased.
                     if np.mean(np.array(center_alpha)) < 100:
                         logger.warning("AI erased product. Switching to Color-Safe Thresholding.")
-                        # Use a luminance mask to keep anything that isn't white (dark PC)
                         grayscale = ImageOps.grayscale(original_img.convert("RGB"))
-                        # Threshold: keep pixels darker than 245 (0=black, 255=white)
                         mask = grayscale.point(lambda p: 255 if p < 245 else 0).convert("L")
                         img_to_use = original_img.copy()
                         img_to_use.putalpha(mask)
@@ -74,23 +80,20 @@ class ImageProcessorService:
                 else:
                     img_to_use = original_img
 
-                # 3. Create standardized 800x800 White Canvas
+                # 3. Create standardized 800x800 White Canvas (ML Standard)
                 canvas_size = (800, 800)
                 canvas = Image.new("RGB", canvas_size, (255, 255, 255))
-
-                # Resize product (thumbnail preserves aspect ratio)
                 img_to_use.thumbnail(canvas_size, Image.Resampling.LANCZOS)
 
-                # Center the product
                 paste_x = (canvas_size[0] - img_to_use.width) // 2
                 paste_y = (canvas_size[1] - img_to_use.height) // 2
 
-                # 4. Paste using the mask to ensure the product body is OPAQUE
+                # 4. Paste using the mask
                 canvas.paste(img_to_use, (paste_x, paste_y), mask=img_to_use)
 
                 output_buffer = BytesIO()
-                # Save as JPEG with maximum quality and no color subsampling
-                canvas.save(output_buffer, format="JPEG", quality=100, subsampling=0)
+                # quality=95 is a good balance for high-res looking hardware
+                canvas.save(output_buffer, format="JPEG", quality=95)
                 return output_buffer.getvalue()
 
         except Exception as e:
