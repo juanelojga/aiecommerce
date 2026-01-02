@@ -6,11 +6,11 @@ django-stubs==5.2.8
 django-stubs-ext==5.2.8
 djangorestframework-stubs==3.16.6
 factory_boy==3.3.3
-Faker==39.1.0
+Faker==40.1.0
 identify==2.6.15
 iniconfig==2.3.0
 mock==5.2.0
-model-bakery==1.20.5
+model-bakery==1.21.0
 mypy==1.19.1
 mypy_extensions==1.1.0
 nodeenv==1.10.0
