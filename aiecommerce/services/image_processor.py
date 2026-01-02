@@ -4,11 +4,10 @@ import logging
 from io import BytesIO
 
 import boto3
-import numpy as np
 import requests
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
-from PIL import Image, ImageOps
+from PIL import Image
 from rembg import new_session, remove
 from requests import RequestException
 
@@ -41,61 +40,39 @@ class ImageProcessorService:
         return self.process_image(image_bytes, with_background_removal=True)
 
     def process_image(self, image_bytes: bytes, with_background_removal: bool = False) -> bytes | None:
-        """Processes an image efficiently by pre-resizing before background removal."""
-        logger.info(f"Processing image. Background removal: {with_background_removal}")
+        """Processes images with Auto-Crop to handle vertical/narrow products like Micro PCs."""
         try:
             with Image.open(BytesIO(image_bytes)) as img:
-                # PRE-RESIZE: If the image is huge, shrink it to a manageable 'working size'
-                # This dramatically speeds up rembg without losing 800x800 quality.
-                working_size = 1000
-                if max(img.size) > working_size:
-                    img.thumbnail((working_size, working_size), Image.Resampling.LANCZOS)
-
                 img = img.convert("RGBA")
-                original_img = img.copy()
 
                 if with_background_removal:
-                    # Convert back to bytes for rembg after the pre-resize
-                    working_buffer = BytesIO()
-                    img.save(working_buffer, format="PNG")
+                    # 1. Background removal
+                    processed_bytes = remove(image_bytes, session=self.session)
+                    img = Image.open(BytesIO(processed_bytes)).convert("RGBA")
 
-                    # 1. Run removal WITHOUT alpha_matting for speed
-                    # Pass the session you initialized in __init__
-                    processed_bytes = remove(working_buffer.getvalue(), session=self.session, alpha_matting=False)
-                    processed_img = Image.open(BytesIO(processed_bytes)).convert("RGBA")
+                    # 2. AUTO-CROP: Trim all transparent/white pixels to find the real product bounds
+                    # This ensures the product 'fills' the 800x800 canvas correctly.
+                    bbox = img.getbbox()
+                    if bbox:
+                        img = img.crop(bbox)
 
-                    # 2. ANTI-ERASURE CHECK (remains same)
-                    w, h = processed_img.size
-                    center_box = (w // 4, h // 4, 3 * w // 4, 3 * h // 4)
-                    center_alpha = processed_img.getchannel("A").crop(center_box)
-
-                    if np.mean(np.array(center_alpha)) < 100:
-                        logger.warning("AI erased product. Switching to Color-Safe Thresholding.")
-                        grayscale = ImageOps.grayscale(original_img.convert("RGB"))
-                        mask = grayscale.point(lambda p: 255 if p < 245 else 0).convert("L")
-                        img_to_use = original_img.copy()
-                        img_to_use.putalpha(mask)
-                    else:
-                        img_to_use = processed_img
-                else:
-                    img_to_use = original_img
-
-                # 3. Create standardized 800x800 White Canvas (ML Standard)
+                # 3. Standardize to 800x800 White Canvas
                 canvas_size = (800, 800)
                 canvas = Image.new("RGB", canvas_size, (255, 255, 255))
-                img_to_use.thumbnail(canvas_size, Image.Resampling.LANCZOS)
 
-                paste_x = (canvas_size[0] - img_to_use.width) // 2
-                paste_y = (canvas_size[1] - img_to_use.height) // 2
+                # Resize to fit (max 760 to leave a small 20px margin)
+                img.thumbnail((760, 760), Image.Resampling.LANCZOS)
 
-                # 4. Paste using the mask
-                canvas.paste(img_to_use, (paste_x, paste_y), mask=img_to_use)
+                # Center on canvas
+                paste_x = (canvas_size[0] - img.width) // 2
+                paste_y = (canvas_size[1] - img.height) // 2
+
+                # 4. Paste with mask to preserve colors
+                canvas.paste(img, (paste_x, paste_y), mask=img)
 
                 output_buffer = BytesIO()
-                # quality=95 is a good balance for high-res looking hardware
-                canvas.save(output_buffer, format="JPEG", quality=95)
+                canvas.save(output_buffer, format="JPEG", quality=95, subsampling=0)
                 return output_buffer.getvalue()
-
         except Exception as e:
             logger.error(f"Error processing image: {e}")
             return None

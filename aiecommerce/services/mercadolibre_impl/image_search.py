@@ -121,38 +121,27 @@ class ImageSearchService:
             return []
 
     def build_search_query(self, product: ProductMaster) -> str:
-        """
-        Constructs a robust search query for finding product images.
+        """Constructs a precise query by prioritizing Brand/Model over raw description."""
+        # 1. Prioritize AI-enriched specs
+        brand = product.specs.get("brand", "") if product.specs else ""
+        model = product.specs.get("model", "") if product.specs else ""
+        category = product.specs.get("category", "") if product.specs else ""
 
-        - Prioritizes 'brand' and 'model' from product specs if available.
-        - Falls back to the first 5 non-noisy words from the product description.
-        - Appends 'official product image' for better results.
-        - Cleans and truncates the query to a maximum of 100 characters.
+        # 2. Scraper Noise Filter
+        NOISY_TERMS = r"\b(Cop|Si|No|Precio|Stock|Garantia|3yb|W11pro)\b"
 
-        Args:
-            product: The ProductMaster instance.
-
-        Returns:
-            A clean and effective search query string.
-        """
-        brand = product.specs.get("brand") if product.specs else None
-        model = product.specs.get("model") if product.specs else None
-        category = product.specs.get("category") if product.specs else None
-
-        base_query = ""
         if brand and model:
-            query_parts = [str(brand), str(model)]
-            if category:
-                query_parts.append(str(category))
-            query_parts.append("official product image")
-            base_query = " ".join(query_parts)
-        elif product.description:
-            # Clean description and then split into words
-            cleaned_description = re.sub(r"[^\w\s]", "", product.description)
-            description_words = cleaned_description.split()
-            filtered_words = [word for word in description_words if word.lower() not in self.NOISY_TERMS][:5]
-            base_query = " ".join(filtered_words)
+            # If we have clean specs, use ONLY them + category
+            base_query = f"{brand} {model} {category}"
+        else:
+            # Fallback to description but CLEAN it
+            clean_desc = re.sub(NOISY_TERMS, "", product.description or "", flags=re.IGNORECASE)
+            # Limit to the first 6 meaningful words
+            base_query = " ".join(clean_desc.split()[:6])
 
-        # Final clean and truncate
-        cleaned_query = re.sub(r"[^\w\s]", "", base_query).strip()
-        return cleaned_query[:100]
+        # 3. Add 'Hero' keywords for professional results
+        final_query = f"{base_query} official product image white background"
+
+        # Final cleanup of special characters
+        cleaned = re.sub(r"[^\w\s]", "", final_query).strip()
+        return " ".join(cleaned.split())  # Normalize whitespace
