@@ -4,11 +4,12 @@ import logging
 from io import BytesIO
 
 import boto3
+import numpy as np
 import requests
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
-from PIL import Image, ImageFilter
-from rembg import remove
+from PIL import Image, ImageOps
+from rembg import new_session, remove
 from requests import RequestException
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 class ImageProcessorService:
     """A service for processing images."""
+
+    def __init__(self):
+        # Initialize a session for better consistency in removal
+        self.session = new_session()
 
     def download_image(self, url: str) -> bytes | None:
         """Downloads an image from a URL."""
@@ -36,64 +41,58 @@ class ImageProcessorService:
         return self.process_image(image_bytes, with_background_removal=True)
 
     def process_image(self, image_bytes: bytes, with_background_removal: bool = False) -> bytes | None:
-        """
-        Processes an image.
-
-        Optionally removes the background, then centers the image on a pure white
-        800x800 pixel canvas, saving it as a high-quality JPEG.
-        """
+        """Processes an image using Hybrid Thresholding to prevent product erasure."""
         logger.info(f"Processing image. Background removal: {with_background_removal}")
         try:
             with Image.open(BytesIO(image_bytes)) as img:
-                icc_profile = img.info.get("icc_profile")
+                img = img.convert("RGBA")
+                original_img = img.copy()
 
-                processed_img = img
                 if with_background_removal:
-                    logger.info("Performing color-safe background removal.")
-                    # remove() returns RGBA bytes (as a PNG)
-                    img_bytes_no_bg = remove(image_bytes)
-                    with Image.open(BytesIO(img_bytes_no_bg)) as img_no_bg:
-                        # Create a white background
-                        bg = Image.new("RGB", img_no_bg.size, (255, 255, 255))
-                        # Get the alpha channel as a mask
-                        alpha = img_no_bg.split()[-1]
-                        # Dilate the mask to smooth edges, preventing clipping.
-                        dilated_mask = alpha.filter(ImageFilter.MaxFilter(3))
-                        # Paste the image onto the background using the dilated mask
-                        bg.paste(img_no_bg, mask=dilated_mask)
-                        processed_img = bg
-                elif img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
-                    # Handle transparency for non-background-removed images by pasting on a white background.
-                    alpha = img.convert("RGBA").split()[-1]
-                    bg = Image.new("RGB", img.size, (255, 255, 255))
-                    bg.paste(img, mask=alpha)
-                    processed_img = bg
-                elif img.mode != "RGB":
-                    processed_img = img.convert("RGB")
+                    # 1. Try automated removal with alpha matting for better edges
+                    processed_bytes = remove(image_bytes, alpha_matting=True)
+                    processed_img = Image.open(BytesIO(processed_bytes)).convert("RGBA")
 
-                # Create a white canvas
+                    # 2. ANTI-ERASURE CHECK:
+                    # If the center of the image became transparent, the AI failed.
+                    # We check the alpha channel of the central 50% of the image.
+                    w, h = processed_img.size
+                    center_box = (w // 4, h // 4, 3 * w // 4, 3 * h // 4)
+                    center_alpha = processed_img.getchannel("A").crop(center_box)
+
+                    # If mean alpha in the center is low (< 100), the product was erased.
+                    if np.mean(np.array(center_alpha)) < 100:
+                        logger.warning("AI erased product. Switching to Color-Safe Thresholding.")
+                        # Use a luminance mask to keep anything that isn't white (dark PC)
+                        grayscale = ImageOps.grayscale(original_img.convert("RGB"))
+                        # Threshold: keep pixels darker than 245 (0=black, 255=white)
+                        mask = grayscale.point(lambda p: 255 if p < 245 else 0).convert("L")
+                        img_to_use = original_img.copy()
+                        img_to_use.putalpha(mask)
+                    else:
+                        img_to_use = processed_img
+                else:
+                    img_to_use = original_img
+
+                # 3. Create standardized 800x800 White Canvas
                 canvas_size = (800, 800)
                 canvas = Image.new("RGB", canvas_size, (255, 255, 255))
 
-                # Resize image to fit within the canvas while maintaining aspect ratio
-                processed_img.thumbnail(canvas_size, Image.Resampling.LANCZOS)
+                # Resize product (thumbnail preserves aspect ratio)
+                img_to_use.thumbnail(canvas_size, Image.Resampling.LANCZOS)
 
-                # Calculate position to center the image
-                paste_x = (canvas_size[0] - processed_img.width) // 2
-                paste_y = (canvas_size[1] - processed_img.height) // 2
+                # Center the product
+                paste_x = (canvas_size[0] - img_to_use.width) // 2
+                paste_y = (canvas_size[1] - img_to_use.height) // 2
 
-                # Paste the resized image onto the canvas
-                canvas.paste(processed_img, (paste_x, paste_y))
+                # 4. Paste using the mask to ensure the product body is OPAQUE
+                canvas.paste(img_to_use, (paste_x, paste_y), mask=img_to_use)
 
-                # Save to buffer as high-quality JPEG, preserving color profile
                 output_buffer = BytesIO()
-                canvas.save(
-                    output_buffer,
-                    format="JPEG",
-                    quality=95,
-                    icc_profile=icc_profile,
-                )
+                # Save as JPEG with maximum quality and no color subsampling
+                canvas.save(output_buffer, format="JPEG", quality=100, subsampling=0)
                 return output_buffer.getvalue()
+
         except Exception as e:
             logger.error(f"Error processing image: {e}")
             return None
