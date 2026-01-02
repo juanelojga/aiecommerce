@@ -70,7 +70,7 @@ class ImageSearchService:
             raise ValueError("GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be set in settings.")
         self.service = build("customsearch", "v1", developerKey=self.api_key)
 
-    def find_image_urls(self, query: str, count: int = 8) -> List[str]:
+    def find_image_urls(self, query: str, count: int = 12) -> List[str]:
         """
         Finds the URLs of up to a specified count of 'huge' or 'large' 'photo' image results for a given query,
         filtering out low-quality domains.
@@ -90,7 +90,7 @@ class ImageSearchService:
                     q=query,
                     cx=self.search_engine_id,
                     searchType="image",
-                    imgSize="HUGE",  # API also supports 'large', 'xlarge', etc.
+                    imgSize="XLARGE",  # API also supports 'large', 'xlarge', etc.
                     num=count,
                 )
                 .execute()
