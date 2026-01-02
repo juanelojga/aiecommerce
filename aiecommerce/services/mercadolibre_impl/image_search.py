@@ -61,6 +61,7 @@ class ImageSearchService:
         "wikipedia.org",
         "wikimedia.org",
     }
+    NOISY_TERMS = {"cop", "si", "no", "precio"}
 
     def __init__(self) -> None:
         self.api_key = settings.GOOGLE_API_KEY
@@ -89,7 +90,7 @@ class ImageSearchService:
                     q=query,
                     cx=self.search_engine_id,
                     searchType="image",
-                    imgSize="huge",  # API also supports 'large', 'xlarge', etc.
+                    imgSize="HUGE",  # API also supports 'large', 'xlarge', etc.
                     num=count,
                 )
                 .execute()
@@ -121,36 +122,37 @@ class ImageSearchService:
 
     def build_search_query(self, product: ProductMaster) -> str:
         """
-        Constructs a professional product image search query.
-        Extracts 'brand', 'model', and 'category' from product.specs.
-        Fall back to product.description if specs are missing.
-        Constructs a query string like: '[Brand] [Model] [Category] official product image white background'.
-        Cleans the string to remove any special characters that might break a search.
+        Constructs a robust search query for finding product images.
+
+        - Prioritizes 'brand' and 'model' from product specs if available.
+        - Falls back to the first 5 non-noisy words from the product description.
+        - Appends 'official product image' for better results.
+        - Cleans and truncates the query to a maximum of 100 characters.
 
         Args:
             product: The ProductMaster instance.
 
         Returns:
-            The cleaned search query string.
+            A clean and effective search query string.
         """
         brand = product.specs.get("brand") if product.specs else None
         model = product.specs.get("model") if product.specs else None
         category = product.specs.get("category") if product.specs else None
 
-        query_parts = []
-        if brand:
-            query_parts.append(str(brand))
-        if model:
-            query_parts.append(str(model))
-        if category:
-            query_parts.append(str(category))
+        base_query = ""
+        if brand and model:
+            query_parts = [str(brand), str(model)]
+            if category:
+                query_parts.append(str(category))
+            query_parts.append("official product image")
+            base_query = " ".join(query_parts)
+        elif product.description:
+            # Clean description and then split into words
+            cleaned_description = re.sub(r"[^\w\s]", "", product.description)
+            description_words = cleaned_description.split()
+            filtered_words = [word for word in description_words if word.lower() not in self.NOISY_TERMS][:5]
+            base_query = " ".join(filtered_words)
 
-        if product.description:
-            query_parts.append(product.description)
-
-        base_query = " ".join(query_parts)
-        final_query = f"{base_query} official product image white background"
-
-        # Clean the string to remove any special characters that might break a search
-        cleaned_query = re.sub(r"[^\w\s]", "", final_query).strip()
-        return cleaned_query
+        # Final clean and truncate
+        cleaned_query = re.sub(r"[^\w\s]", "", base_query).strip()
+        return cleaned_query[:100]

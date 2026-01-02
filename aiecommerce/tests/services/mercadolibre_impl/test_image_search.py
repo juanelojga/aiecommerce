@@ -29,87 +29,97 @@ def image_search_service(mock_google_service):
 
 
 @pytest.mark.django_db
-def test_build_search_query_with_all_specs(image_search_service):
+def test_build_search_query_prioritizes_specs(image_search_service):
     """
-    Test that the search query is correctly built when all specs (brand, model, category) are present.
+    Test that 'brand', 'model', and 'category' from specs are prioritized.
     """
     product = baker.make(
         ProductMaster,
-        description="Test Product Description",
-        specs={"brand": "BrandX", "model": "ModelY", "category": "CategoryZ"},
+        specs={"brand": "Apple", "model": "iPhone 14 Pro", "category": "Smartphone"},
+        description="This should be ignored.",
     )
-    expected_query = "BrandX ModelY CategoryZ Test Product Description official product image white background"
-    assert image_search_service.build_search_query(product) == expected_query
+    expected = "Apple iPhone 14 Pro Smartphone official product image"
+    assert image_search_service.build_search_query(product) == expected
 
 
 @pytest.mark.django_db
-def test_build_search_query_with_missing_specs_falls_back_to_description(image_search_service):
+def test_build_search_query_falls_back_to_description(image_search_service):
     """
-    Test that the search query falls back to product.description when specs are missing.
+    Test that the description is used when brand and model are missing from specs.
     """
     product = baker.make(
         ProductMaster,
-        description="Generic Laptop with no specific brand or model",
+        specs={"category": "Laptop"},
+        description="A powerful new laptop from a generic brand",
+    )
+    expected = "A powerful new laptop from"
+    assert image_search_service.build_search_query(product) == expected
+
+
+@pytest.mark.django_db
+def test_build_search_query_filters_noisy_terms_from_description(image_search_service):
+    """
+    Test that noisy terms are filtered out from the description-based query.
+    """
+    product = baker.make(
+        ProductMaster,
+        description="Si, this is a product. No, it is not a toy. Cop it now for a good precio.",
         specs={},
     )
-    expected_query = "Generic Laptop with no specific brand or model official product image white background"
-    assert image_search_service.build_search_query(product) == expected_query
+    # "Si", "No", "Cop", "precio" should be removed. It should take the first 5 non-noisy words.
+    expected = "this is a product it"
+    assert image_search_service.build_search_query(product) == expected
 
 
 @pytest.mark.django_db
-def test_build_search_query_with_partial_specs(image_search_service):
+def test_build_search_query_truncates_long_queries(image_search_service):
     """
-    Test that the search query is built correctly with partial specs.
+    Test that the generated query is truncated to 100 characters.
     """
+    long_description = "word " * 60
     product = baker.make(
         ProductMaster,
-        description="Another Test Product",
-        specs={"brand": "PartialBrand", "category": "Electronics"},
+        specs={"brand": "Long", "model": "Query"},
+        description=long_description,
     )
-    expected_query = "PartialBrand Electronics Another Test Product official product image white background"
-    assert image_search_service.build_search_query(product) == expected_query
+    # The spec-based query should be created and then truncated.
+    query = image_search_service.build_search_query(product)
+    assert len(query) <= 100
 
-
-@pytest.mark.django_db
-def test_build_search_query_with_empty_specs_and_description(image_search_service):
-    """
-    Test that an empty query is returned if neither specs nor description are available.
-    """
-    product = baker.make(
+    # Test truncation with description fallback
+    product_desc = baker.make(
         ProductMaster,
-        description="",
         specs={},
+        description=long_description,
     )
-    expected_query = "official product image white background"
-    assert image_search_service.build_search_query(product) == expected_query
+    query_desc = image_search_service.build_search_query(product_desc)
+    assert len(query_desc) <= 100
 
 
 @pytest.mark.django_db
-def test_build_search_query_with_special_characters(image_search_service):
+def test_build_search_query_handles_empty_product(image_search_service):
     """
-    Test that special characters in specs and description are removed from the query.
+    Test that an empty query is returned for a product with no specs or description.
     """
-    product = baker.make(
-        ProductMaster,
-        description="Product with !@#$%^&*() special chars.",
-        specs={"brand": "Brand-X", "model": "Model/Y", "category": "Category_Z"},
-    )
-    expected_query = "BrandX ModelY Category_Z Product with  special chars official product image white background"
-    assert image_search_service.build_search_query(product) == expected_query
+    product = baker.make(ProductMaster, specs={}, description="")
+    assert image_search_service.build_search_query(product) == ""
 
 
 @pytest.mark.django_db
-def test_build_search_query_with_numeric_specs(image_search_service):
+def test_build_search_query_handles_missing_model(image_search_service):
     """
-    Test that numeric values in specs are correctly included and converted to strings.
+    Test that description is used if 'model' is missing, even if 'brand' is present.
     """
     product = baker.make(
         ProductMaster,
-        description="Numeric Model Product",
-        specs={"brand": "Brand123", "model": 456, "category": "Category789"},
+        specs={"brand": "Sony", "category": "Audio"},
+        description="Wireless noise-cancelling headphones",
     )
-    expected_query = "Brand123 456 Category789 Numeric Model Product official product image white background"
-    assert image_search_service.build_search_query(product) == expected_query
+    # The words from description will be used.
+    query = image_search_service.build_search_query(product)
+    assert "Sony" not in query
+    assert "Wireless" in query
+    assert "noisecancelling" in query  # The hyphen is removed by the cleaning regex
 
 
 def test_find_image_urls_happy_path(image_search_service):
