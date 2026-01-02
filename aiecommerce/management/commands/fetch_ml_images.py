@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from aiecommerce.models import ProductMaster
@@ -54,7 +55,7 @@ class Command(BaseCommand):
             search_service = ImageSearchService()
             for product in products:
                 query = search_service.build_search_query(product)
-                urls = search_service.find_image_urls(query, count=5)
+                urls = search_service.find_image_urls(query, image_search_count=settings.IMAGE_SEARCH_COUNT)
                 self.stdout.write(f"\n- Product: {product.description} (ID: {product.id})")
                 self.stdout.write(f"  Query: '{query}'")
                 if urls:

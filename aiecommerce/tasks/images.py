@@ -3,6 +3,7 @@
 import logging
 
 from celery import shared_task
+from django.conf import settings
 from django.db import transaction
 
 from aiecommerce.models import MercadoLibreListing, ProductImage, ProductMaster
@@ -38,7 +39,7 @@ def process_product_image(product_id: int) -> None:
     image_processor_service = ImageProcessorService()
 
     search_query = image_search_service.build_search_query(product)
-    image_urls = image_search_service.find_image_urls(search_query, count=12)
+    image_urls = image_search_service.find_image_urls(search_query, image_search_count=settings.IMAGE_SEARCH_COUNT)
 
     if not image_urls:
         logger.warning(f"Image search failed for product {product.id}: No results found.")

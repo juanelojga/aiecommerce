@@ -70,19 +70,19 @@ class ImageSearchService:
             raise ValueError("GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be set in settings.")
         self.service = build("customsearch", "v1", developerKey=self.api_key)
 
-    def find_image_urls(self, query: str, count: int = 12) -> List[str]:
+    def find_image_urls(self, query: str, image_search_count: int = settings.IMAGE_SEARCH_COUNT) -> List[str]:
         """
         Finds the URLs of up to a specified count of 'huge' or 'large' 'photo' image results for a given query,
         filtering out low-quality domains.
 
         Args:
             query: The search term for the image.
-            count: The maximum number of image URLs to return.
+            image_search_count: The maximum number of image URLs to return.
 
         Returns:
             A list of unique image URLs, or an empty list if no suitable images are found or an error occurs.
         """
-        logger.info(f"Searching for up to {count} images with query: '{query}'")
+        logger.info(f"Searching for up to {image_search_count} images with query: '{query}'")
         try:
             result = (
                 self.service.cse()
@@ -91,7 +91,7 @@ class ImageSearchService:
                     cx=self.search_engine_id,
                     searchType="image",
                     imgSize="XLARGE",  # API also supports 'large', 'xlarge', etc.
-                    num=count,
+                    num=image_search_count,
                 )
                 .execute()
             )
@@ -108,7 +108,7 @@ class ImageSearchService:
                     if domain not in self.DOMAIN_BLOCKLIST:
                         image_urls.append(link)
 
-            unique_image_urls = list(dict.fromkeys(image_urls))[:count]  # Remove duplicates and respect count
+            unique_image_urls = list(dict.fromkeys(image_urls))[:image_search_count]  # Remove duplicates and respect image_search_count
 
             logger.info(f"Found {len(unique_image_urls)} unique image URLs for '{query}' after filtering.")
             return unique_image_urls

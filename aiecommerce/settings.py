@@ -161,6 +161,7 @@ MERCADOLIBRE_REDIRECT_URI = env("MERCADOLIBRE_REDIRECT_URI", default="https://12
 # --- Google API Configuration ---
 GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")
 GOOGLE_SEARCH_ENGINE_ID = env("GOOGLE_SEARCH_ENGINE_ID", default="")
+IMAGE_SEARCH_COUNT = env.int("IMAGE_SEARCH_COUNT", default=12)
 
 # --- Mercado Price Engine ---
 MERCADOLIBRE_IVA_RATE = env("MERCADOLIBRE_IVA_RATE", cast=Decimal, default=Decimal("0.15"))

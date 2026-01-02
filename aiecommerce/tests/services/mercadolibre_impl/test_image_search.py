@@ -142,12 +142,12 @@ def test_find_image_urls_happy_path(image_search_service):
 
 def test_find_image_urls_respects_count(image_search_service):
     """
-    Test that find_image_urls returns up to `count` URLs.
+    Test that find_image_urls returns up to `image_search_count` URLs.
     """
     mock_response = {"items": [{"link": f"http://example.com/image{i}.jpg"} for i in range(10)]}
     image_search_service.service.cse().list().execute.return_value = mock_response
 
-    urls = image_search_service.find_image_urls("test query", count=3)
+    urls = image_search_service.find_image_urls("test query", image_search_count=3)
 
     assert len(urls) == 3
 
