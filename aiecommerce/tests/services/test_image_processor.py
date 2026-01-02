@@ -6,6 +6,7 @@ import requests
 from django.conf import settings
 from PIL import Image
 
+from aiecommerce.services import image_processor
 from aiecommerce.services.image_processor import ImageProcessorService
 
 
@@ -130,5 +131,59 @@ class TestImageProcessorService:
             args, kwargs = mock_s3_client.upload_fileobj.call_args
             assert args[1] == "test-bucket"
             assert args[2] == expected_s3_key
-            assert kwargs["ExtraArgs"] == {"ContentType": "image/jpeg", "ACL": "public-read"}
+            assert kwargs["ExtraArgs"] == {"ContentType": "image/jpeg"}
             assert result_url == expected_s3_url
+
+    @patch("aiecommerce.services.image_processor.remove")
+    @patch("aiecommerce.services.image_processor.Image.open")
+    @patch("aiecommerce.services.image_processor.ImageFilter.MaxFilter")
+    @patch("aiecommerce.services.image_processor.Image.new")
+    def test_process_image_with_bg_removal_features(
+        self,
+        mock_image_new,
+        mock_max_filter,
+        mock_image_open,
+        mock_rembg_remove,
+        image_processor_service,
+        sample_image_bytes,
+    ):
+        """Test that background removal uses dilation, preserves ICC profile, and logs correctly."""
+        # Arrange
+        # 1. Mock for original image with ICC profile
+        mock_original_img = MagicMock(spec=Image.Image, mode="RGB", info={"icc_profile": b"dummy_profile"})
+
+        # 2. Mocks for rembg result image and its alpha mask
+        mock_rembg_img = MagicMock(spec=Image.Image, mode="RGBA", size=(100, 100))
+        mock_alpha = MagicMock(spec=Image.Image)
+        mock_alpha.filter.return_value = mock_alpha  # Make filter return itself to not break the call chain
+        mock_rembg_img.split.return_value = (None, None, None, mock_alpha)
+
+        # Image.open is called twice: once for the original, once for the rembg result
+        mock_image_open.side_effect = [
+            MagicMock(__enter__=MagicMock(return_value=mock_original_img)),
+            MagicMock(__enter__=MagicMock(return_value=mock_rembg_img)),
+        ]
+        mock_rembg_remove.return_value = b"rembg_bytes"
+
+        # 3. Mocks for canvas creation
+        mock_canvas = MagicMock(spec=Image.Image)
+        # Image.new is called for the white BG and the canvas
+        mock_image_new.return_value = mock_canvas
+
+        # Act
+        with patch.object(image_processor, "logger") as mock_logger:
+            image_processor_service.process_image(sample_image_bytes, with_background_removal=True)
+
+        # Assert
+        # Assert correct logging
+        mock_logger.info.assert_any_call("Performing color-safe background removal.")
+
+        # Assert edge dilation was performed
+        mock_max_filter.assert_called_once_with(3)
+        mock_alpha.filter.assert_called_once_with(mock_max_filter.return_value)
+
+        # Assert ICC profile was preserved on final save
+        mock_canvas.save.assert_called_once()
+        _, kwargs = mock_canvas.save.call_args
+        assert "icc_profile" in kwargs
+        assert kwargs["icc_profile"] == b"dummy_profile"
