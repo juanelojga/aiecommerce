@@ -41,7 +41,7 @@ def test_fetch_ml_images_dry_run(mock_process_product_image, mock_image_search_s
     assert "- http://example.com/image1.jpg" in captured.out
     mock_process_product_image.delay.assert_not_called()
     mock_image_search_service.build_search_query.assert_called_once_with(product)
-    mock_image_search_service.find_image_urls.assert_called_once_with("Mocked Query", count=5)
+    mock_image_search_service.find_image_urls.assert_called_once_with("Mocked Query", image_search_count=10)
 
 
 @pytest.mark.django_db
