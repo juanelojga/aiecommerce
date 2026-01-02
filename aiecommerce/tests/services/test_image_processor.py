@@ -49,6 +49,7 @@ class TestImageProcessorService:
     def test_download_image_success(self, mock_get, image_processor_service, sample_image_bytes):
         mock_response = MagicMock()
         mock_response.content = sample_image_bytes
+        mock_response.headers = {"Content-Type": "image/png"}
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
@@ -56,7 +57,7 @@ class TestImageProcessorService:
         result = image_processor_service.download_image(url)
 
         assert result == sample_image_bytes
-        mock_get.assert_called_once_with(url, timeout=10)
+        mock_get.assert_called_once_with(url, timeout=10, stream=True)
 
     @patch("requests.get")
     def test_download_image_failure(self, mock_get, image_processor_service):
@@ -66,34 +67,34 @@ class TestImageProcessorService:
         result = image_processor_service.download_image(url)
 
         assert result is None
-        mock_get.assert_called_once_with(url, timeout=10)
+        mock_get.assert_called_once_with(url, timeout=10, stream=True)
 
     def test_is_duplicate_new_image(self, image_processor_service, sample_image_bytes):
         """Test that a new image is not marked as a duplicate."""
         is_dup = image_processor_service.is_duplicate(sample_image_bytes)
         assert not is_dup
-        assert len(image_processor_service.seen_hashes) == 1
+        assert len(image_processor_service.deduplicator.seen_hashes) == 1
 
     def test_is_duplicate_same_image(self, image_processor_service, sample_image_bytes):
         """Test that the same image is detected as a duplicate."""
         image_processor_service.is_duplicate(sample_image_bytes)  # First encounter
         is_dup = image_processor_service.is_duplicate(sample_image_bytes)  # Second encounter
         assert is_dup
-        assert len(image_processor_service.seen_hashes) == 1
+        assert len(image_processor_service.deduplicator.seen_hashes) == 1
 
     def test_is_duplicate_different_images(self, image_processor_service, sample_image_bytes, another_image_bytes):
         """Test that different images are not marked as duplicates."""
         image_processor_service.is_duplicate(sample_image_bytes)
         is_dup = image_processor_service.is_duplicate(another_image_bytes)
         assert not is_dup
-        assert len(image_processor_service.seen_hashes) == 2
+        assert len(image_processor_service.deduplicator.seen_hashes) == 2
 
     def test_clear_session_hashes(self, image_processor_service, sample_image_bytes):
         """Test that hashes are cleared."""
         image_processor_service.is_duplicate(sample_image_bytes)
-        assert len(image_processor_service.seen_hashes) == 1
+        assert len(image_processor_service.deduplicator.seen_hashes) == 1
         image_processor_service.clear_session_hashes()
-        assert len(image_processor_service.seen_hashes) == 0
+        assert len(image_processor_service.deduplicator.seen_hashes) == 0
 
     @patch("imagehash.phash")
     def test_is_duplicate_hashing_error(self, mock_phash, image_processor_service, sample_image_bytes):
@@ -101,7 +102,7 @@ class TestImageProcessorService:
         mock_phash.side_effect = Exception("Hashing failed")
         is_dup = image_processor_service.is_duplicate(sample_image_bytes)
         assert not is_dup
-        assert len(image_processor_service.seen_hashes) == 0
+        assert len(image_processor_service.deduplicator.seen_hashes) == 0
 
     def test_process_image_no_background_removal(self, image_processor_service, sample_image_bytes):
         """Test processing without background removal, ensuring centering and resizing."""
@@ -129,7 +130,7 @@ class TestImageProcessorService:
         # Bottom-right should be white background
         assert img.getpixel((799, 799)) == (255, 255, 255)
 
-    @patch("aiecommerce.services.image_processor.remove")
+    @patch("aiecommerce.services.image_processing.transformer.remove")
     def test_process_image_with_background_removal(self, mock_rembg_remove, image_processor_service, transparent_image_bytes):
         mock_rembg_remove.return_value = transparent_image_bytes
 
@@ -155,13 +156,19 @@ class TestImageProcessorService:
             patch.object(settings, "AWS_S3_REGION_NAME", "us-east-1"),
             patch.object(settings, "AWS_STORAGE_BUCKET_NAME", "test-bucket"),
         ):
+            # Create a new service instance to pick up mocked settings if necessary,
+            # though StorageGateway in the service was already initialized.
+            # Let's just update the bucket_name on the existing storage gateway for the test.
+            image_processor_service.storage.bucket_name = "test-bucket"
+            image_processor_service.storage.region_name = "us-east-1"
+
             product_id = 123
             image_name = "test_image"
             expected_s3_key = f"products/{product_id}/{image_name}.jpg"
             expected_s3_url = f"https://test-bucket.s3.us-east-1.amazonaws.com/{expected_s3_key}"
 
             # Since the client is initialized in __init__, it's already on the service object
-            mock_s3_client = image_processor_service.s3_client
+            mock_s3_client = image_processor_service.storage.s3_client
 
             result_url = image_processor_service.upload_to_s3(sample_image_bytes, product_id, image_name)
 
@@ -172,11 +179,11 @@ class TestImageProcessorService:
             assert kwargs["ExtraArgs"] == {"ContentType": "image/jpeg"}
             assert result_url == expected_s3_url
 
-    @patch("aiecommerce.services.image_processor.remove")
-    @patch("aiecommerce.services.image_processor.Image.open")
-    @patch("aiecommerce.services.image_processor.ImageFilter.MaxFilter")
-    @patch("aiecommerce.services.image_processor.Image.new")
-    @patch("aiecommerce.services.image_processor.Image.merge")
+    @patch("aiecommerce.services.image_processing.transformer.remove")
+    @patch("aiecommerce.services.image_processing.transformer.Image.open")
+    @patch("aiecommerce.services.image_processing.transformer.ImageFilter.MaxFilter")
+    @patch("aiecommerce.services.image_processing.transformer.Image.new")
+    @patch("aiecommerce.services.image_processing.transformer.Image.merge")
     def test_process_image_with_bg_removal_features(
         self,
         mock_image_merge,
@@ -224,8 +231,8 @@ class TestImageProcessorService:
         mock_image_new.return_value = mock_canvas
 
         # Act
-        # We need to mock _is_dark_background because it uses getpixel which we haven't mocked for original_img
-        with patch.object(image_processor_service, "_is_dark_background", return_value=False):
+        # We need to mock analyzer.is_dark_background because it uses getpixel which we haven't mocked for original_img
+        with patch.object(image_processor_service.analyzer, "is_dark_background", return_value=False):
             image_processor_service.process_image(sample_image_bytes, with_background_removal=True)
 
         # Assert

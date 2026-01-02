@@ -1,204 +1,66 @@
 """A service for processing images."""
 
 import logging
-from io import BytesIO
 
 import boto3
-import imagehash
-import requests
-from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
-from PIL import Image, ImageFilter
-from rembg import new_session, remove
-from requests import RequestException
+
+from .image_processing.analyzer import BackgroundAnalyzer
+from .image_processing.deduplicator import ImageDeduplicator
+from .image_processing.downloader import ImageDownloader
+from .image_processing.storage import StorageGateway
+from .image_processing.transformer import ImageTransformer
 
 logger = logging.getLogger(__name__)
 
 
 class ImageProcessorService:
-    """A service for processing images."""
+    """A service for processing images, orchestrating specialized components."""
 
-    def __init__(self) -> None:
-        # Initialize a session for better consistency in removal
-        from typing import Set
+    def __init__(
+        self,
+        downloader: ImageDownloader | None = None,
+        deduplicator: ImageDeduplicator | None = None,
+        analyzer: BackgroundAnalyzer | None = None,
+        transformer: ImageTransformer | None = None,
+        storage: StorageGateway | None = None,
+    ) -> None:
+        self.downloader = downloader or ImageDownloader()
+        self.deduplicator = deduplicator or ImageDeduplicator()
+        self.analyzer = analyzer or BackgroundAnalyzer()
+        self.transformer = transformer or ImageTransformer()
 
-        self.session = new_session()
-        self.seen_hashes: Set[imagehash.ImageHash] = set()
-        self.s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION_NAME,
-        )
+        if storage:
+            self.storage = storage
+        else:
+            s3_client = boto3.client(
+                "s3",
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_S3_REGION_NAME,
+            )
+            self.storage = StorageGateway(
+                s3_client=s3_client,
+                bucket_name=settings.AWS_STORAGE_BUCKET_NAME,
+                region_name=settings.AWS_S3_REGION_NAME,
+            )
 
     def clear_session_hashes(self) -> None:
-        """Clears the set of seen image hashes for the current session."""
-        self.seen_hashes.clear()
-        logger.info("Cleared session image hashes.")
+        """Clears the set of seen image hashes."""
+        self.deduplicator.clear()
 
-    def is_duplicate(self, image_bytes: bytes, threshold: int = 2) -> bool:
-        """
-        Checks if an image is a visual duplicate of one already seen in this session.
-
-        Args:
-            image_bytes: The image content in bytes.
-            threshold: The maximum hash distance to be considered a duplicate.
-                       A lower threshold means stricter similarity. Defaults to 2.
-
-        Returns:
-            True if the image is a duplicate, False otherwise.
-        """
-        try:
-            img = Image.open(BytesIO(image_bytes))
-            new_hash = imagehash.phash(img)
-
-            for seen_hash in self.seen_hashes:
-                distance = new_hash - seen_hash
-                if distance <= threshold:
-                    logger.info(f"Visual duplicate detected with distance {distance}. Skipping.")
-                    return True
-
-            self.seen_hashes.add(new_hash)
-            return False
-        except Exception as e:
-            logger.error(f"Could not compute image hash: {e}")
-            return False  # Fail-safe: treat as not a duplicate if hashing fails
+    def is_duplicate(self, image_bytes: bytes) -> bool:
+        """Checks if an image is a visual duplicate."""
+        return self.deduplicator.is_duplicate(image_bytes)
 
     def download_image(self, url: str) -> bytes | None:
         """Downloads an image from a URL."""
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.content
-        except RequestException as e:
-            logger.error(f"Failed to download image from {url}: {e}")
-            return None
-
-    def _is_dark_background(self, img: Image.Image, threshold: int = 45) -> bool:
-        """
-        Detects if the image background is black or dark by sampling the edges.
-        Luminance threshold: 0 (black) to 255 (white). 45 is a safe dark-gray limit.
-        """
-        # If image has an alpha channel, it might be transparent, which we don't consider "dark"
-        if img.mode == "RGBA":
-            # Just check the corners, if they are transparent, it's not a dark background
-            width, height = img.size
-            corners = [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
-            for pos in corners:
-                pixel = img.getpixel(pos)
-                if isinstance(pixel, tuple) and len(pixel) == 4 and pixel[3] == 0:
-                    return False
-
-        # Convert to grayscale to analyze luminance
-        gray_img = img.convert("L")
-        width, height = gray_img.size
-
-        # Sample points at the edges and corners where background is expected
-        samples = [
-            (0, 0),
-            (width - 1, 0),
-            (0, height - 1),
-            (width - 1, height - 1),
-            (width // 2, 0),
-            (width // 2, height - 1),
-            (0, height // 2),
-            (width - 1, height // 2),
-        ]
-
-        pixel_values = []
-        for pos in samples:
-            pixel = gray_img.getpixel(pos)
-            if isinstance(pixel, int):
-                pixel_values.append(float(pixel))
-            elif isinstance(pixel, tuple):
-                pixel_values.append(float(pixel[0]))
-
-        if not pixel_values:
-            return False
-
-        avg_luminance = sum(pixel_values) / len(pixel_values)
-
-        return avg_luminance < threshold
+        return self.downloader.download(url)
 
     def process_image(self, image_bytes: bytes, with_background_removal: bool = False) -> bytes | None:
-        """
-        Processes an image. Ignores images with dark or black backgrounds.
-        """
-        try:
-            with Image.open(BytesIO(image_bytes)) as img:
-                # 1. Background Check: Ignore if dark or black
-                if self._is_dark_background(img):
-                    logger.info("Image detected with dark/black background. Ignoring as per preference.")
-                    return None
-
-                img = img.convert("RGBA")
-
-                if with_background_removal:
-                    logger.info("Performing color-safe background removal.")
-                    # 2. Background removal using the shared session
-                    processed_bytes = remove(image_bytes, session=self.session)
-                    # Extract original ICC profile if available to maintain color accuracy
-                    icc_profile = img.info.get("icc_profile")
-
-                    with Image.open(BytesIO(processed_bytes)) as rembg_img:
-                        rembg_img = rembg_img.convert("RGBA")
-                        # Perform edge dilation on the alpha mask to prevent thin gray borders
-                        # on white backgrounds (common issue with rembg)
-                        split_result = rembg_img.split()
-                        if len(split_result) == 4:
-                            r, g, b, alpha = split_result
-                            dilated_alpha = alpha.filter(ImageFilter.MaxFilter(3))
-                            img = Image.merge("RGBA", (r, g, b, dilated_alpha))
-                        else:
-                            img = rembg_img
-
-                    # 3. AUTO-CROP: Remove excess transparency to focus on the product
-                    bbox = img.getbbox()
-                    if bbox:
-                        img = img.crop(bbox)
-                else:
-                    icc_profile = img.info.get("icc_profile")
-
-                # 4. Create standardized 800x800 White Canvas (Mercado Libre Standard)
-                canvas_size = (800, 800)
-                canvas = Image.new("RGB", canvas_size, (255, 255, 255))
-
-                # Resize to fit within 760x760 (leaving a 20px padding margin)
-                img.thumbnail((760, 760), Image.Resampling.LANCZOS)
-
-                # Center the product
-                paste_x = (canvas_size[0] - img.width) // 2
-                paste_y = (canvas_size[1] - img.height) // 2
-
-                # 5. Final Paste using the product as the alpha mask
-                canvas.paste(img, (paste_x, paste_y), mask=img)
-
-                output_buffer = BytesIO()
-                if icc_profile:
-                    canvas.save(output_buffer, format="JPEG", quality=95, subsampling=0, icc_profile=icc_profile)
-                else:
-                    canvas.save(output_buffer, format="JPEG", quality=95, subsampling=0)
-                return output_buffer.getvalue()
-        except Exception as e:
-            logger.error(f"Error processing image: {e}")
-            return None
+        """Processes an image using the transformer and analyzer."""
+        return self.transformer.transform(image_bytes, with_background_removal=with_background_removal, background_analyzer=self.analyzer)
 
     def upload_to_s3(self, image_bytes: bytes, product_id: int, image_name: str) -> str | None:
-        """Uploads an image to S3 and returns the public URL."""
-        logger.info(f"Uploading {image_name} for product {product_id} to S3.")
-        try:
-            bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-            s3_key = f"products/{product_id}/{image_name}.jpg"
-
-            self.s3_client.upload_fileobj(
-                BytesIO(image_bytes),
-                bucket_name,
-                s3_key,
-                ExtraArgs={"ContentType": "image/jpeg"},
-            )
-            s3_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_key}"
-            logger.info(f"Successfully uploaded to {s3_url}")
-            return s3_url
-        except (BotoCoreError, ClientError) as e:
-            logger.error(f"Error uploading image {image_name} for product {product_id} to S3: {e}")
-            return None
+        """Uploads an image to storage and returns the public URL."""
+        return self.storage.upload(image_bytes, product_id, image_name)
