@@ -4,7 +4,7 @@ import sys
 import django
 
 from aiecommerce.models.product import ProductMaster
-from aiecommerce.services.mercadolibre_impl.image_search import ImageSearchService
+from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
 
 # Set up Django environment
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "aiecommerce.settings")

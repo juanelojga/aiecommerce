@@ -4,7 +4,9 @@ import pytest
 from model_bakery import baker
 
 from aiecommerce.models.product import ProductMaster
-from aiecommerce.services.mercadolibre_impl.image_search import ImageCandidateSelector, ImageSearchService, QueryConstructor
+from aiecommerce.services.mercadolibre_impl.image_candidate_selector import ImageCandidateSelector
+from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
+from aiecommerce.services.mercadolibre_impl.query_constructor import QueryConstructor
 
 
 @pytest.fixture
@@ -55,7 +57,7 @@ def test_pagination(mock_service):
 
 
 def test_query_constructor_configuration():
-    with patch("aiecommerce.services.mercadolibre_impl.image_search.settings") as mock_settings:
+    with patch("aiecommerce.services.mercadolibre_impl.query_constructor.settings") as mock_settings:
         mock_settings.IMAGE_SEARCH_NOISY_TERMS = "NOISY"
         mock_settings.IMAGE_SEARCH_QUERY_SUFFIX = "SUFFIX"
 

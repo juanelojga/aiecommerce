@@ -5,13 +5,13 @@ from googleapiclient.errors import HttpError
 from model_bakery import baker
 
 from aiecommerce.models.product import ProductMaster
-from aiecommerce.services.mercadolibre_impl.image_search import ImageSearchService
+from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
 
 
 @pytest.fixture
 def mock_google_service():
     """Fixture to mock the Google Custom Search service."""
-    with patch("aiecommerce.services.mercadolibre_impl.image_search.build") as mock_build:
+    with patch("aiecommerce.services.mercadolibre_impl.image_search_service.build") as mock_build:
         mock_service = MagicMock()
         mock_build.return_value = mock_service
         yield mock_service
@@ -20,7 +20,7 @@ def mock_google_service():
 @pytest.fixture
 def image_search_service(mock_google_service):
     """Fixture for ImageSearchService instance with mocked Google service."""
-    with patch("aiecommerce.services.mercadolibre_impl.image_search.settings") as mock_settings:
+    with patch("aiecommerce.services.mercadolibre_impl.image_search_service.settings") as mock_settings:
         mock_settings.GOOGLE_API_KEY = "fake_api_key"
         mock_settings.GOOGLE_SEARCH_ENGINE_ID = "fake_engine_id"
         service = ImageSearchService()

@@ -8,7 +8,7 @@ from django.db import transaction
 
 from aiecommerce.models import MercadoLibreListing, ProductImage, ProductMaster
 from aiecommerce.services.image_processor import ImageProcessorService
-from aiecommerce.services.mercadolibre_impl.image_search import ImageSearchService
+from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
 
 logger = logging.getLogger(__name__)
 

@@ -2,10 +2,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from aiecommerce.models import ProductMaster
-from aiecommerce.services.mercadolibre_impl.image_search import (
-    ImageCandidateSelector,
-    ImageSearchService,
-)
+from aiecommerce.services.mercadolibre_impl.image_candidate_selector import ImageCandidateSelector
+from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
 from aiecommerce.tasks.images import process_product_image
 
 
