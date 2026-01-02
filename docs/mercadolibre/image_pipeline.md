@@ -54,3 +54,66 @@ Each `ProductImage` record has the following key fields:
 *   **`url`**: The URL where the processed image is stored (e.g., on S3).
 *   **`order`**: A `PositiveIntegerField` (defaulting to 0) that defines the display order of the images for a given product. The `ProductImage` model's `Meta` class specifies `ordering = ["order"]`, ensuring that images are retrieved in the correct sequence. The first image (order 0) is typically the primary one and the one that undergoes background removal.
 *   **`is_processed`**: A `BooleanField` indicating whether the image has gone through the processing pipeline.
+
+## How to execute your tests
+
+Before running any image-related tests, it's essential to ensure that the products are correctly flagged as eligible for Mercado Libre.
+
+### Prerequisites: Flagging Eligible Products
+
+The system identifies which products to process based on a set of business rules (e.g., stock availability, brand policies). To run this check and flag products accordingly, execute the following command:
+
+```bash
+python manage.py update_ml_eligibility
+```
+This command inspects the product catalog and sets `is_for_mercadolibre=True` on all products that meet the criteria, making them available for the image pipeline.
+
+### Scenario 1: Deep Dry Run (Search Verification)
+
+To test the image search query generation and URL candidacy without writing to the database or S3, use the `--dry-run` flag. This mode is perfect for verifying that your search logic is constructing the correct queries.
+
+- **Command:**
+  ```bash
+  python manage.py fetch_ml_images --dry-run
+  ```
+- **Behavior:**
+  - The system generates search queries for eligible products.
+  - It prints the candidate URLs for the first 5 search results directly to the console.
+  - No images are downloaded, processed, or uploaded. No database records are created.
+
+### Scenario 2: Targeted Full Execution
+
+If you need to test the entire pipeline for a single, specific product, you can use the `--id` flag. This is useful for debugging issues with a particular item.
+
+- **Command:**
+  ```bash
+  python manage.py fetch_ml_images --id 123
+  ```
+- **Behavior:**
+  - Performs the complete workflow for the product with `id=123`.
+  - This includes image search, background removal (for the primary image), processing, and uploading to S3.
+  - A `ProductImage` record will be created in the database upon success.
+
+### Scenario 3: Controlled Batch Processing
+
+To test the full automated pipeline on a small, manageable subset of products, combine flags like `--limit`. This allows you to validate the end-to-end workflow without processing your entire catalog.
+
+- **Command:**
+  ```bash
+  python manage.py fetch_ml_images --limit 2
+  ```
+- **Behavior:**
+  - The system will fetch and process images for a maximum of 2 eligible products.
+  - This is ideal for a final sanity check before running a large-scale batch job.
+
+### Script Verification
+
+For developers looking to test the Google Search API and query construction logic in complete isolation from the Django management infrastructure, a dedicated script is available.
+
+- **Script:**
+  ```
+  scripts/verify_image_search.py
+  ```
+- **Use Case:**
+  - This script allows for direct, low-level testing of the search service.
+  - It helps diagnose issues related to API credentials, query formatting, or upstream API changes without involving the Django ORM or Celery.
