@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.core.management import call_command
@@ -7,29 +7,41 @@ from model_bakery import baker
 from aiecommerce.models import ProductMaster
 
 
+@pytest.fixture
+def mock_image_search_service():
+    with patch("aiecommerce.management.commands.fetch_ml_images.ImageSearchService") as mock_service_class:
+        mock_service_instance = MagicMock()
+        mock_service_instance.build_search_query.return_value = "Mocked Query"
+        mock_service_instance.find_image_urls.return_value = [
+            "http://example.com/image1.jpg",
+            "http://example.com/image2.jpg",
+        ]
+        mock_service_class.return_value = mock_service_instance
+        yield mock_service_instance
+
+
 @pytest.mark.django_db
 @patch("aiecommerce.management.commands.fetch_ml_images.process_product_image")
-def test_fetch_ml_images_dry_run(mock_process_product_image, capsys):
-    baker.make(
+def test_fetch_ml_images_dry_run(mock_process_product_image, mock_image_search_service, capsys):
+    product = baker.make(
         ProductMaster,
         is_active=True,
         is_for_mercadolibre=True,
         description="Product 1",
-    )
-    baker.make(
-        ProductMaster,
-        is_active=True,
-        is_for_mercadolibre=True,
-        description="Product 2",
+        images=[],  # Explicitly set images to none
     )
 
     call_command("fetch_ml_images", "--dry-run")
 
     captured = capsys.readouterr()
-    assert "Found 2 products that would have images fetched" in captured.out
-    assert "- Product 1" in captured.out
-    assert "- Product 2" in captured.out
+    assert "Found 1 products. Performing a dry run" in captured.out
+    assert f"- Product: {product.description} (ID: {product.id})" in captured.out
+    assert "Query: 'Mocked Query'" in captured.out
+    assert "Candidate URLs:" in captured.out
+    assert "- http://example.com/image1.jpg" in captured.out
     mock_process_product_image.delay.assert_not_called()
+    mock_image_search_service.build_search_query.assert_called_once_with(product)
+    mock_image_search_service.find_image_urls.assert_called_once_with("Mocked Query", count=5)
 
 
 @pytest.mark.django_db
@@ -39,11 +51,13 @@ def test_fetch_ml_images(mock_process_product_image, capsys):
         ProductMaster,
         is_active=True,
         is_for_mercadolibre=True,
+        images=[],
     )
     product2 = baker.make(
         ProductMaster,
         is_active=True,
         is_for_mercadolibre=True,
+        images=[],
     )
 
     call_command("fetch_ml_images")
@@ -62,6 +76,7 @@ def test_fetch_ml_images_with_limit(mock_process_product_image, capsys):
         ProductMaster,
         is_active=True,
         is_for_mercadolibre=True,
+        images=[],
         _quantity=5,
     )
 
@@ -70,3 +85,36 @@ def test_fetch_ml_images_with_limit(mock_process_product_image, capsys):
     captured = capsys.readouterr()
     assert "Found 2 products to process. Triggering Celery tasks..." in captured.out
     assert mock_process_product_image.delay.call_count == 2
+
+
+@pytest.mark.django_db
+@patch("aiecommerce.management.commands.fetch_ml_images.process_product_image")
+def test_fetch_ml_images_by_id(mock_process_product_image, capsys):
+    product_to_process = baker.make(
+        ProductMaster,
+        is_active=True,
+        is_for_mercadolibre=True,
+        images=[],
+    )
+    # Another product that should NOT be processed
+    baker.make(
+        ProductMaster,
+        is_active=True,
+        is_for_mercadolibre=True,
+        images=[],
+    )
+
+    call_command("fetch_ml_images", f"--id={product_to_process.id}")
+
+    captured = capsys.readouterr()
+    assert f"Processing product with ID {product_to_process.id}" in captured.out
+    assert "Found 1 products to process" in captured.out
+    mock_process_product_image.delay.assert_called_once_with(product_to_process.id)
+
+
+@pytest.mark.django_db
+def test_fetch_ml_images_by_id_not_found(capsys):
+    non_existent_id = 99999
+    call_command("fetch_ml_images", f"--id={non_existent_id}")
+    captured = capsys.readouterr()
+    assert f"Product with ID {non_existent_id} not found" in captured.out
