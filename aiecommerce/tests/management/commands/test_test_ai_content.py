@@ -8,8 +8,10 @@ from aiecommerce.tests.factories import ProductMasterFactory
 
 @pytest.mark.django_db
 class TestTestAIContentCommand:
+    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
     @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
-    def test_handle_success_dry_run(self, mock_orchestrator_class, capsys):
+    def test_handle_success_dry_run(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-01", description="Original Desc", category="Category 1")
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -35,8 +37,10 @@ class TestTestAIContentCommand:
 
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=True, force_refresh=False)
 
+    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
     @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
-    def test_handle_success_no_dry_run(self, mock_orchestrator_class, capsys):
+    def test_handle_success_no_dry_run(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-02")
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -50,8 +54,10 @@ class TestTestAIContentCommand:
         assert "Content has been saved to the database." in captured.out
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=False, force_refresh=False)
 
+    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
     @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
-    def test_handle_success_force(self, mock_orchestrator_class, capsys):
+    def test_handle_success_force(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-03")
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -70,8 +76,10 @@ class TestTestAIContentCommand:
 
         assert 'Product with code "NON-EXISTENT" does not exist.' in str(excinfo.value)
 
+    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
     @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
-    def test_handle_skipped(self, mock_orchestrator_class, capsys):
+    def test_handle_skipped(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-04")
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -86,8 +94,10 @@ class TestTestAIContentCommand:
         assert "Content generation was skipped. Use --force to override." in captured.out
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=True, force_refresh=False)
 
+    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
     @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
-    def test_handle_error(self, mock_orchestrator_class, capsys):
+    def test_handle_error(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-05")
         mock_orchestrator = mock_orchestrator_class.return_value
