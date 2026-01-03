@@ -1,7 +1,7 @@
 [tool.ruff]
 # Target Python version
 target-version = "py311"
-line-length = 140
+line-length = 160
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`), pycodestyle (`E`, `W`), isort (`I`)

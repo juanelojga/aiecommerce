@@ -59,11 +59,9 @@ class TitleGeneratorService:
             base_url = os.getenv("OPENROUTER_BASE_URL")
 
             if not api_key or not base_url:
-                raise ValueError(
-                    "OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be set in environment variables if a client is not provided."
-                )
+                raise ValueError("OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be set in environment variables if a client is not provided.")
 
-            self._client = instructor.patch(OpenAI(api_key=api_key, base_url=base_url))
+            self._client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
 
     def generate_title(self, product: ProductMaster, model_name: str = "google/gemini-2.0-flash-001") -> str:
         """
