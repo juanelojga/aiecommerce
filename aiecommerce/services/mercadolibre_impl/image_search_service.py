@@ -91,11 +91,7 @@ class ImageSearchService:
             num_to_fetch = min(image_search_count - len(image_urls), 10)
 
             try:
-                result = (
-                    self.service.cse()
-                    .list(q=query, cx=self.search_engine_id, searchType="image", imgSize="HUGE", num=num_to_fetch, start=start_index)
-                    .execute()
-                )
+                result = self.service.cse().list(q=query, cx=self.search_engine_id, searchType="image", imgSize="HUGE", num=num_to_fetch, start=start_index).execute()
 
                 items = result.get("items", [])
                 if not items:

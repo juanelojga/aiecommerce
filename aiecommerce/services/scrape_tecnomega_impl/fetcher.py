@@ -17,12 +17,7 @@ class HtmlFetcher:
     def _create_session(self, user_agent: Optional[str]) -> requests.Session:
         """Configures a requests session with retry logic."""
         session = requests.Session()
-        session.headers.update(
-            {
-                "User-Agent": user_agent
-                or ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-            }
-        )
+        session.headers.update({"User-Agent": user_agent or ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")})
 
         # Retry strategy for network issues and server-side errors
         retry_strategy = Retry(
