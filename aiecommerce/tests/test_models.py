@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 
 from aiecommerce.tests.factories import (
+    ProductImageFactory,
     ProductMasterFactory,
     ProductRawPDFFactory,
     ProductRawWebFactory,
@@ -51,6 +52,22 @@ def test_product_master_str_no_description():
     master_product = ProductMasterFactory(code="MASTER-SKU-789", description=None)
     expected_str = "Master: MASTER-SKU-789 - No description (Images: No)"
     assert str(master_product) == expected_str
+
+
+def test_product_master_str_with_images():
+    """Verify the __str__ method for ProductMaster when it has images."""
+    master_product = ProductMasterFactory(code="MASTER-SKU-IMAGE", description="Product with images")
+    ProductImageFactory(product=master_product, url="http://example.com/image1.jpg")
+    expected_str = "Master: MASTER-SKU-IMAGE - Product with images (Images: Yes)"
+    assert str(master_product) == expected_str
+
+
+def test_product_image_str():
+    """Verify the __str__ method for ProductImage returns the expected format."""
+    master_product = ProductMasterFactory(code="SKU-123")
+    image = ProductImageFactory(product=master_product, url="http://example.com/img.jpg", order=1)
+    expected_str = "Image for SKU-123 (1) - http://example.com/img.jpg"
+    assert str(image) == expected_str
 
 
 def test_product_master_price_precision():
