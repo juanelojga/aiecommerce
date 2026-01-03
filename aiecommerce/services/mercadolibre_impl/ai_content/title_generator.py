@@ -37,7 +37,7 @@ class AITitle(BaseModel):
     title: str = Field(
         ...,
         description="The generated product title, optimized for Mercado Libre.",
-        max_length=MAX_TITLE_LENGTH + 20,  # Allow AI some flexibility before final cut
+        max_length=MAX_TITLE_LENGTH,
     )
 
 
@@ -55,7 +55,7 @@ class TitleGeneratorService:
         if client:
             self._client = client
         else:
-            api_key = os.getenv("OPENROUTER_API_KEY")
+            api_key = os.environ.get("OPENROUTER_API_KEY")
             base_url = os.getenv("OPENROUTER_BASE_URL")
 
             if not api_key or not base_url:
@@ -71,7 +71,6 @@ class TitleGeneratorService:
 
         Args:
             product: The ProductMaster instance.
-            model_name: The name of the AI model to use.
 
         Returns:
             A generated title, truncated to the maximum allowed length.
@@ -88,9 +87,11 @@ class TitleGeneratorService:
             prompt = SYSTEM_PROMPT.format(product_data=json.dumps(product_data, indent=2))
 
             response = self._client.chat.completions.create(
-                model=model_name,
+                model=os.getenv("OPENROUTER_TITLE_GENERATION_MODEL"),
                 response_model=AITitle,
                 messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=50,
             )
 
             generated_title = response.title.strip()
