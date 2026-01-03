@@ -104,13 +104,7 @@ class AIContentOrchestrator:
 
         return results
 
-    def process_batch(
-        self,
-        limit: int = 10,
-        dry_run: bool = False,
-        force_refresh: bool = False,
-        model_name: str = "google/gemini-1.5-flash-001",
-    ) -> int:
+    def process_batch(self, limit: int = 10, dry_run: bool = False, force_refresh: bool = False) -> int:
         """
         Processes a batch of products to generate missing AI content.
 
@@ -144,7 +138,6 @@ class AIContentOrchestrator:
                     product=product,
                     dry_run=dry_run,
                     force_refresh=force_refresh,
-                    model_name=model_name,
                 )
                 if result.get("updated") or (dry_run and not result.get("error")):
                     processed_count += 1

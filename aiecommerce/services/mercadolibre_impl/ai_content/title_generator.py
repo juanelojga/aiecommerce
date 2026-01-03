@@ -22,7 +22,7 @@ Tu objetivo es generar un TÍTULO DE PRODUCTO que cumpla exactamente con estas r
    - Información de stock, garantía, envíos, promociones o descuentos.
    - Nombres de marcas de terceros salvo que indique compatibilidad.
 3. Separa las palabras con espacios, sin guiones ni símbolos.
-4. Mantén entre 60 caracteres.
+4. Mantén el título con un máximo de 60 caracteres.
 5. Usa formato consistente en mayúsculas y números (por ejemplo, 16GB o 512GB SSD).
 Input (datos del producto en formato JSON):
 {product_data}
@@ -63,7 +63,7 @@ class TitleGeneratorService:
 
             self._client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
 
-    def generate_title(self, product: ProductMaster, model_name: str = "google/gemini-2.0-flash-001") -> str:
+    def generate_title(self, product: ProductMaster) -> str:
         """
         Generates an SEO title for a given product.
 
