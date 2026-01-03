@@ -32,3 +32,15 @@ def run_normalize_products():
 def run_enrich_products():
     """Run the enrich_products management command."""
     call_command("enrich_products")
+
+
+@shared_task
+def run_ml_eligibility_update():
+    """Run the update_ml_eligibility management command."""
+    call_command("update_ml_eligibility")
+
+
+@shared_task
+def run_image_fetcher():
+    """Run the fetch_ml_images management command."""
+    call_command("fetch_ml_images")

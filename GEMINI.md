@@ -36,6 +36,7 @@ aiecommerce/
 
 ### Python & Django
 
+  - **File Organization:** Each class **must** be defined in its own file.
   - **Typing:** All new code (functions, methods, arguments) **must** have valid Python type hints.
   - **Linting:** All code must pass `ruff check` and `ruff format`.
   - **Imports:** Use absolute imports (e.g., `from apps.users.models import User`).
@@ -50,7 +51,10 @@ aiecommerce/
 
 ## 4. Test Generation Guidelines
 
-**Strict Rule:** Do **NOT** generate tests in the same iteration as feature code unless explicitly asked.
+**Strict Rules:**
+- Do **NOT** create unit test cases unless it is specifically specified in the request.
+- Do **NOT** generate tests in the same iteration as feature code unless explicitly asked.
+- Do **NOT** execute unit test cases after a change is made unless specifically requested.
 
 ### When to Generate Tests
 
@@ -114,6 +118,7 @@ aiecommerce/
   - **Plan First:** Always propose a bulleted plan of files to create/edit before generating code.
   - **Incremental Changes:** Break large tasks into small, verifiable steps.
   - **Diffs:** Show diffs for all proposed changes.
+  - **No Auto-Commit:** Do **NOT** automatically commit changes. Committing changes is not allowed.
 
 ## 6. Example Prompts
 

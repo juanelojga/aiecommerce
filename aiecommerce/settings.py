@@ -158,9 +158,20 @@ MERCADOLIBRE_CLIENT_ID = env("MERCADOLIBRE_CLIENT_ID", default="")
 MERCADOLIBRE_CLIENT_SECRET = env("MERCADOLIBRE_CLIENT_SECRET", default="")
 MERCADOLIBRE_REDIRECT_URI = env("MERCADOLIBRE_REDIRECT_URI", default="https://127.0.0.1:8000/mercadolibre/callback/")
 
+# --- Google API Configuration ---
+GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")
+GOOGLE_SEARCH_ENGINE_ID = env("GOOGLE_SEARCH_ENGINE_ID", default="")
+IMAGE_SEARCH_COUNT = env.int("IMAGE_SEARCH_COUNT", default=10)
+
 # --- Mercado Price Engine ---
 MERCADOLIBRE_IVA_RATE = env("MERCADOLIBRE_IVA_RATE", cast=Decimal, default=Decimal("0.15"))
 MERCADOLIBRE_COMMISSION_RATE = env("MERCADOLIBRE_COMMISSION_RATE", cast=Decimal, default=Decimal("0.10"))
 MERCADOLIBRE_SHIPPING_FEE = env("MERCADOLIBRE_SHIPPING_FEE", cast=Decimal, default=Decimal("5.00"))
 MERCADOLIBRE_TARGET_MARGIN = env("MERCADOLIBRE_TARGET_MARGIN", cast=Decimal, default=Decimal("0.15"))
 MERCADOLIBRE_OPERATIONAL_COST = env("MERCADOLIBRE_OPERATIONAL_COST", cast=Decimal, default=Decimal("5.00"))
+
+# --- AWS S3 Configuration ---
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")

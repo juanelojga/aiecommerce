@@ -37,8 +37,8 @@ def test_mercadolibre_listing_str_representation():
     listing_without_id = baker.make(MercadoLibreListing, product_master=product_master_no_id)
 
     # Act & Assert
-    assert str(listing_with_id) == f"{product_master} (MLA12345)"
-    assert str(listing_without_id) == f"{product_master_no_id} (N/A)"
+    assert str(listing_with_id) == f"Master: {product_master.code} - Test Product (MLA12345)"
+    assert str(listing_without_id) == f"Master: {product_master_no_id.code} - Test Product No ID (N/A)"
 
 
 def test_mercadolibre_listing_str_no_description():

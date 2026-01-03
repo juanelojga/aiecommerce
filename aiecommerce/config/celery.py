@@ -38,4 +38,12 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_enrich_products",
         "schedule": crontab(minute=15, hour="8-19", day_of_week="mon-sat"),
     },
+    "ml-eligibility-hourly-mon-sat": {
+        "task": "aiecommerce.tasks.periodic.run_ml_eligibility_update",
+        "schedule": crontab(minute=20, hour="8-19", day_of_week="mon-sat"),
+    },
+    "image-fetcher-hourly-mon-sat": {
+        "task": "aiecommerce.tasks.periodic.run_image_fetcher",
+        "schedule": crontab(minute=25, hour="8-19", day_of_week="mon-sat"),
+    },
 }

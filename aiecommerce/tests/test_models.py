@@ -42,14 +42,14 @@ def test_product_raw_web_str_no_sku():
 def test_product_master_str():
     """Verify the __str__ method for ProductMaster returns the expected format."""
     master_product = ProductMasterFactory(code="MASTER-SKU-456", description="A master product for testing")
-    expected_str = "Master: MASTER-SKU-456 - A master product for testing"
+    expected_str = "Master: MASTER-SKU-456 - A master product for testing (Images: No)"
     assert str(master_product) == expected_str
 
 
 def test_product_master_str_no_description():
     """Verify the __str__ method for ProductMaster handles no description."""
     master_product = ProductMasterFactory(code="MASTER-SKU-789", description=None)
-    expected_str = "Master: MASTER-SKU-789 - No description"
+    expected_str = "Master: MASTER-SKU-789 - No description (Images: No)"
     assert str(master_product) == expected_str
 
 
