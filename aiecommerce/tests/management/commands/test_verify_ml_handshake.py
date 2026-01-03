@@ -19,9 +19,7 @@ class TestVerifyMLHandshakeCommand:
         assert "No Mercado Libre tokens found in the database." in output
 
     def test_list_tokens_with_data(self):
-        MercadoLibreToken.objects.create(
-            user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1)
-        )
+        MercadoLibreToken.objects.create(user_id="user123", access_token="access", refresh_token="refresh", expires_at=timezone.now() + timedelta(hours=1))
         out = io.StringIO()
         call_command("verify_ml_handshake", "--list", stdout=out)
         output = out.getvalue()

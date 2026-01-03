@@ -15,9 +15,7 @@ class MercadoLibreFilter:
         freshness_threshold_hours: Optional[int] = None,
     ):
         self.publication_rules = publication_rules if publication_rules is not None else settings.MERCADOLIBRE_PUBLICATION_RULES
-        self.freshness_threshold_hours = (
-            freshness_threshold_hours if freshness_threshold_hours is not None else settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
-        )
+        self.freshness_threshold_hours = freshness_threshold_hours if freshness_threshold_hours is not None else settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
 
     def _get_freshness_limit(self, now: Optional[datetime] = None) -> datetime:
         base_time = now or timezone.now()

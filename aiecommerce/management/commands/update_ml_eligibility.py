@@ -35,16 +35,8 @@ class Command(BaseCommand):
         disabled_count = result["disabled"]
 
         if dry_run:
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"\n--- DRY RUN RESULTS ---\n"
-                    f"Products that would be enabled: {enabled_count}\n"
-                    f"Products that would be disabled: {disabled_count}"
-                )
-            )
+            self.stdout.write(self.style.SUCCESS(f"\n--- DRY RUN RESULTS ---\nProducts that would be enabled: {enabled_count}\nProducts that would be disabled: {disabled_count}"))
         else:
-            self.stdout.write(
-                self.style.SUCCESS(f"\n--- UPDATE COMPLETE ---\nProducts enabled: {enabled_count}\nProducts disabled: {disabled_count}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"\n--- UPDATE COMPLETE ---\nProducts enabled: {enabled_count}\nProducts disabled: {disabled_count}"))
 
         self.stdout.write(self.style.SUCCESS("Operation finished."))

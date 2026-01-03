@@ -31,9 +31,7 @@ class MercadoLibreCallbackViewTest(TestCase):
         self.assertEqual(json.loads(response.content), {"status": "success", "message": "Mercado Libre account linked successfully."})
 
         # Verify service call
-        mock_auth_service_instance.init_token_from_code.assert_called_once_with(
-            code="test_code", redirect_uri=settings.MERCADOLIBRE_REDIRECT_URI
-        )
+        mock_auth_service_instance.init_token_from_code.assert_called_once_with(code="test_code", redirect_uri=settings.MERCADOLIBRE_REDIRECT_URI)
 
     def test_get_missing_code(self):
         # Create request without code

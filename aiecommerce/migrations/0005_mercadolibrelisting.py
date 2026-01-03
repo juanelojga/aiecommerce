@@ -38,15 +38,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "last_synced",
-                    models.DateTimeField(
-                        blank=True, help_text="When the listing was last synced with Mercado Libre.", null=True, verbose_name="Last Synced"
-                    ),
+                    models.DateTimeField(blank=True, help_text="When the listing was last synced with Mercado Libre.", null=True, verbose_name="Last Synced"),
                 ),
                 (
                     "sync_error",
-                    models.TextField(
-                        blank=True, help_text="Details of the last synchronization error, if any.", null=True, verbose_name="Sync Error"
-                    ),
+                    models.TextField(blank=True, help_text="Details of the last synchronization error, if any.", null=True, verbose_name="Sync Error"),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),

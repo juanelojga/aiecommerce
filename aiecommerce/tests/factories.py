@@ -4,7 +4,7 @@ import factory
 from factory.django import DjangoModelFactory
 from faker import Faker
 
-from aiecommerce.models.product import ProductMaster, ProductRawPDF, ProductRawWeb
+from aiecommerce.models.product import ProductImage, ProductMaster, ProductRawPDF, ProductRawWeb
 
 fake = Faker()
 
@@ -41,6 +41,16 @@ class ProductMasterFactory(DjangoModelFactory):
     price = factory.Faker("pydecimal", left_digits=8, right_digits=2, positive=True)
     is_active = factory.Faker("pybool")
     last_updated = factory.Faker("date_time", tzinfo=datetime.timezone.utc)
+
+
+class ProductImageFactory(DjangoModelFactory):
+    class Meta:
+        model = ProductImage
+
+    product = factory.SubFactory(ProductMasterFactory)
+    url = factory.Faker("url")
+    order = factory.Sequence(lambda n: n)
+    is_processed = False
 
 
 class MercadoLibreListingFactory(DjangoModelFactory):

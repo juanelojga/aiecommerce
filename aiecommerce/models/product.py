@@ -60,6 +60,9 @@ class ProductMaster(models.Model):
 
     specs = models.JSONField(default=dict, blank=True, null=True)
 
+    seo_title = models.CharField(max_length=60, null=True, blank=True, db_index=True, help_text="AI-generated title optimized for marketplaces (Max 60 chars).")
+    seo_description = models.TextField(null=True, blank=True, help_text="AI-generated plain text description including storytelling and specs.")
+
     def __str__(self):
         has_images = self.images.exists()
         return f"Master: {self.code} - {self.description or 'No description'} (Images: {'Yes' if has_images else 'No'})"

@@ -125,9 +125,7 @@ class TestRunAndReporting:
         reporter.print_summary.assert_called_once_with(True)
 
     def test_run_reports_failure_when_exception_occurs_but_continues(self):
-        coord, cfg, fetcher, parser, mapper, persister, reporter, previewer = make_coordinator(
-            dry_run=True, categories=["ok", "boom", "ok2"]
-        )
+        coord, cfg, fetcher, parser, mapper, persister, reporter, previewer = make_coordinator(dry_run=True, categories=["ok", "boom", "ok2"])
 
         def fetch_side_effect(url, category):
             if category == "boom":
