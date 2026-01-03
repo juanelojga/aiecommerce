@@ -3,6 +3,7 @@ This module defines the AIContentOrchestrator service for coordinating content g
 """
 
 import logging
+import os
 from typing import Any, Dict, Optional
 
 import instructor
@@ -36,7 +37,25 @@ class AIContentOrchestrator:
         """
         self.title_generator = title_generator
         self.description_generator = description_generator
-        self.client = client or instructor.from_openai(OpenAI())
+        self._client = client
+
+    @property
+    def client(self) -> instructor.Instructor:
+        """
+        Lazily initializes the instructor client if not provided.
+        """
+        if self._client is None:
+            api_key = os.environ.get("OPENROUTER_API_KEY")
+            base_url = os.environ.get("OPENROUTER_BASE_URL")
+
+            if not api_key or not base_url:
+                # Fallback to default OpenAI if OpenRouter env vars are not set
+                # This will raise the OpenAIError if OPENAI_API_KEY is also missing,
+                # but only when the client is actually accessed.
+                self._client = instructor.from_openai(OpenAI())
+            else:
+                self._client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
+        return self._client
 
     def process_product_content(
         self,

@@ -31,11 +31,12 @@ class Command(BaseCommand):
             help="The unique code of the product to process.",
         )
         parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            default=True,
-            help="If set, the command will only display the generated content without saving it.",
+            "--no-dry-run",
+            action="store_false",
+            dest="dry_run",
+            help="If set, the command will save the generated content to the database.",
         )
+        parser.set_defaults(dry_run=True)
         parser.add_argument(
             "--force",
             action="store_true",
