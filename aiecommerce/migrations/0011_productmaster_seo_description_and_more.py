@@ -12,9 +12,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="productmaster",
             name="seo_description",
-            field=models.TextField(
-                blank=True, help_text="AI-generated plain text description including storytelling and specs.", null=True
-            ),
+            field=models.TextField(blank=True, help_text="AI-generated plain text description including storytelling and specs.", null=True),
         ),
         migrations.AddField(
             model_name="productmaster",

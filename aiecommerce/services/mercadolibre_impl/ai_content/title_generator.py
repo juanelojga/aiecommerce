@@ -89,7 +89,6 @@ class TitleGeneratorService:
                 response_model=AITitle,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=50,
             )
 
             generated_title = response.title.strip()

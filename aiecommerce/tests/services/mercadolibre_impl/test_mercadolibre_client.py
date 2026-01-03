@@ -18,9 +18,7 @@ def mock_settings():
 
 @pytest.fixture
 def config():
-    return MercadoLibreConfig(
-        client_id="id", client_secret="secret", base_url="https://test.api.com", timeout=10, max_retries=2, backoff_factor=1.0
-    )
+    return MercadoLibreConfig(client_id="id", client_secret="secret", base_url="https://test.api.com", timeout=10, max_retries=2, backoff_factor=1.0)
 
 
 @pytest.fixture
@@ -143,9 +141,7 @@ class TestMercadoLibreClientInternal:
 
         result = client._send_request("GET", "https://api.com/test")
         assert result == {"status": "ok"}
-        mock_session.request.assert_called_once_with(
-            "GET", "https://api.com/test", timeout=client.config.timeout, headers={"Authorization": "Bearer test_token"}
-        )
+        mock_session.request.assert_called_once_with("GET", "https://api.com/test", timeout=client.config.timeout, headers={"Authorization": "Bearer test_token"})
 
     def test_send_request_network_error(self, client):
         client._session = MagicMock()

@@ -28,9 +28,7 @@ class ScrapeReporter:
         self.command.stdout.write(f"Total items processed: {self.total_scraped_count}")
 
         if self.failed_categories:
-            self.command.stderr.write(
-                self.command.style.ERROR(f"Completed with errors. Failed categories: {', '.join(self.failed_categories)}")
-            )
+            self.command.stderr.write(self.command.style.ERROR(f"Completed with errors. Failed categories: {', '.join(self.failed_categories)}"))
         else:
             self.command.stdout.write(self.command.style.SUCCESS("All categories processed successfully."))
 

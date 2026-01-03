@@ -14,9 +14,7 @@ class ProductPreviewer:
         if not items:
             return
 
-        self.command.stdout.write(
-            self.command.style.WARNING(f"\n--- [DRY RUN] Detailed Preview (First {limit} items for '{category}') ---")
-        )
+        self.command.stdout.write(self.command.style.WARNING(f"\n--- [DRY RUN] Detailed Preview (First {limit} items for '{category}') ---"))
 
         for i, item in enumerate(items[:limit], 1):
             self.command.stdout.write(self.command.style.SUCCESS(f"Item #{i}:"))

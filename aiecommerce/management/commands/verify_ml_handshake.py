@@ -50,11 +50,7 @@ class Command(BaseCommand):
             token_record = MercadoLibreToken.objects.filter(is_test_user=is_sandbox_mode).first()
             if not token_record:
                 self.stdout.write(self.style.ERROR(f"No {mode} tokens found in the database. Cannot verify handshake."))
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"Please ensure at least one user has gone through the OAuth2 flow at /mercadolibre/auth/ for {mode} environment."
-                    )
-                )
+                self.stdout.write(self.style.WARNING(f"Please ensure at least one user has gone through the OAuth2 flow at /mercadolibre/auth/ for {mode} environment."))
                 return
             user_id = token_record.user_id
             self.stdout.write(f"No User ID provided. Using first available {mode} user: {user_id}")
@@ -69,11 +65,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Successfully retrieved a valid {mode} token."))
         except MLTokenError as e:
             self.stdout.write(self.style.ERROR(f"Failed to get {mode} token: {e}"))
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Please ensure user {user_id} has gone through the OAuth2 flow at /mercadolibre/auth/ for {mode} environment."
-                )
-            )
+            self.stdout.write(self.style.WARNING(f"Please ensure user {user_id} has gone through the OAuth2 flow at /mercadolibre/auth/ for {mode} environment."))
             return
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"An unexpected error occurred: {e}"))

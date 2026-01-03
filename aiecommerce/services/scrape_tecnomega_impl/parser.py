@@ -36,10 +36,7 @@ class HtmlParser:
         if header:
             header_cols = header.find_all("th")
             if len(header_cols) < self.EXPECTED_COLUMN_COUNT:
-                logger.warning(
-                    f"Table header has {len(header_cols)} columns, "
-                    f"expected at least {self.EXPECTED_COLUMN_COUNT}. Parsing may be incorrect."
-                )
+                logger.warning(f"Table header has {len(header_cols)} columns, expected at least {self.EXPECTED_COLUMN_COUNT}. Parsing may be incorrect.")
 
         # Find all rows in the table body
         tbody = product_table.find("tbody")

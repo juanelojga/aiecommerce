@@ -13,9 +13,7 @@ pytestmark = pytest.mark.django_db
 def test_mercadolibre_token_creation():
     """Test that a MercadoLibreToken can be created with all fields."""
     expires_at = timezone.now() + timedelta(hours=6)
-    token = baker.make(
-        MercadoLibreToken, user_id="123456", access_token="APP_USR-access-token", refresh_token="TG-refresh-token", expires_at=expires_at
-    )
+    token = baker.make(MercadoLibreToken, user_id="123456", access_token="APP_USR-access-token", refresh_token="TG-refresh-token", expires_at=expires_at)
 
     assert token.user_id == "123456"
     assert token.access_token == "APP_USR-access-token"

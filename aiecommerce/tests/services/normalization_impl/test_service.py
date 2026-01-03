@@ -24,9 +24,7 @@ class DummyMatch:
 
 class DummyMatcher(FuzzyMatcher):
     def __init__(self, price: Optional[float] = None, category: Optional[str] = None) -> None:
-        self._match: Optional[DummyMatch] = (
-            DummyMatch(price=price, category=category) if (price is not None or category is not None) else None
-        )
+        self._match: Optional[DummyMatch] = DummyMatch(price=price, category=category) if (price is not None or category is not None) else None
 
     # Match FuzzyMatcher signature: (str, List[ProductRawPDF], int) -> Optional[ProductRawPDF]
     def find_best_match(

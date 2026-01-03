@@ -79,7 +79,6 @@ class DescriptionGeneratorService:
                 ],
                 max_retries=1,
                 temperature=0.3,
-                max_tokens=600,
             )
             generated_description = response.choices[0].message.content
             if generated_description:
@@ -126,16 +125,38 @@ REGLAS DE NEGOCIO (Mercado Libre):
 - Usa oraciones cortas, párrafos de 2 a 4 líneas como máximo.
 - No uses listas con viñetas ni encabezados; solo texto plano con saltos de línea.
 
+REGLAS SOBRE LOS DATOS DE ENTRADA (JSON COMO FUENTE DE VERDAD):
+- Los datos del JSON SON LA FUENTE PRINCIPAL DE VERDAD del producto.
+- NUNCA cambies ni “corrijas” los valores de estos campos: manufacturer, model_name, cpu, ram, storage, screen_size, color, part_number, category_type.
+- Si la información que ves en Internet parece distinta a estos campos, debes dar prioridad al JSON y NO modificarlos en el texto.
+- Usa Internet únicamente para complementar información que NO esté en el JSON (por ejemplo: tipo de pantalla, resolución, tipo de memoria, tipo de SSD, conectividad, usos típicos).
+- Si algún dato encontrado en Internet contradice el JSON, ignóralo y mantén lo que viene en el JSON.
+
 USO DE INTERNET:
-- Primero, busca información del modelo exacto en fuentes confiables (principalmente la web oficial del fabricante y fichas técnicas de mayoristas).
-- Extrae solo datos técnicos relevantes (tipo de pantalla, resolución, familia de procesador, tipo de memoria, tipo de SSD, conectividad, uso recomendado).
-- Reescribe todo con tus propias palabras; no copies frases textuales.
+- Primero, busca información del modelo exacto en fuentes confiables (principalmente la web oficial del fabricante y fichas técnicas de mayoristas reconocidos).
+- Extrae solo datos técnicos relevantes: tipo de pantalla, resolución, familia de procesador, tipo de memoria, tipo de SSD, conectividad, usos recomendados y características generales.
+- Reescribe todo con tus propias palabras; no copies frases textuales de las páginas consultadas.
 
 ESTRUCTURA OBLIGATORIA DE LA DESCRIPCIÓN (TEXTO PLANO):
+Genera exactamente 4 párrafos en este orden:
+
 1) Párrafo 1: Presentación del equipo
+   - Menciona marca, modelo y tipo de equipo (por ejemplo: notebook profesional de 14 pulgadas).
+   - Resume en 2–3 frases las ideas de rendimiento, confiabilidad y público objetivo (trabajo, estudio, uso profesional, etc.).
+
 2) Párrafo 2: Especificaciones clave
+   - Describe en texto corrido: procesador (cpu del JSON), memoria RAM (ram del JSON), almacenamiento (storage del JSON), tamaño de pantalla (screen_size del JSON) y sistema operativo si está disponible.
+   - Incluye color y menciona algunos detalles de conectividad si puedes deducirlos del campo description o de la búsqueda en Internet (por ejemplo, puertos USB‑C, HDMI, Wi‑Fi, etc.), siempre sin contradecir el JSON.
+
 3) Párrafo 3: Uso recomendado
+   - Explica para qué tipo de usuario y tareas es ideal el equipo (ofimática, videollamadas, trabajo en la nube, aplicaciones profesionales, estudio universitario, etc.).
+   - Destaca beneficios reales: rapidez, fluidez en multitarea, seguridad del sistema operativo, comodidad de la pantalla, durabilidad del equipo.
+
 4) Párrafo 4: Garantía y confianza
+   - Indica que el producto es nuevo (usando product_condition o la información dada).
+   - Indica que tiene 1 año de garantía oficial del fabricante (manufacturer_warranty_years).
+   - Indica que el vendedor tiene más de X años de experiencia vendiendo equipos de informática (experience_years).
+   - Cierra reforzando la idea de compra segura, confiabilidad del vendedor y soporte postventa básico.
 
 DATOS DE ENTRADA (JSON):
 {product_data}
