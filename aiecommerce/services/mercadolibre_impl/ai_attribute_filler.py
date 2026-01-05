@@ -46,7 +46,7 @@ class AIAttributeFiller:
     - Produces ML-ready attribute payloads.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = instructor.from_openai(
             OpenAI(
                 api_key=os.environ["OPENAI_API_KEY"],
