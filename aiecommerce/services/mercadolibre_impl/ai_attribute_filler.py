@@ -7,6 +7,10 @@ from pydantic import BaseModel
 
 from aiecommerce.models.product import ProductMaster
 
+# -------------------------
+# AI Response Models
+# -------------------------
+
 
 class BatchNumberUnit(BaseModel):
     value: Optional[float]
@@ -26,17 +30,23 @@ class BatchAttributeResponse(BaseModel):
     attributes: Dict[str, AttributeMeta]
 
 
+# -------------------------
+# AI Attribute Filler
+# -------------------------
+
+
 class AIAttributeFiller:
     """
     Batch-fills MercadoLibre attributes using a single AI call.
-    - Attribute values are in Spanish.
-    - Code/comments/communication are in English.
-    - Adds confidence/source metadata.
-    - Supports conditional_required validation via MercadoLibre API.
+
+    - Attribute VALUES are returned in Spanish.
+    - Code, comments, and logic are in English.
+    - No MercadoLibre API calls here.
+    - Enforces MercadoLibre rules locally.
+    - Produces ML-ready attribute payloads.
     """
 
-    def __init__(self, ml_client):
-        self.ml_client = ml_client
+    def __init__(self):
         self.client = instructor.from_openai(
             OpenAI(
                 api_key=os.environ["OPENAI_API_KEY"],
@@ -44,101 +54,36 @@ class AIAttributeFiller:
             )
         )
 
-    def fill_attributes_with_meta(
-        self,
-        product: ProductMaster,
-        attributes: List[dict],
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """
-        Returns:
-          - ml_ready_values: dict of {attr_id: formatted_value_for_ml}
-          - meta: dict of {attr_id: {"confidence": ..., "source": ...}}
-        """
-        candidates = [a for a in attributes if not self._should_skip(a, product.specs)]
-        if not candidates:
-            return {}, {}
-
-        response = self._extract_batch(product, candidates)
-
-        ml_values, meta = self._map_to_ml_format_with_meta(response.attributes, candidates)
-
-        return ml_values, meta
-
-    def fill_and_validate_conditionals(
-        self,
-        product: ProductMaster,
-        attributes: List[dict],
-        category_id: str,
-        base_item_payload: dict,
-        retry_missing_required: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Fills attributes, then checks MercadoLibre conditional_required rules.
-        Optionally retries AI once for missing required attributes.
-        Returns a report dict.
-        """
-        ml_values, meta = self.fill_attributes_with_meta(product, attributes)
-
-        # Merge into item payload for conditional validation
-        item_payload = dict(base_item_payload)
-        item_payload["attributes"] = self._build_ml_attributes_payload(ml_values, attributes)
-
-        required_ids = self.ml_client.get_conditional_required_attributes(
-            category_id=category_id,
-            item_payload=item_payload,
-        )
-
-        missing_required = [rid for rid in required_ids if rid not in ml_values]
-
-        # Retry strategy: ask AI to focus only on missing required attributes
-        if retry_missing_required and missing_required:
-            missing_defs = [a for a in attributes if a.get("id") in missing_required]
-            if missing_defs:
-                retry_response = self._extract_batch(
-                    product,
-                    missing_defs,
-                    force_internet_if_missing=True,
-                )
-                retry_values, retry_meta = self._map_to_ml_format_with_meta(
-                    retry_response.attributes,
-                    missing_defs,
-                )
-
-                ml_values.update(retry_values)
-                meta.update(retry_meta)
-
-                # Re-check
-                missing_required = [rid for rid in required_ids if rid not in ml_values]
-
-        return {
-            "values": ml_values,
-            "meta": meta,
-            "required_ids": required_ids,
-            "missing_required": missing_required,
-        }
+    # =========================
+    # Public API
+    # =========================
 
     def fill_and_validate(
         self,
         product: ProductMaster,
-        attributes: list[dict],
-    ) -> dict:
+        attributes: List[dict],
+    ) -> Dict[str, Any]:
         """
         Main entry point.
 
         Returns:
-          {
-            "values": ML-ready attribute values,
-            "meta": confidence/source per attribute,
-            "missing_required": list of attribute IDs
-          }
+        {
+          "attributes": [ML-ready attribute payloads],
+          "meta": confidence/source metadata,
+          "missing_required": list of attribute IDs
+        }
         """
 
-        # First AI pass (normal rules)
-        values, meta = self.fill_attributes_with_meta(product, attributes)
+        # 1️⃣ First AI pass
+        values, meta = self._fill_attributes_with_meta(product, attributes)
 
+        # 2️⃣ Drop low-confidence conditional_required attributes
+        self._drop_low_confidence_required(values, meta, attributes)
+
+        # 3️⃣ Validate conditional_required
         missing_required = self._find_missing_required(values, attributes)
 
-        # Retry ONLY for missing conditional_required attributes
+        # 4️⃣ Retry ONLY missing conditional_required attributes
         if missing_required:
             retry_defs = [a for a in attributes if a["id"] in missing_required]
 
@@ -148,7 +93,7 @@ class AIAttributeFiller:
                 force_internet_if_missing=True,
             )
 
-            retry_values, retry_meta = self._map_to_ml_format_with_meta(
+            retry_values, retry_meta = self._map_to_internal_values(
                 retry_response.attributes,
                 retry_defs,
             )
@@ -156,65 +101,40 @@ class AIAttributeFiller:
             values.update(retry_values)
             meta.update(retry_meta)
 
+            self._drop_low_confidence_required(values, meta, attributes)
             missing_required = self._find_missing_required(values, attributes)
 
+        # 5️⃣ Build MercadoLibre payload
+        ml_payload = self._build_ml_attributes_payload(values, attributes)
+
         return {
-            "values": values,
+            "attributes": ml_payload,
             "meta": meta,
             "missing_required": missing_required,
         }
 
-    # -------------------------
-    # Internal helpers
-    # -------------------------
+    # =========================
+    # Core AI Logic
+    # =========================
 
-    def _drop_low_confidence_required(
+    def _fill_attributes_with_meta(
         self,
-        values: dict[str, Any],
-        meta: dict[str, Any],
-        attributes: list[dict],
-    ):
-        required_ids = self._get_conditional_required_ids(attributes)
+        product: ProductMaster,
+        attributes: List[dict],
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        candidates = [a for a in attributes if not self._should_skip(a, product.specs)]
+        if not candidates:
+            return {}, {}
 
-        for attr_id in list(values.keys()):
-            if attr_id in required_ids:
-                if meta.get(attr_id, {}).get("confidence") == "low":
-                    values.pop(attr_id, None)
-
-    def _get_conditional_required_ids(self, attributes: list[dict]) -> set[str]:
-        return {attr["id"] for attr in attributes if attr.get("tags", {}).get("conditional_required") is True}
-
-    def _find_missing_required(
-        self,
-        filled_values: dict[str, Any],
-        attributes: list[dict],
-    ) -> list[str]:
-        required_ids = self._get_conditional_required_ids(attributes)
-        return [attr_id for attr_id in required_ids if attr_id not in filled_values]
-
-    def _should_skip(self, attr: dict, specs: Optional[dict]) -> bool:
-        tags = attr.get("tags", {})
-
-        # MercadoLibre tags
-        if tags.get("read_only"):
-            return True
-        if tags.get("fixed"):
-            return True
-        if tags.get("inferred"):
-            return True
-
-        # If already filled in your internal specs, skip
-        if specs and attr.get("id") in specs and specs[attr["id"]] is not None:
-            return True
-
-        return False
+        response = self._extract_batch(product, candidates)
+        return self._map_to_internal_values(response.attributes, candidates)
 
     def _extract_batch(
         self,
         product: ProductMaster,
         attributes: List[dict],
         force_internet_if_missing: bool = False,
-    ):
+    ) -> BatchAttributeResponse:
         prompt = self._build_batch_prompt(product, attributes, force_internet_if_missing)
 
         return self.client.chat.completions.create(
@@ -229,7 +149,7 @@ class AIAttributeFiller:
                         "Return attribute values in Spanish.\n"
                         "Do not invent information.\n"
                         "If you cannot determine a value with certainty, return null.\n"
-                        "Provide confidence and source per attribute.\n"
+                        "Provide confidence and source per attribute."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -254,47 +174,51 @@ Attributes to fill:
 {attributes}
 
 Rules:
-- Output must be JSON matching the response schema.
+- Output JSON strictly matching the response schema.
 - Use Spanish for attribute values.
 - Use ONLY the product info above if sufficient.
 - {internet_rule}
 - If still unknown, value must be null.
 - Do NOT infer or guess.
-- confidence:
-  - high: explicitly present in product info/specs
-  - medium: found externally (internet) or strong explicit evidence
-  - low: weak evidence (prefer null)
-- source must be one of: product_data, internet, unknown
+
+confidence:
+- high: explicitly present in product info/specs
+- medium: found externally with strong evidence
+- low: weak evidence (prefer null)
+
+source must be one of:
+- product_data
+- internet
+- unknown
 
 IMPORTANT:
-- Attributes marked as "conditional_required" have higher priority.
-- If they are missing from product data, you must search the internet.
-- If still unknown, return null (do not guess).
+- Attributes with tag "conditional_required" have higher priority.
+- If missing, you must search the internet.
+- If still unknown, return null.
 """
 
-    def _map_to_ml_format_with_meta(
+    # =========================
+    # Mapping & Validation
+    # =========================
+
+    def _map_to_internal_values(
         self,
-        ai_attrs: Dict[str, Any],
+        ai_attrs: Dict[str, AttributeMeta],
         attributes: List[dict],
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Converts AI outputs into ML-ready values + a meta dict.
+        Maps AI output to internal semantic values (not ML payload yet).
         """
-        ml_values: Dict[str, Any] = {}
+        values: Dict[str, Any] = {}
         meta: Dict[str, Any] = {}
 
         attr_map = {a["id"]: a for a in attributes}
 
         for attr_id, payload in ai_attrs.items():
             attr_def = attr_map.get(attr_id)
-            if not attr_def:
+            if not attr_def or payload.value is None:
                 continue
 
-            # payload is AttributeMeta
-            if payload.value is None:
-                continue
-
-            # Record meta even if mapping fails (optional)
             meta[attr_id] = {
                 "confidence": payload.confidence,
                 "source": payload.source,
@@ -303,43 +227,114 @@ IMPORTANT:
             vt = attr_def.get("value_type")
 
             if vt == "boolean":
-                ml_values[attr_id] = "242085" if payload.value else "242084"
+                values[attr_id] = bool(payload.value)
                 continue
 
             if vt == "list":
-                selected_name = str(payload.value).strip().lower()
-                matched_id = None
-                for option in attr_def.get("values", []):
-                    if option.get("name", "").strip().lower() == selected_name:
-                        matched_id = option.get("id")
+                selected = str(payload.value).strip().lower()
+                for opt in attr_def.get("values", []):
+                    if selected in opt.get("name", "").lower():
+                        values[attr_id] = opt["id"]
                         break
-                if matched_id:
-                    ml_values[attr_id] = matched_id
                 continue
 
             if vt == "number_unit":
-                # payload.value is BatchNumberUnit
-                val = payload.value.value
-                unit = payload.value.unit
-                allowed = {u["name"] for u in attr_def.get("allowed_units", [])}
-                if val is not None and unit and (not allowed or unit in allowed):
-                    ml_values[attr_id] = f"{val} {unit}"
+                if not isinstance(payload.value, BatchNumberUnit):
+                    continue
+                unit = payload.value.unit or attr_def.get("default_unit")
+                if payload.value.value is not None and unit:
+                    values[attr_id] = {
+                        "value": payload.value.value,
+                        "unit": unit,
+                    }
                 continue
 
             # string
-            ml_values[attr_id] = str(payload.value).strip()
+            values[attr_id] = str(payload.value).strip()
 
-        return ml_values, meta
+        return values, meta
 
-    def _build_ml_attributes_payload(self, ml_values: Dict[str, Any], attributes: List[dict]) -> List[dict]:
+    def _build_ml_attributes_payload(
+        self,
+        values: Dict[str, Any],
+        attributes: List[dict],
+    ) -> List[dict]:
         """
-        Builds MercadoLibre 'attributes' list payload from the dict values.
-        Adjust this depending on the ML endpoint expectations in your publisher.
+        Builds MercadoLibre-compliant attribute payload.
         """
         result = []
-        for attr in attributes:
-            attr_id = attr.get("id")
-            if attr_id not in ml_values:
+        attr_map = {a["id"]: a for a in attributes}
+
+        for attr_id, value in values.items():
+            attr_def = attr_map.get(attr_id)
+            if not attr_def:
                 continue
-            result.append({"id": attr_id, "value_id": ml_values[attr_id]})
+
+            vt = attr_def.get("value_type")
+
+            if vt == "list":
+                result.append({"id": attr_id, "value_id": value})
+            elif vt == "boolean":
+                result.append(
+                    {
+                        "id": attr_id,
+                        "value_id": "242085" if value else "242084",
+                    }
+                )
+            elif vt == "number_unit":
+                result.append(
+                    {
+                        "id": attr_id,
+                        "value_name": f"{value['value']} {value['unit']}",
+                    }
+                )
+            else:  # string
+                result.append({"id": attr_id, "value_name": value})
+
         return result
+
+    # =========================
+    # Conditional Required Logic
+    # =========================
+
+    def _get_conditional_required_ids(self, attributes: List[dict]) -> set[str]:
+        return {a["id"] for a in attributes if a.get("tags", {}).get("conditional_required") is True}
+
+    def _find_missing_required(
+        self,
+        values: Dict[str, Any],
+        attributes: List[dict],
+    ) -> List[str]:
+        required_ids = self._get_conditional_required_ids(attributes)
+        return [aid for aid in required_ids if aid not in values]
+
+    def _drop_low_confidence_required(
+        self,
+        values: Dict[str, Any],
+        meta: Dict[str, Any],
+        attributes: List[dict],
+    ) -> None:
+        required_ids = self._get_conditional_required_ids(attributes)
+
+        for aid in list(values.keys()):
+            if aid in required_ids and meta.get(aid, {}).get("confidence") == "low":
+                values.pop(aid, None)
+
+    # =========================
+    # Skip Rules
+    # =========================
+
+    def _should_skip(self, attr: dict, specs: Optional[dict]) -> bool:
+        tags = attr.get("tags", {})
+
+        if tags.get("read_only"):
+            return True
+        if tags.get("fixed"):
+            return True
+        if tags.get("inferred"):
+            return True
+
+        if specs and attr.get("id") in specs and specs[attr["id"]] is not None:
+            return True
+
+        return False
