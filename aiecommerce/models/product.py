@@ -45,6 +45,7 @@ class ProductMaster(models.Model):
     """Normalized and master product record."""
 
     code = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    sku = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Manufacturer Part Number (MPN or SKU).")
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     category = models.CharField(max_length=255, null=True, blank=True)
