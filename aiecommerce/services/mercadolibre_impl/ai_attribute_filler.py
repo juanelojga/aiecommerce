@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import instructor
 from openai import OpenAI
-from pydantic.v1 import BaseModel, Field, ValidationInfo, field_validator
+from pydantic.v1 import BaseModel, Field, validator
 
 from aiecommerce.models.product import ProductMaster
 from aiecommerce.services.mercadolibre_impl.google_search_client import GoogleSearchClient
@@ -27,8 +27,8 @@ class AttributeValueNumber(BaseModel):
         description="La unidad de medida para el valor numérico. Debe ser una de las unidades permitidas.",
     )
 
-    @field_validator("unit")
-    def validate_unit(cls, v: str, values: "ValidationInfo") -> str:
+    @validator("unit")
+    def validate_unit(cls, v: str, values: Dict[str, Any]) -> str:
         # This is a placeholder validator. The actual allowed units will be passed in the prompt.
         return v
 
