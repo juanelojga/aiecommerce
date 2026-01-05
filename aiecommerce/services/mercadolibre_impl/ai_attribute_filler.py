@@ -1,9 +1,10 @@
+import json
 import os
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import instructor
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from aiecommerce.models.product import ProductMaster
 
@@ -13,21 +14,21 @@ from aiecommerce.models.product import ProductMaster
 
 
 class BatchNumberUnit(BaseModel):
-    value: Optional[float]
-    unit: Optional[str]
+    value: Optional[float] = None
+    unit: Optional[str] = None
 
 
 AttributeRawValue = Union[str, bool, BatchNumberUnit, None]
 
 
 class AttributeMeta(BaseModel):
-    value: AttributeRawValue
+    value: AttributeRawValue = None
     confidence: Literal["high", "medium", "low"]
     source: Literal["product_data", "internet", "unknown"]
 
 
 class BatchAttributeResponse(BaseModel):
-    attributes: Dict[str, AttributeMeta]
+    attributes: Dict[str, AttributeMeta] = Field(default_factory=dict)
 
 
 # -------------------------
@@ -74,8 +75,13 @@ class AIAttributeFiller:
         }
         """
 
-        # 1️⃣ First AI pass
-        values, meta = self._fill_attributes_with_meta(product, attributes)
+        # 0️⃣ Seed from existing product specs (so we always return partial results)
+        values, meta = self._seed_from_specs(product, attributes)
+
+        # 1️⃣ First AI pass (only for attributes that are not already known)
+        ai_values, ai_meta = self._fill_attributes_with_meta(product, attributes)
+        values.update(ai_values)
+        meta.update(ai_meta)
 
         # 2️⃣ Drop low-confidence conditional_required attributes
         self._drop_low_confidence_required(values, meta, attributes)
@@ -114,6 +120,65 @@ class AIAttributeFiller:
         }
 
     # =========================
+    # Helpers: tags/specs
+    # =========================
+
+    def _has_tag(self, attr: dict, tag: str) -> bool:
+        tags = attr.get("tags")
+        if isinstance(tags, list):
+            return tag in tags
+        if isinstance(tags, dict):
+            return tags.get(tag) is True
+        return False
+
+    def _seed_from_specs(
+        self,
+        product: ProductMaster,
+        attributes: List[dict],
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Pre-populates values/meta from ProductMaster.specs so we return partial results
+        even if the AI can't confidently fill anything.
+        """
+        values: Dict[str, Any] = {}
+        meta: Dict[str, Any] = {}
+
+        specs = product.specs or {}
+        if not isinstance(specs, dict):
+            return values, meta
+
+        # Common mapping between internal spec keys and MercadoLibre attribute IDs
+        mapping = {
+            "BRAND": ["manufacturer", "brand", "marca"],
+            "MODEL": ["model_name", "model", "modelo"],
+            "GTIN": ["gtin", "upc", "ean", "barcode", "part_number"],
+        }
+
+        for attr in attributes:
+            attr_id = attr.get("id")
+            if not attr_id:
+                continue
+
+            if self._should_skip(attr):
+                continue
+
+            # 1. Direct match
+            val = specs.get(attr_id)
+
+            # 2. Mapped match
+            if val is None and attr_id in mapping:
+                for alt_key in mapping[attr_id]:
+                    if alt_key in specs and specs[alt_key] is not None:
+                        val = specs[alt_key]
+                        break
+
+            if val is not None:
+                values[attr_id] = val
+                meta[attr_id] = {"confidence": "high", "source": "product_data"}
+
+        return values, meta
+
+    # =========================
     # Core AI Logic
     # =========================
 
@@ -122,7 +187,8 @@ class AIAttributeFiller:
         product: ProductMaster,
         attributes: List[dict],
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        candidates = [a for a in attributes if not self._should_skip(a, product.specs)]
+        specs = product.specs or {}
+        candidates = [a for a in attributes if not self._should_skip(a) and not (isinstance(specs, dict) and a.get("id") in specs and specs[a["id"]] is not None)]
         if not candidates:
             return {}, {}
 
@@ -164,6 +230,21 @@ class AIAttributeFiller:
     ) -> str:
         internet_rule = "If product info is missing, you MUST search the internet." if force_internet_if_missing else "If product info is missing, you MAY search the internet."
 
+        # Simplify attributes for the prompt to avoid overwhelming the model
+        simplified_attrs = []
+        for a in attributes:
+            simplified = {
+                "id": a["id"],
+                "name": a.get("name"),
+                "value_type": a.get("value_type"),
+            }
+            if a.get("values"):
+                # Filter values to include only those with names (avoiding empty ones)
+                allowed = [v.get("name") for v in a["values"] if v.get("name")]
+                if allowed:
+                    simplified["allowed_values"] = allowed[:15]
+            simplified_attrs.append(simplified)
+
         return f"""
 Authoritative product info:
 - Description: {product.description}
@@ -171,10 +252,11 @@ Authoritative product info:
 - Current specs: {product.specs or {}}
 
 Attributes to fill:
-{attributes}
+{json.dumps(simplified_attrs, indent=2, ensure_ascii=False)}
 
 Rules:
 - Output JSON strictly matching the response schema.
+- For value_type 'list', use one of the names from 'allowed_values' if provided.
 - Use Spanish for attribute values.
 - Use ONLY the product info above if sufficient.
 - {internet_rule}
@@ -297,16 +379,9 @@ IMPORTANT:
     # Conditional Required Logic
     # =========================
 
-    def _get_conditional_required_ids(self, attributes: List[dict]) -> set[str]:
-        return {a["id"] for a in attributes if a.get("tags", {}).get("conditional_required") is True}
-
-    def _find_missing_required(
-        self,
-        values: Dict[str, Any],
-        attributes: List[dict],
-    ) -> List[str]:
+    def _find_missing_required(self, values: Dict[str, Any], attributes: List[dict]) -> List[str]:
         required_ids = self._get_conditional_required_ids(attributes)
-        return [aid for aid in required_ids if aid not in values]
+        return [attr_id for attr_id in required_ids if attr_id not in values]
 
     def _drop_low_confidence_required(
         self,
@@ -314,27 +389,32 @@ IMPORTANT:
         meta: Dict[str, Any],
         attributes: List[dict],
     ) -> None:
-        required_ids = self._get_conditional_required_ids(attributes)
+        """
+        Drops 'conditional_required' attributes that have low confidence,
+        so they can be retried in the next step.
 
-        for aid in list(values.keys()):
-            if aid in required_ids and meta.get(aid, {}).get("confidence") == "low":
-                values.pop(aid, None)
+        NOTE: Per user requirement 'do not discard values', we are currently
+        disabling the dropping logic to keep all AI-generated values.
+        """
+        # required_ids = self._get_conditional_required_ids(attributes)
+        # for attr_id in required_ids:
+        #     if attr_id in meta and meta[attr_id].get("confidence") == "low":
+        #         values.pop(attr_id, None)
+        #         meta.pop(attr_id, None)
+        pass
+
+    def _get_conditional_required_ids(self, attributes: List[dict]) -> set[str]:
+        return {a["id"] for a in attributes if self._has_tag(a, "conditional_required")}
 
     # =========================
     # Skip Rules
     # =========================
 
-    def _should_skip(self, attr: dict, specs: Optional[dict]) -> bool:
-        tags = attr.get("tags", {})
-
-        if tags.get("read_only"):
+    def _should_skip(self, attr: dict) -> bool:
+        if self._has_tag(attr, "read_only"):
             return True
-        if tags.get("fixed"):
+        if self._has_tag(attr, "fixed"):
             return True
-        if tags.get("inferred"):
+        if self._has_tag(attr, "inferred"):
             return True
-
-        if specs and attr.get("id") in specs and specs[attr["id"]] is not None:
-            return True
-
         return False

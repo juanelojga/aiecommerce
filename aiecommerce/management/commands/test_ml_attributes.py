@@ -63,7 +63,7 @@ class Command(BaseCommand):
         attributes = fetcher.get_required_attributes(category_id)
         attribute_ids = [attr["id"] for attr in attributes]
         self.stdout.write(self.style.SUCCESS(f"Found {len(attributes)} attributes: {attribute_ids}"))
-
+        print(f"Attributes: {attributes}")
         # Step 3: Fill Attributes
         self.stdout.write(self.style.NOTICE("Step 3: Filling attributes with AI..."))
         filler = AIAttributeFiller()
