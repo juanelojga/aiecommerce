@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import instructor
@@ -7,6 +8,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from aiecommerce.models.product import ProductMaster
+from aiecommerce.services.mercadolibre_impl.google_search_client import GoogleSearchClient
 
 # ============================================================
 # AI RESPONSE MODELS
@@ -31,10 +33,19 @@ class BatchAttributeResponse(BaseModel):
     attributes: Dict[str, AttributeMeta] = Field(default_factory=dict)
 
 
+class GTINEntry(BaseModel):
+    code: str = Field(description="The numeric GTIN/EAN/UPC code")
+    format: str = Field(description="EAN-13, UPC-A, etc.")
+    region: Optional[str] = Field(default=None, description="Region if applicable (e.g., 'USA', 'LATAM')")
+    main_source: str = Field(description="Primary source of this GTIN, e.g., 'Manufacturer Website'")
+    url: Optional[str] = Field(default=None, description="URL of the source")
+
+
 class GTINResponse(BaseModel):
-    gtin: Optional[str] = None
-    confidence: Literal["high", "medium", "low"]
-    source: Literal["product_data", "internet", "unknown"]
+    status: Literal["ok", "gtin_not_found"]
+    product_match_notes: str = Field(description="Notes on how well the found product matches the requested one.")
+    gtins: List[GTINEntry] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
 
 
 # ============================================================
@@ -47,7 +58,7 @@ class AIAttributeFiller:
     Batch-fills MercadoLibre attributes using AI.
 
     - Non-GTIN attributes are filled in a single batch AI call
-    - GTIN is resolved via a dedicated AI call
+    - GTIN is resolved via a dedicated AI call with search integration
     - Attribute VALUES are returned in Spanish
     - Code, comments, and logic are in English
     - No MercadoLibre API calls here
@@ -55,13 +66,24 @@ class AIAttributeFiller:
     - Produces ML-ready attribute payloads
     """
 
-    def __init__(self) -> None:
+    def __init__(self, search_client: Optional[GoogleSearchClient] = None) -> None:
         self.client = instructor.from_openai(
             OpenAI(
                 api_key=os.environ["OPENROUTER_API_KEY"],
                 base_url=os.environ.get("OPENROUTER_BASE_URL"),
             )
         )
+        self.search_client = search_client
+
+    def _get_clean_mpn(self, code: str) -> str:
+        """Strips common internal prefixes to extract the core logistic part number."""
+        # This regex looks for a common pattern of 3-6 uppercase letters often used as internal prefixes.
+        # e.g. COMHPXBS6H5LT -> BS6H5LT
+        match = re.match(r"^[A-Z]{3,6}([A-Z0-9-]{3,})", code)
+        if match:
+            # Return the second group, which is the supposed MPN
+            return match.group(1)
+        return code
 
     # ============================================================
     # PUBLIC API
@@ -117,12 +139,17 @@ class AIAttributeFiller:
 
             print(f"GTIN response: {gtin_response}")
 
-            if gtin_response and gtin_response.gtin and self._is_valid_gtin(gtin_response.gtin):
-                values["GTIN"] = gtin_response.gtin
-                meta["GTIN"] = {
-                    "confidence": gtin_response.confidence,
-                    "source": gtin_response.source,
-                }
+            if gtin_response and gtin_response.status == "ok" and gtin_response.gtins:
+                # For now, we take the first valid GTIN. Logic can be expanded here.
+                first_gtin = gtin_response.gtins[0]
+                if self._is_valid_gtin(first_gtin.code):
+                    values["GTIN"] = first_gtin.code
+                    meta["GTIN"] = {
+                        "confidence": "high",  # Confidence is based on successful verification
+                        "source": "internet",
+                        "match_notes": gtin_response.product_match_notes,
+                        "details": first_gtin.model_dump(),
+                    }
 
         # 5️⃣ Enforce GTIN fallback rules
         self._enforce_gtin_rules(values, attributes)
@@ -272,135 +299,118 @@ Rules:
     # ============================================================
 
     def _extract_gtin(self, product: ProductMaster) -> Optional[GTINResponse]:
-        prompt = self._build_gtin_prompt(product)
+        """
+        Extracts GTIN using a "Search -> Candidate Selection -> Verification" flow.
+        """
+        search_snippets = ""
+        if self.search_client:
+            specs = product.specs or {}
+            brand = specs.get("brand", "") or specs.get("manufacturer", "")
+            clean_mpn = self._get_clean_mpn(product.code) if product.code else ""
 
-        print(f"GTIN prompt: {prompt}")
+            query_parts = [
+                brand,
+                clean_mpn,
+                specs.get("model_name", ""),
+                specs.get("cpu", ""),
+                specs.get("ram", ""),
+                specs.get("storage", ""),
+                "GTIN",
+                "EAN",
+            ]
+            query = " ".join(filter(None, query_parts))
 
-        return self.client.chat.completions.create(
-            model=os.environ.get("OPENROUTER_TITLE_GENERATION_MODEL"),
-            temperature=0,
-            response_model=GTINResponse,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        """
-You are an assistant specialized in identifying official GTIN codes
-(UPC, EAN-13, EAN-8, GTIN-14) for real, existing consumer electronics products.
+            print(f"Performing search with query: {query}")
+            try:
+                search_results = self.search_client.list(q=query, num=5).execute()
+                items = search_results.get("items", [])
+                if items:
+                    search_snippets = "\n\n".join(f"Source: {item.get('link')}\nSnippet: {item.get('snippet')}" for item in items)
+            except Exception as e:
+                print(f"Error during Google Search: {e}")
+                # Continue without search results if the API fails
 
-Your role:
-- Identify the exact commercial product variant described by the input data.
-- Search authoritative external sources to find the manufacturer-assigned GTIN.
-- Be conservative and precise.
+        prompt = self._build_gtin_prompt(product, search_snippets)
 
-Critical rules:
-- NEVER invent, guess, or fabricate GTINs.
-- NEVER reuse internal SKUs or part numbers as GTINs.
-- If a GTIN cannot be verified with confidence, return "gtin_not_found".
-- It is better to return no GTIN than an incorrect one.
+        try:
+            return self.client.chat.completions.create(
+                model=os.environ.get("OPENROUTER_TITLE_GENERATION_MODEL", "anthropic/claude-3.5-sonnet"),
+                temperature=0,
+                response_model=GTINResponse,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an expert system for identifying official manufacturer-assigned GTINs (EAN/UPC) for electronics. "
+                            "Your primary goal is accuracy. It is better to return 'gtin_not_found' than an incorrect GTIN."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            )
+        except Exception as e:
+            print(f"Error calling AI model for GTIN extraction: {e}")
+            return None
 
-A valid GTIN:
-- Contains ONLY digits
-- Has a length between 8 and 14 digits
-- Appears consistently in reliable, authoritative sources
-                        """
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-        )
-
-    def _build_gtin_prompt(self, product: ProductMaster) -> str:
+    def _build_gtin_prompt(self, product: ProductMaster, search_snippets: str = "") -> str:
         specs = product.specs or {}
         if not isinstance(specs, dict):
             specs = {}
 
+        clean_mpn = self._get_clean_mpn(product.code) if product.code else ""
+
+        web_context_section = ""
+        if search_snippets:
+            web_context_section = f"""
+# Step 2: Analyze Web Search Results
+
+Review these external search snippets for candidate GTINs.
+Cross-reference them with the authoritative product facts.
+
+---
+{search_snippets}
+---"""
+
         return f"""
-You must find the correct GTIN (UPC / EAN / GTIN-14) for ONE exact product configuration.
+Your task is to find the correct GTIN (UPC/EAN) for a specific electronics product. Follow this multi-step process precisely.
 
-────────────────────────
-PRODUCT FACTS (AUTHORITATIVE)
-────────────────────────
+# Step 1: Understand the Authoritative Product Data
 
-All fields below refer to the SAME product variant.
+This is the ground truth for the product variant you must match.
 
-Category: {specs.get("category_type", "N/A")}
-Brand / Manufacturer: {specs.get("manufacturer", "N/A")}
-Model name (marketing): {specs.get("model_name", "N/A")}
-Product family / line (if available): {specs.get("product_line", "N/A")}
-Processor / CPU: {specs.get("cpu", "N/A")}
-RAM: {specs.get("ram", "N/A")}
-Storage: {specs.get("storage", "N/A")}
-Screen size: {specs.get("screen_size", "N/A")}
-Color: {specs.get("color", "N/A")}
-Operating system: {specs.get("os", "N/A")}
-Connectivity / network: {specs.get("network", "N/A")}
-Ports / notable features: {specs.get("features", "N/A")}
+- **Brand**: {specs.get("brand", "N/A")}
+- **Model**: {specs.get("model", "N/A")}
+- **Internal SKU / Code (NOT a GTIN)**: {product.code}
+- **Cleaned MPN (for searching)**: {clean_mpn}
+- **Description**: {product.description}
+- **Key Specifications**:
+    - **CPU**: {specs.get("cpu", "N/A")}
+    - **RAM**: {specs.get("ram", "N/A")}
+    - **Storage**: {specs.get("storage", "N/A")}
+- **Regional Indicators**:
+    - Look for clues like keyboard language (e.g., Spanish, #ABM), power plug type, or regional suffixes in part numbers.
 
-Internal product code / SKU (NOT a GTIN):
-- product.code: {product.code}
-- part_number (if present): {specs.get("part_number", "N/A")}
+{web_context_section}
 
-Full commercial description:
-"{product.description}"
+# Step 3: Verification and Selection
 
-────────────────────────
-TASK
-────────────────────────
+1.  **Candidate Selection**: Identify potential GTINs from the web search context.
+- **Strict Verification**: A candidate GTIN is valid ONLY IF it EXACTLY
+  matches the product's key specifications (CPU, RAM, Storage).
+  Also, consider regional indicators. For example, a GTIN for a US
+  keyboard layout is incorrect for a product specified with a Latin
+  American layout.
+3.  **Regional Handling**: If you find multiple GTINs for different regions (e.g., USA `#ABA` vs. LATAM `#ABM`), list each one and specify its region.
 
-1. Use the product facts above to precisely identify the real-world commercial product.
-2. Search authoritative external sources to find the official GTIN assigned by the manufacturer.
+# Step 4: Final Output
 
-You MUST prioritize:
-- Official manufacturer product pages
-- Manufacturer datasheets or PDFs
-- GS1 / barcode lookup databases
-- Large, well-known retailer or distributor catalogs
+- **CRITICAL RULE**: NEVER use the internal SKU (`{product.code}`) or cleaned MPN (`{clean_mpn}`) as a GTIN. They are for searching only.
+- If you find a verified GTIN that matches all criteria, set status to "ok".
+- If no GTIN can be reliably verified against the specs, you MUST set status to "gtin_not_found".
+- Provide notes on your matching process in `product_match_notes`.
+- List any uncertainties in the `warnings` array.
 
-Search strategy (mandatory):
-- Combine brand + model + key variant attributes (RAM, storage, size, color, OS).
-- Use internal codes or part numbers ONLY as search keys, never as GTINs.
-- Cross-check multiple sources whenever possible.
-
-────────────────────────
-VALIDATION RULES
-────────────────────────
-
-You may return a GTIN ONLY if:
-- It contains only digits
-- Length is between 8 and 14 digits
-- It clearly matches the exact product variant
-- It appears consistently in at least one reliable source
-
-Multiple GTINs:
-- If multiple GTINs exist (regional variants, packaging, keyboard layout):
-  - List each GTIN
-  - Explain the difference briefly
-
-Failure handling:
-- If no reliable GTIN can be confirmed:
-  - Do NOT guess
-  - Do NOT invent
-  - Return status "gtin_not_found"
-
-────────────────────────
-OUTPUT FORMAT (JSON ONLY)
-────────────────────────
-
-{{
-  "status": "ok" | "gtin_not_found",
-  "product_match_notes": "short explanation of how close the match is",
-  "gtins": [
-    {{
-      "code": "string",
-      "format": "EAN-13 | UPC-A | GTIN-14 | other",
-      "region": "string or null",
-      "main_source": "short source description",
-      "url": "source URL if available"
-    }}
-  ],
-  "warnings": ["array of strings with any doubts or caveats"]
-}}
+Produce only a valid JSON object matching the response model.
 """
 
     # ============================================================
@@ -470,7 +480,8 @@ OUTPUT FORMAT (JSON ONLY)
             elif vt == "boolean":
                 payload.append({"id": attr_id, "value_id": "242085" if value else "242084"})
             elif vt == "number_unit":
-                payload.append({"id": attr_id, "value_name": f"{value['value']} {value['unit']}"})
+                if isinstance(value, dict):
+                    payload.append({"id": attr_id, "value_name": f"{value.get('value')} {value.get('unit')}"})
             else:
                 payload.append({"id": attr_id, "value_name": value})
 
@@ -491,7 +502,7 @@ OUTPUT FORMAT (JSON ONLY)
         if "GTIN" not in values:
             has_empty_reason = any(a["id"] == "EMPTY_GTIN_REASON" for a in attributes)
             if has_empty_reason:
-                values["EMPTY_GTIN_REASON"] = "17055160"
+                values["EMPTY_GTIN_REASON"] = "17055160"  # "El producto no tiene código GTIN"
             return
 
         if not self._is_valid_gtin(str(values["GTIN"])):
