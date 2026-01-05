@@ -117,9 +117,80 @@ class AIAttributeFiller:
             "missing_required": missing_required,
         }
 
+    def fill_and_validate(
+        self,
+        product: ProductMaster,
+        attributes: list[dict],
+    ) -> dict:
+        """
+        Main entry point.
+
+        Returns:
+          {
+            "values": ML-ready attribute values,
+            "meta": confidence/source per attribute,
+            "missing_required": list of attribute IDs
+          }
+        """
+
+        # First AI pass (normal rules)
+        values, meta = self.fill_attributes_with_meta(product, attributes)
+
+        missing_required = self._find_missing_required(values, attributes)
+
+        # Retry ONLY for missing conditional_required attributes
+        if missing_required:
+            retry_defs = [a for a in attributes if a["id"] in missing_required]
+
+            retry_response = self._extract_batch(
+                product,
+                retry_defs,
+                force_internet_if_missing=True,
+            )
+
+            retry_values, retry_meta = self._map_to_ml_format_with_meta(
+                retry_response.attributes,
+                retry_defs,
+            )
+
+            values.update(retry_values)
+            meta.update(retry_meta)
+
+            missing_required = self._find_missing_required(values, attributes)
+
+        return {
+            "values": values,
+            "meta": meta,
+            "missing_required": missing_required,
+        }
+
     # -------------------------
     # Internal helpers
     # -------------------------
+
+    def _drop_low_confidence_required(
+        self,
+        values: dict[str, Any],
+        meta: dict[str, Any],
+        attributes: list[dict],
+    ):
+        required_ids = self._get_conditional_required_ids(attributes)
+
+        for attr_id in list(values.keys()):
+            if attr_id in required_ids:
+                if meta.get(attr_id, {}).get("confidence") == "low":
+                    values.pop(attr_id, None)
+
+    def _get_conditional_required_ids(self, attributes: list[dict]) -> set[str]:
+        return {attr["id"] for attr in attributes if attr.get("tags", {}).get("conditional_required") is True}
+
+    def _find_missing_required(
+        self,
+        filled_values: dict[str, Any],
+        attributes: list[dict],
+    ) -> list[str]:
+        required_ids = self._get_conditional_required_ids(attributes)
+        return [attr_id for attr_id in required_ids if attr_id not in filled_values]
 
     def _should_skip(self, attr: dict, specs: Optional[dict]) -> bool:
         tags = attr.get("tags", {})
@@ -194,6 +265,11 @@ Rules:
   - medium: found externally (internet) or strong explicit evidence
   - low: weak evidence (prefer null)
 - source must be one of: product_data, internet, unknown
+
+IMPORTANT:
+- Attributes marked as "conditional_required" have higher priority.
+- If they are missing from product data, you must search the internet.
+- If still unknown, return null (do not guess).
 """
 
     def _map_to_ml_format_with_meta(
