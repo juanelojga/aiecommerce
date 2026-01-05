@@ -110,7 +110,10 @@ class AIAttributeFiller:
             self._drop_low_confidence_required(values, meta, attributes)
             missing_required = self._find_missing_required(values, attributes)
 
-        # 5️⃣ Build MercadoLibre payload
+        # Enforce GTIN rules
+        self._enforce_gtin_rules(values, attributes)
+
+        # Build MercadoLibre payload
         ml_payload = self._build_ml_attributes_payload(values, attributes)
 
         return {
@@ -228,9 +231,8 @@ class AIAttributeFiller:
         attributes: List[dict],
         force_internet_if_missing: bool,
     ) -> str:
-        internet_rule = "If product info is missing, you MUST search the internet." if force_internet_if_missing else "If product info is missing, you MAY search the internet."
+        internet_rule = "If product info is missing, you MUST search the internet." if force_internet_if_missing or self._has_gtin(attributes) else "If product info is missing, you MAY search the internet."
 
-        # Simplify attributes for the prompt to avoid overwhelming the model
         simplified_attrs = []
         for a in attributes:
             simplified = {
@@ -239,45 +241,104 @@ class AIAttributeFiller:
                 "value_type": a.get("value_type"),
             }
             if a.get("values"):
-                # Filter values to include only those with names (avoiding empty ones)
                 allowed = [v.get("name") for v in a["values"] if v.get("name")]
                 if allowed:
                     simplified["allowed_values"] = allowed[:15]
             simplified_attrs.append(simplified)
 
+        gtin_instructions = ""
+        if self._has_gtin(attributes):
+            gtin_instructions = """
+SPECIAL RULES FOR GTIN (CRITICAL):
+
+You are identifying the official GTIN (UPC / EAN / GTIN-14) for a real, existing product.
+
+Authoritative product data (this is your primary source of truth):
+- Product description
+- Internal product code / SKU
+- Structured product specifications (such as brand, model, storage, color, connectivity, size, etc.)
+
+You MUST start from this product data and treat it as correct.
+
+What GTIN is:
+- A GTIN is a globally standardized barcode identifier (EAN-13, UPC-A, EAN-8, or GTIN-14).
+- It is assigned by the manufacturer and published in authoritative product catalogs.
+- GTINs uniquely identify exact product variants (model, capacity, color, connectivity, region).
+
+Your task:
+- Use the provided product data to identify the exact real-world product variant.
+- Search external sources ONLY to discover the official manufacturer-assigned GTIN(s).
+- Be conservative and precise. It is better to return null than an incorrect GTIN.
+
+Search strategy (mandatory):
+1. Use the following product data as search keys:
+   - Brand / manufacturer
+   - Model name
+   - Variant details (storage, connectivity, color, size, etc.)
+   - Internal product code, part number, or SKU if available
+2. Search authoritative and reliable sources such as:
+   - Official manufacturer product pages
+   - Manufacturer datasheets or specification PDFs
+   - GS1 / barcode lookup databases
+   - Large, trusted ecommerce catalogs (major retailers or distributors)
+3. Cross-check multiple sources whenever possible.
+
+Validation rules:
+- A GTIN must:
+  - Contain ONLY digits
+  - Have a length between 8 and 14 digits
+- ONLY return a GTIN if:
+  - The same code appears consistently across reliable sources
+  - The code clearly matches the exact product variant described by the product data
+
+Multiple GTINs:
+- If multiple valid GTINs exist (e.g. regional or packaging variants):
+  - You may return more than one
+  - Prefer the GTIN that best matches the described variant
+  - Prefer region-appropriate or international variants when applicable
+
+Failure handling:
+- If no GTIN can be determined with high confidence:
+  - Set the GTIN value to null
+  - Do NOT invent, guess, or reuse internal product codes as GTINs
+  - The product may legitimately require an EMPTY_GTIN_REASON instead
+    """
+
         return f"""
-Authoritative product info:
-- Description: {product.description}
-- Code: {product.code}
-- Current specs: {product.specs or {}}
+    Authoritative product info:
+    - Description: {product.description}
+    - Code: {product.code}
+    - Current specs: {product.specs or {}}
 
-Attributes to fill:
-{json.dumps(simplified_attrs, indent=2, ensure_ascii=False)}
+    Attributes to fill:
+    {json.dumps(simplified_attrs, indent=2, ensure_ascii=False)}
 
-Rules:
-- Output JSON strictly matching the response schema.
-- For value_type 'list', use one of the names from 'allowed_values' if provided.
-- Use Spanish for attribute values.
-- Use ONLY the product info above if sufficient.
-- {internet_rule}
-- If still unknown, value must be null.
-- Do NOT infer or guess.
+    Rules:
+    - Output JSON strictly matching the response schema.
+    - For value_type 'list', use one of the names from 'allowed_values' if provided.
+    - Use Spanish for attribute values.
+    - Use ONLY the product info above if sufficient.
+    - {internet_rule}
+    - If still unknown, value must be null.
+    - Do NOT infer or guess.
 
-confidence:
-- high: explicitly present in product info/specs
-- medium: found externally with strong evidence
-- low: weak evidence (prefer null)
+    confidence:
+    - high: explicitly present in product info/specs
+    - medium: found externally with strong evidence
+    - low: weak evidence (prefer null)
 
-source must be one of:
-- product_data
-- internet
-- unknown
+    source must be one of:
+    - product_data
+    - internet
+    - unknown
 
-IMPORTANT:
-- Attributes with tag "conditional_required" have higher priority.
-- If missing, you must search the internet.
-- If still unknown, return null.
-"""
+    IMPORTANT:
+    - Attributes with tag "conditional_required" have higher priority.
+    - If missing, you must search the internet.
+    - If still unknown, return null.
+
+    {gtin_instructions}
+    """
 
     # =========================
     # Mapping & Validation
@@ -418,3 +479,33 @@ IMPORTANT:
         if self._has_tag(attr, "inferred"):
             return True
         return False
+
+    def _has_gtin(self, attributes: List[dict]) -> bool:
+        return any(a.get("id") == "GTIN" for a in attributes)
+
+    def _enforce_gtin_rules(
+        self,
+        values: Dict[str, Any],
+        attributes: List[dict],
+    ) -> None:
+        has_gtin = any(a["id"] == "GTIN" for a in attributes)
+        has_empty_reason = any(a["id"] == "EMPTY_GTIN_REASON" for a in attributes)
+
+        if not has_gtin:
+            return
+
+        gtin = values.get("GTIN")
+
+        if gtin and self._is_valid_gtin(str(gtin)):
+            return  # valid GTIN found
+
+        # GTIN missing or invalid → remove it
+        values.pop("GTIN", None)
+
+        # Apply MercadoLibre fallback
+        if has_empty_reason:
+            # "El producto no tiene código registrado"
+            values["EMPTY_GTIN_REASON"] = "17055160"
+
+    def _is_valid_gtin(self, value: str) -> bool:
+        return value.isdigit() and 8 <= len(value) <= 14
