@@ -10,6 +10,8 @@ from aiecommerce.services.mercadolibre_impl import (
     CategoryPredictorService,
     MercadoLibreClient,
 )
+from aiecommerce.services.mercadolibre_impl.auth_service import MercadoLibreAuthService
+from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
 
 
 class Command(BaseCommand):
@@ -34,12 +36,16 @@ class Command(BaseCommand):
             raise CommandError(f'Product with code "{product_code}" does not exist.')
 
         self.stdout.write(self.style.NOTICE(f"Fetching token for site '{site_id}'..."))
+        auth_service = MercadoLibreAuthService()
         try:
+            # We first try to find the latest token to get a user_id
             token_instance = MercadoLibreToken.objects.filter(is_test_user=False).latest("created_at")
-            if not token_instance or token_instance.is_expired():
-                raise CommandError(f"No valid token found for site '{site_id}'.")
+            # Then we use the auth_service to ensure it is valid (refreshes if needed)
+            token_instance = auth_service.get_valid_token(user_id=token_instance.user_id)
         except MercadoLibreToken.DoesNotExist:
             raise CommandError(f"No token found for site '{site_id}'. Please authenticate first.")
+        except MLTokenError as e:
+            raise CommandError(f"Error retrieving valid token for site '{site_id}': {e}")
 
         client = MercadoLibreClient(access_token=token_instance.access_token)
 

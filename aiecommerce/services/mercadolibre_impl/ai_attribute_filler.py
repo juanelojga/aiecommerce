@@ -49,8 +49,8 @@ class AIAttributeFiller:
     def __init__(self) -> None:
         self.client = instructor.from_openai(
             OpenAI(
-                api_key=os.environ["OPENAI_API_KEY"],
-                base_url=os.environ.get("OPENAI_BASE_URL"),
+                api_key=os.environ["OPENROUTER_API_KEY"],
+                base_url=os.environ.get("OPENROUTER_BASE_URL"),
             )
         )
 
