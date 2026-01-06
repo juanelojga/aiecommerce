@@ -1,55 +1,63 @@
 import logging
-from typing import Any
+import time
 
-from aiecommerce.models import ProductMaster
-from aiecommerce.services.enrichment_impl.exceptions import EnrichmentError
-from aiecommerce.services.enrichment_impl.service import ProductEnrichmentService
+from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSelector
+from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
 
 logger = logging.getLogger(__name__)
 
 
 class EnrichmentOrchestrator:
     """
-    Orchestrates the enrichment process for a single product.
+    Main orchestrator that coordinates the enrichment process for all candidate products.
+    It uses a selector to find candidates and a specifications orchestrator to process each.
     """
 
-    def __init__(self, service: ProductEnrichmentService):
-        self.service = service
+    def __init__(
+        self,
+        selector: EnrichmentCandidateSelector,
+        specs_orchestrator: ProductSpecificationsOrchestrator,
+    ):
+        self.selector = selector
+        self.specs_orchestrator = specs_orchestrator
 
-    def process_product(self, product: ProductMaster, dry_run: bool) -> tuple[bool, Any | None]:
+    def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, int]:
         """
-        Processes a single product, including calling the enrichment service and saving the result.
+        Executes the enrichment loop for all eligible products.
 
         Args:
-            product: The ProductMaster instance to process.
-            dry_run: If True, data is not saved to the database.
+            force: Whether to re-process products that already have specs.
+            dry_run: Whether to skip saving data to the database.
+            delay: Time in seconds to wait between products to avoid rate limits.
 
         Returns:
-            A tuple containing a boolean indicating success and the extracted specs (or None).
+            A dictionary with execution statistics.
         """
-        try:
-            product_data = {
-                "code": product.code,
-                "description": product.description,
-                "category": product.category,
-            }
-            extracted_specs = self.service.enrich_product(product_data)
+        queryset = self.selector.get_queryset(force, dry_run)
 
-            if not extracted_specs:
-                logger.warning(f"Product {product.id}: Failed to extract specs (no data returned).")
-                return False, None
+        total = queryset.count()
 
-            specs_dict = extracted_specs.model_dump(exclude_none=True)
-            product.specs = specs_dict
+        stats = {"total": total, "processed": 0, "success": 0}
 
-            if not dry_run:
-                product.save(update_fields=["specs"])
+        if total == 0:
+            logger.info("No products found for enrichment.")
+            return stats
 
-            return True, specs_dict
+        logger.info(f"Starting batch enrichment for {total} products.")
 
-        except EnrichmentError as e:
-            logger.error(f"Product {product.id}: Service Error - {e}")
-            return False, None
-        except Exception as e:
-            logger.error(f"Product {product.id}: An unexpected error occurred - {e}", exc_info=True)
-            return False, None
+        # Iterate through products using chunks for memory efficiency
+        for product in queryset.iterator(chunk_size=100):
+            # Delegate individual product processing to the specifications orchestrator
+            success, _ = self.specs_orchestrator.process_product(product, dry_run)
+
+            stats["processed"] += 1
+            if success:
+                stats["success"] += 1
+                logger.info(f"Product {product.code}: Successfully enriched.")
+            else:
+                logger.error(f"Product {product.code}: Enrichment failed.")
+
+            if delay > 0:
+                time.sleep(delay)
+
+        return stats

@@ -27,6 +27,7 @@ class ProductSpecificationsOrchestrator:
         Returns:
             A tuple containing a boolean indicating success and the extracted specs (or None).
         """
+
         try:
             product_data = {
                 "code": product.code,
@@ -44,6 +45,8 @@ class ProductSpecificationsOrchestrator:
 
             if not dry_run:
                 product.save(update_fields=["specs"])
+            else:
+                logger.info(f"DRY RUN: Obtained specs for product {product.id}: {specs_dict}")
 
             return True, specs_dict
 
