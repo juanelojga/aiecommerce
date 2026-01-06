@@ -1,9 +1,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.conf import settings
 from requests import RequestException
 
-from aiecommerce.services.scrape_tecnomega_impl.detail_fetcher import TecnomegaDetailFetcher
+from aiecommerce.services.scrape_tecnomega_impl.details.detail_fetcher import TecnomegaDetailFetcher
 
 
 @pytest.fixture
@@ -50,11 +51,11 @@ class TestTecnomegaDetailFetcher:
         assert mock_session.get.call_count == 2
 
         # Verify first call (search)
-        expected_search_url = f"https://tecnomegastore.ec/searchi/1/{product_code}"
+        expected_search_url = settings.TECNOMEGA_SEARCH_URL_TEMPLATE.format(product_code=product_code)
         mock_session.get.assert_any_call(expected_search_url, timeout=15)
 
         # Verify second call (detail)
-        expected_detail_url = "https://tecnomegastore.ec/product/some-slug?code=ABC-123"
+        expected_detail_url = settings.TECNOMEGA_STORE_BASE_URL + "/product/some-slug?code=ABC-123"
         mock_session.get.assert_any_call(expected_detail_url, timeout=15)
 
     def test_fetch_product_detail_html_no_grid(self, fetcher, mock_session):
@@ -121,7 +122,7 @@ class TestTecnomegaDetailFetcher:
         mock_search_resp.text = search_html
         mock_session.get.return_value = mock_search_resp
 
-        with patch("aiecommerce.services.scrape_tecnomega_impl.detail_fetcher.BeautifulSoup") as mock_bs:
+        with patch("aiecommerce.services.scrape_tecnomega_impl.details.detail_fetcher.BeautifulSoup") as mock_bs:
             mock_soup = MagicMock()
             mock_bs.return_value = mock_soup
 

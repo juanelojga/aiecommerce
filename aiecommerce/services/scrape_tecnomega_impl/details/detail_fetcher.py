@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
+from django.conf import settings
 from requests import Response
 
 logger = logging.getLogger(__name__)
@@ -14,8 +15,8 @@ class TecnomegaDetailFetcher:
     Resolves and fetches the canonical Tecnomega product detail page.
 
     Flow:
-        1. Fetch search results page:
-           https://tecnomegastore.ec/searchi/1/{product_code}
+        1. Fetch search results page using SEARCH_URL_TEMPLATE
+           (e.g., https://tecnomegastore.ec/searchi/1/{product_code})
 
         2. Locate the first product card <a> element
 
@@ -25,11 +26,10 @@ class TecnomegaDetailFetcher:
         4. Fetch and return the product detail HTML
     """
 
-    BASE_URL = "https://tecnomegastore.ec"
-    SEARCH_URL_TEMPLATE = BASE_URL + "/searchi/1/{product_code}"
-
     def __init__(self, session: Optional[requests.Session] = None) -> None:
         self.session = session or requests.Session()
+        self.base_url = settings.TECNOMEGA_STORE_BASE_URL
+        self.search_url_template = settings.TECNOMEGA_SEARCH_URL_TEMPLATE
 
     # ------------------------------------------------------------------
     # Public API
@@ -60,7 +60,7 @@ class TecnomegaDetailFetcher:
     # ------------------------------------------------------------------
 
     def _fetch_search_results(self, product_code: str) -> str:
-        url = self.SEARCH_URL_TEMPLATE.format(product_code=product_code)
+        url = self.search_url_template.format(product_code=product_code)
 
         logger.debug("Fetching Tecnomega search page: %s", url)
         response = self._get(url)
@@ -106,7 +106,7 @@ class TecnomegaDetailFetcher:
         if not relative_url or not isinstance(relative_url, str):
             raise ValueError("Product link found without valid href string")
 
-        return urljoin(self.BASE_URL, relative_url)
+        return urljoin(self.base_url, relative_url)
 
     def _fetch_product_page(self, product_url: str) -> str:
         logger.debug("Fetching Tecnomega product page: %s", product_url)

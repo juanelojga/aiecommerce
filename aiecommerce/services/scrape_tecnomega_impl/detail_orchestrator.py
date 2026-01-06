@@ -4,9 +4,8 @@ from typing import Optional
 from django.db import transaction
 
 from aiecommerce.models import ProductDetailScrape, ProductImage, ProductMaster
-
-from .detail_fetcher import TecnomegaDetailFetcher
-from .detail_parser import TecnomegaDetailParser
+from aiecommerce.services.scrape_tecnomega_impl.details.detail_fetcher import TecnomegaDetailFetcher
+from aiecommerce.services.scrape_tecnomega_impl.details.detail_parser import TecnomegaDetailParser
 
 logger = logging.getLogger(__name__)
 

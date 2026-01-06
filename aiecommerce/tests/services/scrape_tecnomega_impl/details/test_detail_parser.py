@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from aiecommerce.services.scrape_tecnomega_impl.detail_parser import TecnomegaDetailParser
+from aiecommerce.services.scrape_tecnomega_impl.details.detail_parser import TecnomegaDetailParser
 
 
 @pytest.fixture

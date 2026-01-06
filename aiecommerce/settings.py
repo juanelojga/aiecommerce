@@ -140,6 +140,8 @@ CELERY_ENABLE_UTC = True
 # Tecnomega Configuration
 PRICE_LIST_BASE_URL = env("PRICE_LIST_BASE_URL", default="")
 TECNOMEGA_STOCK_LIST_BASE_URL = env("TECNOMEGA_STOCK_LIST_BASE_URL", default="")
+TECNOMEGA_STORE_BASE_URL = env("TECNOMEGA_STORE_BASE_URL", default="https://tecnomegastore.ec")
+TECNOMEGA_SEARCH_URL_TEMPLATE = env("TECNOMEGA_SEARCH_URL_TEMPLATE", default="https://tecnomegastore.ec/searchi/1/{product_code}")
 TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
 
 # --- Mercado Libre Configuration ---
