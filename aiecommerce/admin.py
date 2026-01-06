@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from aiecommerce.models import MercadoLibreListing, MercadoLibreToken, ProductImage, ProductMaster, ProductRawPDF, ProductRawWeb
+from aiecommerce.models import MercadoLibreListing, MercadoLibreToken, ProductDetailScrape, ProductImage, ProductMaster, ProductRawPDF, ProductRawWeb
 
 
 # Register your models
@@ -31,3 +31,4 @@ class MercadoLibreTokenAdmin(admin.ModelAdmin):
 admin.site.register(ProductRawPDF)
 admin.site.register(ProductRawWeb)
 admin.site.register(ProductImage)
+admin.site.register(ProductDetailScrape)
