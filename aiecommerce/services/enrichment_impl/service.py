@@ -1,8 +1,8 @@
 import logging
-import os
 from typing import Optional
 
 import instructor
+from django.conf import settings
 from instructor.client import Instructor
 from openai import APIError, OpenAI
 from pydantic import ValidationError
@@ -29,11 +29,11 @@ class ProductEnrichmentService:
             self.client = client
         else:
             # --- Configuration & Validation ---
-            api_key = os.environ.get("OPENROUTER_API_KEY")
-            base_url = os.environ.get("OPENROUTER_BASE_URL")
+            api_key = settings.OPENROUTER_API_KEY
+            base_url = settings.OPENROUTER_BASE_URL
 
             if not all([api_key, base_url]):
-                raise ConfigurationError("The following environment variables are required: OPENROUTER_API_KEY, OPENROUTER_BASE_URL")
+                raise ConfigurationError("The following settings are required: OPENROUTER_API_KEY, OPENROUTER_BASE_URL")
 
             # Initialize the OpenAI client pointing to OpenRouter
             base_client = OpenAI(base_url=base_url, api_key=api_key)
