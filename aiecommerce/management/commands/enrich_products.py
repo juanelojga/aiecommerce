@@ -17,11 +17,6 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
-            "--category",
-            type=str,
-            help="Filter by specific category (case-insensitive)",
-        )
-        parser.add_argument(
             "--force",
             action="store_true",
             help="Reprocess products that already have specs",
@@ -39,7 +34,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        category_filter = options["category"]
         force = options["force"]
         dry_run = options["dry_run"]
         delay = options["delay"]
@@ -58,7 +52,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))
             return
 
-        products_queryset = selector.get_queryset(category_filter, force, dry_run)
+        products_queryset = selector.get_queryset(force, dry_run)
         total_count = products_queryset.count()
 
         if total_count == 0:

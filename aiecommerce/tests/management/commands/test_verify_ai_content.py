@@ -8,9 +8,9 @@ from aiecommerce.tests.factories import ProductMasterFactory
 
 @pytest.mark.django_db
 class TestTestAIContentCommand:
-    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
+    @patch("aiecommerce.management.commands.verify_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.DescriptionGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.AIContentOrchestrator")
     def test_handle_success_dry_run(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-01", description="Original Desc", category="Category 1")
@@ -24,7 +24,7 @@ class TestTestAIContentCommand:
         product.save()
 
         # Execute
-        call_command("test_ai_content", "TEST-PROD-01")
+        call_command("verify_ai_content", "TEST-PROD-01")
 
         # Verify
         captured = capsys.readouterr()
@@ -37,9 +37,9 @@ class TestTestAIContentCommand:
 
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=True, force_refresh=False)
 
-    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
+    @patch("aiecommerce.management.commands.verify_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.DescriptionGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.AIContentOrchestrator")
     def test_handle_success_no_dry_run(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-02")
@@ -47,16 +47,16 @@ class TestTestAIContentCommand:
         mock_orchestrator.process_product_content.return_value = {"success": True}
 
         # Execute
-        call_command("test_ai_content", "TEST-PROD-02", "--no-dry-run")
+        call_command("verify_ai_content", "TEST-PROD-02", "--no-dry-run")
 
         # Verify
         captured = capsys.readouterr()
         assert "Content has been saved to the database." in captured.out
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=False, force_refresh=False)
 
-    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
+    @patch("aiecommerce.management.commands.verify_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.DescriptionGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.AIContentOrchestrator")
     def test_handle_success_force(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-03")
@@ -64,7 +64,7 @@ class TestTestAIContentCommand:
         mock_orchestrator.process_product_content.return_value = {"success": True}
 
         # Execute
-        call_command("test_ai_content", "TEST-PROD-03", "--force")
+        call_command("verify_ai_content", "TEST-PROD-03", "--force")
 
         # Verify
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=True, force_refresh=True)
@@ -72,13 +72,13 @@ class TestTestAIContentCommand:
     def test_handle_product_not_found(self):
         # Execute & Verify
         with pytest.raises(CommandError) as excinfo:
-            call_command("test_ai_content", "NON-EXISTENT")
+            call_command("verify_ai_content", "NON-EXISTENT")
 
         assert 'Product with code "NON-EXISTENT" does not exist.' in str(excinfo.value)
 
-    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
+    @patch("aiecommerce.management.commands.verify_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.DescriptionGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.AIContentOrchestrator")
     def test_handle_skipped(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-04")
@@ -87,16 +87,16 @@ class TestTestAIContentCommand:
         mock_orchestrator.process_product_content.return_value = None
 
         # Execute
-        call_command("test_ai_content", "TEST-PROD-04")
+        call_command("verify_ai_content", "TEST-PROD-04")
 
         # Verify
         captured = capsys.readouterr()
         assert "Content generation was skipped. Use --force to override." in captured.out
         mock_orchestrator.process_product_content.assert_called_once_with(product, dry_run=True, force_refresh=False)
 
-    @patch("aiecommerce.management.commands.test_ai_content.TitleGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.DescriptionGeneratorService")
-    @patch("aiecommerce.management.commands.test_ai_content.AIContentOrchestrator")
+    @patch("aiecommerce.management.commands.verify_ai_content.TitleGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.DescriptionGeneratorService")
+    @patch("aiecommerce.management.commands.verify_ai_content.AIContentOrchestrator")
     def test_handle_error(self, mock_orchestrator_class, mock_desc_gen, mock_title_gen, capsys):
         # Setup
         product = ProductMasterFactory(code="TEST-PROD-05")
@@ -104,7 +104,7 @@ class TestTestAIContentCommand:
         mock_orchestrator.process_product_content.return_value = {"error": "Something went wrong"}
 
         # Execute
-        call_command("test_ai_content", "TEST-PROD-05")
+        call_command("verify_ai_content", "TEST-PROD-05")
 
         # Verify
         captured = capsys.readouterr()

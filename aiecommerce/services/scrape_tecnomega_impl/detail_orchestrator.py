@@ -47,20 +47,22 @@ class TecnomegaDetailOrchestrator:
                     product.sku = sku
                     product.save(update_fields=["sku"])
 
-                # 4. Create the detail record linked by ForeignKey
-                ProductDetailScrape.objects.create(
-                    product=product,  # Direct FK assignment
-                    name=data.get("name"),
-                    price=data.get("price"),
-                    currency=data.get("currency", "USD"),
-                    attributes=attrs,
-                    image_urls=data.get("images", []),
-                    raw_html=html,
-                    scrape_session_id=session_id,
-                )
+                    # 4. Create the detail record linked by ForeignKey
+                    ProductDetailScrape.objects.create(
+                        product=product,  # Direct FK assignment
+                        name=data.get("name"),
+                        price=data.get("price"),
+                        currency=data.get("currency", "USD"),
+                        attributes=attrs,
+                        image_urls=data.get("images", []),
+                        raw_html=html,
+                        scrape_session_id=session_id,
+                    )
 
-                # 5. Sync images to the ProductImage table
-                self._sync_images(product, data.get("images", []))
+                    # 5. Sync images to the ProductImage table
+                    self._sync_images(product, data.get("images", []))
+                else:
+                    logger.warning(f"No SKU found for product {product.code}. Skipping detail creation.")
 
             return True
 
