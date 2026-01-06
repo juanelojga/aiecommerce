@@ -8,7 +8,7 @@ from aiecommerce.services.enrichment_impl.service import ProductEnrichmentServic
 logger = logging.getLogger(__name__)
 
 
-class EnrichmentRunner:
+class EnrichmentOrchestrator:
     """
     Orchestrates the enrichment process for a single product.
     """

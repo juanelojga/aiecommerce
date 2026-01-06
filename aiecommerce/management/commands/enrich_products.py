@@ -4,7 +4,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 
-from aiecommerce.services.enrichment_impl.runner import EnrichmentRunner
+from aiecommerce.services.enrichment_impl.orchestrator import EnrichmentOrchestrator
 from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSelector
 from aiecommerce.services.enrichment_impl.service import (
     ConfigurationError,
@@ -52,7 +52,7 @@ class Command(BaseCommand):
 
             service = ProductEnrichmentService()
             selector = EnrichmentCandidateSelector()
-            runner = EnrichmentRunner(service)
+            runner = EnrichmentOrchestrator(service)
 
         except ConfigurationError as e:
             self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))
