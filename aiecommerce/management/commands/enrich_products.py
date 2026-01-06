@@ -1,5 +1,4 @@
 import json
-import os
 import time
 from typing import Any
 
@@ -50,13 +49,10 @@ class Command(BaseCommand):
 
         try:
             self.stdout.write(self.style.HTTP_INFO("Initializing services..."))
-            model_name = os.environ.get("OPENROUTER_CLASSIFICATION_MODEL")
-            if not model_name:
-                raise ConfigurationError("OPENROUTER_CLASSIFICATION_MODEL env var is not set.")
 
             service = ProductEnrichmentService()
             selector = EnrichmentCandidateSelector()
-            runner = EnrichmentRunner(service, model_name)
+            runner = EnrichmentRunner(service)
 
         except ConfigurationError as e:
             self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))

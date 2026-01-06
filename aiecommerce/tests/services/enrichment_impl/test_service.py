@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, NoReturn
+from typing import Any, Callable, NoReturn, cast
 
 import pytest
 
@@ -32,25 +32,39 @@ class DummyClient:
         self.chat: _Chat = _Chat(create_impl)
 
 
-def test_init_with_client_uses_provided_instance():
-    provided = DummyClient(lambda *a, **k: None)
-    svc = ProductEnrichmentService(client=provided)
-    assert svc.client is provided
+@pytest.fixture
+def mock_service_deps(monkeypatch):
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_API_KEY", "key")
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_BASE_URL", "https://example")
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_CLASSIFICATION_MODEL", "model-v1")
+
+    class FakeOpenAI:
+        def __init__(self, *, base_url, api_key):
+            pass
+
+    monkeypatch.setattr(service_module, "OpenAI", FakeOpenAI, raising=True)
+
+    def _patch_instructor(client):
+        monkeypatch.setattr(service_module.instructor, "from_openai", lambda *a, **k: client)
+
+    return _patch_instructor
 
 
 def test_init_without_env_vars_raises_configuration_error(monkeypatch):
-    # Ensure env vars are absent
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
+    # Ensure settings are absent/empty
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_API_KEY", None)
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_BASE_URL", None)
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_CLASSIFICATION_MODEL", None)
 
     with pytest.raises(ConfigurationError):
         ProductEnrichmentService()
 
 
 def test_init_with_env_builds_openai_and_instructor(monkeypatch):
-    # Provide required env vars
-    monkeypatch.setenv("OPENROUTER_API_KEY", "key")
-    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://example")
+    # Provide required settings
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_API_KEY", "key")
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_BASE_URL", "https://example")
+    monkeypatch.setattr(service_module.settings, "OPENROUTER_CLASSIFICATION_MODEL", "model-v1")
 
     # Fake instructor module with Mode and from_openai
     calls = {}
@@ -81,56 +95,73 @@ def test_init_with_env_builds_openai_and_instructor(monkeypatch):
     assert calls["from_openai"]["mode"] == FakeMode.JSON
 
 
-def test_enrich_product_no_text_returns_none_logs_warning(monkeypatch, caplog):
+def test_enrich_product_no_text_returns_none_logs_warning(mock_service_deps, caplog):
     caplog.set_level(logging.WARNING)
-    svc = ProductEnrichmentService(client=DummyClient(lambda *a, **k: None))
+    client = DummyClient(lambda *a, **k: None)
+    mock_service_deps(client)
+    svc = ProductEnrichmentService()
 
     # No text information provided
-    result = svc.enrich_product({}, model_name="test-model")
+    result = svc.enrich_product({})
 
     assert result is None
     # Note: The current implementation always builds a non-empty prompt string,
     # so a warning may not be emitted for empty inputs. We only assert the None result.
 
 
-def test_enrich_product_success_returns_schema_instance():
-    expected = GenericSpecs(summary="A nice accessory")
+def test_enrich_product_success_returns_schema_instance(mock_service_deps):
+    expected = GenericSpecs(
+        summary="A nice accessory",
+        manufacturer=None,
+        model_name=None,
+        part_number=None,
+        color=None,
+    )
 
     def _create(**kwargs: Any) -> GenericSpecs:  # emulate signature via kwargs
         return expected
 
-    svc = ProductEnrichmentService(client=DummyClient(lambda *a, **k: _create(**k)))
+    client = DummyClient(lambda *a, **k: _create(**k))
+    mock_service_deps(client)
+    svc = ProductEnrichmentService()
 
     product = {"code": "X1", "description": "USB-C Cable", "category": "ACCESORIOS"}
-    out = svc.enrich_product(product, model_name="test-model")
+    out = svc.enrich_product(product)
 
     assert out is expected
     assert isinstance(out, GenericSpecs)
 
 
-def test_enrich_product_handles_api_error_returns_none(monkeypatch):
+def test_enrich_product_handles_api_error_returns_none(mock_service_deps):
     from openai import APIError
 
     def _raise_api_error(*a: Any, **k: Any) -> NoReturn:
-        raise APIError("network")
+        import httpx
 
-    svc = ProductEnrichmentService(client=DummyClient(_raise_api_error))
+        request = httpx.Request("GET", "https://example.com")
+        raise APIError("network", request=request, body=None)
+
+    client = DummyClient(_raise_api_error)
+    mock_service_deps(client)
+    svc = ProductEnrichmentService()
 
     product = {"description": "Something"}
-    assert svc.enrich_product(product, model_name="m") is None
+    assert svc.enrich_product(product) is None
 
 
-def test_enrich_product_handles_timeout_returns_none():
+def test_enrich_product_handles_timeout_returns_none(mock_service_deps):
     def _raise_timeout(*a: Any, **k: Any) -> NoReturn:
         raise TimeoutError("boom")
 
-    svc = ProductEnrichmentService(client=DummyClient(_raise_timeout))
+    client = DummyClient(_raise_timeout)
+    mock_service_deps(client)
+    svc = ProductEnrichmentService()
 
     product = {"description": "Something"}
-    assert svc.enrich_product(product, model_name="m") is None
+    assert svc.enrich_product(product) is None
 
 
-def test_enrich_product_handles_validation_error_returns_none():
+def test_enrich_product_handles_validation_error_returns_none(mock_service_deps):
     # Create a real ValidationError instance to raise
     from pydantic import BaseModel, ValidationError
 
@@ -138,7 +169,7 @@ def test_enrich_product_handles_validation_error_returns_none():
         a: int
 
     try:
-        M(a="x")
+        M(a=cast(int, "x"))
     except ValidationError as ve:
         err = ve
     else:  # pragma: no cover - safety
@@ -147,17 +178,21 @@ def test_enrich_product_handles_validation_error_returns_none():
     def _raise_validation(*a: Any, **k: Any) -> NoReturn:
         raise err
 
-    svc = ProductEnrichmentService(client=DummyClient(_raise_validation))
+    client = DummyClient(_raise_validation)
+    mock_service_deps(client)
+    svc = ProductEnrichmentService()
 
     product = {"description": "Something"}
-    assert svc.enrich_product(product, model_name="m") is None
+    assert svc.enrich_product(product) is None
 
 
-def test_enrich_product_handles_unexpected_exception_returns_none():
+def test_enrich_product_handles_unexpected_exception_returns_none(mock_service_deps):
     def _raise_generic(*a: Any, **k: Any) -> NoReturn:
         raise RuntimeError("unexpected")
 
-    svc = ProductEnrichmentService(client=DummyClient(_raise_generic))
+    client = DummyClient(_raise_generic)
+    mock_service_deps(client)
+    svc = ProductEnrichmentService()
 
     product = {"description": "Something"}
-    assert svc.enrich_product(product, model_name="m") is None
+    assert svc.enrich_product(product) is None

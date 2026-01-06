@@ -147,6 +147,7 @@ TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
 # --- OpenRouter ---
 OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
 OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+OPENROUTER_CLASSIFICATION_MODEL = env("OPENROUTER_CLASSIFICATION_MODEL", default="google/gemini-flash-1.5-8b")
 
 # --- Mercado Libre Configuration ---
 MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS = env.int("MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS", default=24)

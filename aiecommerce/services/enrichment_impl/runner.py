@@ -13,9 +13,8 @@ class EnrichmentRunner:
     Orchestrates the enrichment process for a single product.
     """
 
-    def __init__(self, service: ProductEnrichmentService, model_name: str):
+    def __init__(self, service: ProductEnrichmentService):
         self.service = service
-        self.model_name = model_name
 
     def process_product(self, product: ProductMaster, dry_run: bool) -> tuple[bool, Any | None]:
         """
@@ -34,7 +33,7 @@ class EnrichmentRunner:
                 "description": product.description,
                 "category": product.category,
             }
-            extracted_specs = self.service.enrich_product(product_data, self.model_name)
+            extracted_specs = self.service.enrich_product(product_data)
 
             if not extracted_specs:
                 logger.warning(f"Product {product.id}: Failed to extract specs (no data returned).")

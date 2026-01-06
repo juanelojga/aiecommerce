@@ -1,9 +1,8 @@
 import logging
-from typing import Optional
+from typing import Any
 
 import instructor
 from django.conf import settings
-from instructor.client import Instructor
 from openai import APIError, OpenAI
 from pydantic import ValidationError
 
@@ -14,39 +13,32 @@ logger = logging.getLogger(__name__)
 
 
 class ProductEnrichmentService:
-    def __init__(self, client: Optional[Instructor] = None):
+    def __init__(self) -> None:
         """
         Initializes the service.
-
-        Args:
-            client: An optional `instructor.Instructor` client instance.
-                    If not provided, a default client is created.
 
         Raises:
             ConfigurationError: If required environment variables are not set.
         """
-        if client:
-            self.client = client
-        else:
-            # --- Configuration & Validation ---
-            api_key = settings.OPENROUTER_API_KEY
-            base_url = settings.OPENROUTER_BASE_URL
+        # --- Configuration & Validation ---
+        api_key = settings.OPENROUTER_API_KEY
+        base_url = settings.OPENROUTER_BASE_URL
+        self.model_name = settings.OPENROUTER_CLASSIFICATION_MODEL
 
-            if not all([api_key, base_url]):
-                raise ConfigurationError("The following settings are required: OPENROUTER_API_KEY, OPENROUTER_BASE_URL")
+        if not all([api_key, base_url, self.model_name]):
+            raise ConfigurationError("The following settings are required: OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_CLASSIFICATION_MODEL")
 
-            # Initialize the OpenAI client pointing to OpenRouter
-            base_client = OpenAI(base_url=base_url, api_key=api_key)
-            # Wrap with Instructor to enable structured output
-            self.client = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
+        # Initialize the OpenAI client pointing to OpenRouter
+        base_client = OpenAI(base_url=base_url, api_key=api_key)
+        # Wrap with Instructor to enable structured output
+        self.client: Any = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
 
-    def enrich_product(self, product_data: dict, model_name: str) -> ProductSpecUnion | None:
+    def enrich_product(self, product_data: dict) -> ProductSpecUnion | None:
         """
         Analyzes product data and returns structured specifications.
 
         Args:
             product_data: A dictionary containing product data to analyze.
-            model_name: The model to use for the enrichment.
 
         Returns:
             A Pydantic model instance from ProductSpecUnion on success, or None on failure.
@@ -65,8 +57,8 @@ class ProductEnrichmentService:
 
         try:
             # 2. Call the LLM with Instructor
-            extracted_data = self.client.chat.completions.create(
-                model=model_name,
+            extracted_data: ProductSpecUnion | None = self.client.chat.completions.create(
+                model=self.model_name,
                 response_model=ProductSpecUnion,
                 messages=[
                     {
