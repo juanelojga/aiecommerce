@@ -64,6 +64,7 @@ class TecnomegaDetailFetcher:
 
         logger.debug("Fetching Tecnomega search page: %s", url)
         response = self._get(url)
+
         return response.text
 
     def _extract_first_product_url(self, html: str, product_code: str) -> str:

@@ -46,6 +46,23 @@ def test_handle_dry_run_mode(mock_fetcher, mock_parser, product):
     mock_parser_instance.parse.assert_called_once_with("<html></html>")
     # Verify no data was persisted
     assert ProductDetailScrape.objects.count() == 0
+    # Verify orchestrator was not called
+    with patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailOrchestrator") as mock_orch:
+        call_command("sync_tecnomega_details", product.code, stdout=StringIO())
+        mock_orch.return_value.sync_details.assert_not_called()
+
+
+@patch("aiecommerce.management.commands.sync_tecnomega_details.ProductMaster.objects.get")
+def test_handle_dry_run_missing_product_code(mock_get, product):
+    """Test that if product.code is somehow empty, dry run raises CommandError."""
+    # Arrange
+    product.code = ""
+    mock_get.return_value = product
+
+    # Act & Assert
+    with pytest.raises(CommandError) as excinfo:
+        call_command("sync_tecnomega_details", "SOMECODE")
+    assert "has no code to fetch" in str(excinfo.value)
 
 
 @patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailOrchestrator")

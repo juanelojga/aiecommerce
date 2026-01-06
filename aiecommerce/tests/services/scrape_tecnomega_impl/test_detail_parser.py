@@ -136,4 +136,4 @@ def test_parse_full(parser):
     </div>
     """
     result = parser.parse(html)
-    assert result == {"name": "Test Product", "price": 99.99, "currency": "USD", "images": ["img1.jpg"], "attributes": {"marca": "Dell"}}
+    assert result == {"name": "Test Product", "price": 99.99, "currency": "USD", "images": ["img1.jpg"], "attributes": {"brand": "Dell"}}

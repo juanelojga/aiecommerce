@@ -42,8 +42,41 @@ class TecnomegaDetailParser:
         return h1.get_text(strip=True)
 
     def _parse_price(self, soup: BeautifulSoup) -> float:
+        # 1. Try original selector
         price_el = soup.select_one("p.text-amber-600")
+
+        # 2. Try searching by label in the attribute-like rows
         if not price_el:
+            rows = soup.select("div.flex.justify-between.border-b.border-slate-300")
+            for row in rows:
+                label_el = row.find("strong")
+                if label_el and any(p in label_el.get_text().lower() for p in ["precio", "pvp"]):
+                    price_el = row.find("span")
+                    break
+
+        if not price_el:
+            # Last resort: search for any text that looks like a price near a "precio" label
+            price_label = soup.find(string=re.compile(r"precio|pvp", re.I))
+            if price_label:
+                # Look for price in the parent or siblings
+                parent = price_label.parent
+                price_text = parent.get_text()
+                match = re.search(r"([\d,.]+)", price_text)
+                if match:
+                    return float(match.group(1).replace(",", ""))
+
+            # Try to find price in Next.js scripts
+            scripts = soup.find_all("script")
+            for script in scripts:
+                if script.string and ("priceD" in script.string or "priceW" in script.string):
+                    # Try to extract priceW (Wholesale/PVP) or priceD
+                    match_w = re.search(r'\\?"priceW\\?":\s*([\d.]+)', script.string)
+                    if match_w:
+                        return float(match_w.group(1))
+                    match_d = re.search(r'\\?"priceD\\?":\s*([\d.]+)', script.string)
+                    if match_d:
+                        return float(match_d.group(1))
+
             raise ValueError("Product price not found")
 
         price_text = price_el.get_text(strip=True)
@@ -88,6 +121,15 @@ class TecnomegaDetailParser:
     def _parse_attributes(self, soup: BeautifulSoup) -> Dict[str, str]:
         attributes: Dict[str, str] = {}
 
+        # Mapping of Spanish labels to English keys
+        label_map = {
+            "código": "sku",
+            "marca": "brand",
+            "linea": "line",
+            "peso": "weight",
+            "sku": "sku",
+        }
+
         rows = soup.select("div.flex.justify-between.border-b.border-slate-300")
 
         for row in rows:
@@ -97,10 +139,12 @@ class TecnomegaDetailParser:
             if not label_el or not value_el:
                 continue
 
-            label = label_el.get_text(strip=True).lower()
+            label_text = label_el.get_text(strip=True).lower()
             value = value_el.get_text(strip=True)
 
-            attributes[label] = value
+            # Map the label to an English key if possible
+            key = label_map.get(label_text, label_text)
+            attributes[key] = value
 
         if not attributes:
             logger.warning("No attribute rows found on Tecnomega page")
