@@ -46,7 +46,7 @@ class Command(BaseCommand):
 
             service = ProductEnrichmentService()
             selector = EnrichmentCandidateSelector()
-            runner = EnrichmentOrchestrator(service)
+            orchestrator = EnrichmentOrchestrator(service)
 
         except ConfigurationError as e:
             self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))
@@ -68,7 +68,7 @@ class Command(BaseCommand):
             desc_preview = (product.description or "")[:60]
             self.stdout.write(f"[{product.id}] {desc_preview}...")
 
-            success, specs = runner.process_product(product, dry_run)
+            success, specs = orchestrator.process_product(product, dry_run)
 
             if success and specs:
                 success_count += 1
