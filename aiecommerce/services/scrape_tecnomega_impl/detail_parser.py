@@ -65,14 +65,16 @@ class TecnomegaDetailParser:
         # Main image (large preview)
         main_img = soup.select_one("div.flex.justify-center img[alt='image-current']")
         if main_img and main_img.get("src"):
-            images.append(main_img["src"])
+            main_src = main_img["src"]
+            if isinstance(main_src, str):
+                images.append(main_src)
 
         # Thumbnails
         thumbnails = soup.select("div.bg-zinc-100 img[src]")
         for img in thumbnails:
-            src = img.get("src")
-            if src and src not in images:
-                images.append(src)
+            thumb_src = img.get("src")
+            if isinstance(thumb_src, str) and thumb_src not in images:
+                images.append(thumb_src)
 
         if not images:
             logger.warning("No images found on Tecnomega product page")

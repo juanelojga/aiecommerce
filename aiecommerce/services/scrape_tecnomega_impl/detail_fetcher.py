@@ -102,8 +102,8 @@ class TecnomegaDetailFetcher:
             )
 
         relative_url = product_links[0].get("href")
-        if not relative_url:
-            raise ValueError("Product link found without href")
+        if not relative_url or not isinstance(relative_url, str):
+            raise ValueError("Product link found without valid href string")
 
         return urljoin(self.BASE_URL, relative_url)
 

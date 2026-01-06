@@ -132,7 +132,7 @@ class TestTecnomegaDetailFetcher:
             mock_link.get.return_value = None  # Force missing href
             mock_grid.select.return_value = [mock_link]
 
-            with pytest.raises(ValueError, match="Product link found without href"):
+            with pytest.raises(ValueError, match="Product link found without valid href string"):
                 fetcher.fetch_product_detail_html(product_code)
 
     def test_fetch_product_detail_html_network_error(self, fetcher, mock_session):

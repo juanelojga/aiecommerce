@@ -82,3 +82,29 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product.code} ({self.order}) - {self.url}"
+
+
+class ProductDetailScrape(models.Model):
+    """
+    Stores structured product details scraped from deep-link pages.
+    Linked to ProductMaster via a ForeignKey.
+    """
+
+    product = models.ForeignKey(ProductMaster, on_delete=models.CASCADE, related_name="detail_scrapes", help_text="The master product this scrape belongs to.")
+    name = models.TextField(null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=10, default="USD")
+
+    # Stores the full dictionary of attributes (Marca, Peso, Sku, etc.)
+    attributes = models.JSONField(default=dict)
+
+    # Stores the list of image URLs found
+    image_urls = models.JSONField(default=list)
+
+    # Audit trail
+    raw_html = models.TextField(null=True, blank=True)
+    scrape_session_id = models.CharField(max_length=100, db_index=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Detail Scrape for {self.product.code} at {self.created_at}"
