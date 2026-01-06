@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 
 from aiecommerce.services.enrichment_impl.orchestrator import EnrichmentOrchestrator
 from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSelector
+from aiecommerce.services.scrape_tecnomega_impl.detail_orchestrator import TecnomegaDetailOrchestrator
 from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
 from aiecommerce.services.specifications_impl.service import ProductSpecificationsService
 
@@ -25,12 +26,13 @@ class Command(BaseCommand):
         # Initialize the specific specification service and its orchestrator
         specs_service = ProductSpecificationsService()
         specs_orchestrator = ProductSpecificationsOrchestrator(specs_service)
+        detail_orchestrator = TecnomegaDetailOrchestrator()
 
         # Initialize the selector and the main batch orchestrator
         selector = EnrichmentCandidateSelector()
-        orchestrator = EnrichmentOrchestrator(selector, specs_orchestrator)
+        orchestrator = EnrichmentOrchestrator(selector, specs_orchestrator, detail_orchestrator)
 
         # Run the enrichment batch
         stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
 
-        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['processed']}/{stats['total']} products ({stats['success']} successful)."))
+        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['processed']}/{stats['total']} products"))
