@@ -57,7 +57,7 @@ class TecnomegaDetailParser:
         if not price_el:
             # Last resort: search for any text that looks like a price near a "precio" label
             price_label = soup.find(string=re.compile(r"precio|pvp", re.I))
-            if price_label:
+            if price_label and price_label.parent:
                 # Look for price in the parent or siblings
                 parent = price_label.parent
                 price_text = parent.get_text()
