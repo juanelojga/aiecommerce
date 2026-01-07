@@ -40,13 +40,15 @@ class ImageSearchService:
 
     def __init__(
         self,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
         service: Optional[Any] = None,
         domain_blocklist: Optional[Set[str]] = None,
         query_constructor: Optional[QueryConstructor] = None,
     ) -> None:
-        self.api_key = settings.GOOGLE_API_KEY
-        self.search_engine_id = settings.GOOGLE_SEARCH_ENGINE_ID
-        self.service = service or build("customsearch", "v1", developerKey=self.api_key)
+        self.api_key = api_key or getattr(settings, "GOOGLE_API_KEY", None)
+        self.search_engine_id = search_engine_id or getattr(settings, "GOOGLE_SEARCH_ENGINE_ID", None)
+        self.service = service or (build("customsearch", "v1", developerKey=self.api_key) if self.api_key else None)
 
         if not self.api_key or not self.search_engine_id or not self.service:
             logger.error("GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be configured.")
@@ -78,6 +80,10 @@ class ImageSearchService:
 
         image_urls: List[str] = []
         start_index = 1
+
+        if not self.service:
+            logger.error("ImageSearchService.service is not initialized.")
+            return []
 
         # Google Custom Search API 'start' parameter max value is usually around 100
         while len(image_urls) < image_search_count and start_index <= 100:

@@ -9,13 +9,13 @@ class TestEnrichmentCandidateSelector:
     def setup_method(self):
         # Active items
         # p1: Active, specs=None, sku="SKU1" -> Should be included (specs is None)
-        self.p1 = ProductMaster.objects.create(code="A1", category="Electronics", is_active=True, specs=None, sku="SKU1")
+        self.p1 = ProductMaster.objects.create(code="A1", category="Electronics", is_active=True, specs=None, sku="SKU1", seo_title="T1", seo_description="D1")
         # p2: Active, specs={}, sku="SKU2" -> Should be included (specs is {})
-        self.p2 = ProductMaster.objects.create(code="A2", category="Home", is_active=True, specs={}, sku="SKU2")
-        # p3: Active, specs={"color": "red"}, sku="SKU3" -> Should be excluded (has specs AND sku)
-        self.p3 = ProductMaster.objects.create(code="A3", category="electronics - Gadgets", is_active=True, specs={"color": "red"}, sku="SKU3")
+        self.p2 = ProductMaster.objects.create(code="A2", category="Home", is_active=True, specs={}, sku="SKU2", seo_title="T2", seo_description="D2")
+        # p3: Active, specs={"color": "red"}, sku="SKU3", seo_title="T3", seo_description="D3" -> Should be excluded (has specs AND sku AND seo)
+        self.p3 = ProductMaster.objects.create(code="A3", category="electronics - Gadgets", is_active=True, specs={"color": "red"}, sku="SKU3", seo_title="T3", seo_description="D3")
         # p6: Active, specs={"color": "blue"}, sku=None -> Should be included (sku is None)
-        self.p6 = ProductMaster.objects.create(code="A6", category="Electronics", is_active=True, specs={"color": "blue"}, sku=None)
+        self.p6 = ProductMaster.objects.create(code="A6", category="Electronics", is_active=True, specs={"color": "blue"}, sku=None, seo_title="T6", seo_description="D6")
 
         # Inactive items (should be excluded in all cases)
         self.p4 = ProductMaster.objects.create(code="A4", category="Electronics", is_active=False, specs=None, sku="SKU4")
