@@ -40,24 +40,17 @@ class ImageSearchService:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        search_engine_id: Optional[str] = None,
         service: Optional[Any] = None,
         domain_blocklist: Optional[Set[str]] = None,
         query_constructor: Optional[QueryConstructor] = None,
     ) -> None:
-        self.api_key = api_key or getattr(settings, "GOOGLE_API_KEY", None)
-        self.search_engine_id = search_engine_id or getattr(settings, "GOOGLE_SEARCH_ENGINE_ID", None)
+        self.api_key = settings.GOOGLE_API_KEY
+        self.search_engine_id = settings.GOOGLE_SEARCH_ENGINE_ID
+        self.service = service or build("customsearch", "v1", developerKey=self.api_key)
 
-        if not self.api_key or not self.search_engine_id:
+        if not self.api_key or not self.search_engine_id or not self.service:
             logger.error("GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be configured.")
             raise ValueError("API credentials missing.")
-
-        # If service is provided, use it. Otherwise build it.
-        if service:
-            self.service = service
-        else:
-            self.service = build("customsearch", "v1", developerKey=self.api_key)
 
         self.domain_blocklist = domain_blocklist if domain_blocklist is not None else self.DEFAULT_DOMAIN_BLOCKLIST
         self.query_constructor = query_constructor or QueryConstructor()
