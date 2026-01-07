@@ -3,7 +3,7 @@ from typing import Optional
 
 from django.db import transaction
 
-from aiecommerce.models import ProductDetailScrape, ProductImage, ProductMaster
+from aiecommerce.models import ProductDetailScrape, ProductMaster
 from aiecommerce.services.scrape_tecnomega_impl.details.detail_fetcher import TecnomegaDetailFetcher
 from aiecommerce.services.scrape_tecnomega_impl.details.detail_parser import TecnomegaDetailParser
 
@@ -59,8 +59,6 @@ class TecnomegaDetailOrchestrator:
                         scrape_session_id=session_id,
                     )
 
-                    # 5. Sync images to the ProductImage table
-                    self._sync_images(product, data.get("images", []))
                 else:
                     logger.warning(f"No SKU found for product {product.code}. Skipping detail creation.")
 
@@ -69,10 +67,3 @@ class TecnomegaDetailOrchestrator:
         except Exception as e:
             logger.error(f"Sync failed for {product.code}: {e}", exc_info=True)
             return False
-
-    def _sync_images(self, product: ProductMaster, urls: list[str]):
-        """Helper to sync images with the ProductMaster instance."""
-        existing = set(product.images.values_list("url", flat=True))
-        new_objs = [ProductImage(product=product, url=u, order=idx) for idx, u in enumerate(urls) if u not in existing]
-        if new_objs:
-            ProductImage.objects.bulk_create(new_objs)
