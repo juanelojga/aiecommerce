@@ -144,6 +144,11 @@ TECNOMEGA_STORE_BASE_URL = env("TECNOMEGA_STORE_BASE_URL", default="https://tecn
 TECNOMEGA_SEARCH_URL_TEMPLATE = env("TECNOMEGA_SEARCH_URL_TEMPLATE", default="https://tecnomegastore.ec/searchi/1/{product_code}")
 TECNOMEGA_SCRAPE_CATEGORIES = env("TECNOMEGA_SCRAPE_CATEGORIES", default="")
 
+# --- OpenRouter ---
+OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
+OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+OPENROUTER_CLASSIFICATION_MODEL = env("OPENROUTER_CLASSIFICATION_MODEL", default="google/gemini-flash-1.5-8b")
+
 # --- Mercado Libre Configuration ---
 MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS = env.int("MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS", default=24)
 MERCADOLIBRE_PUBLICATION_RULES = env.json(

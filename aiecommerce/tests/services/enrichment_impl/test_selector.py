@@ -8,38 +8,38 @@ from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSel
 class TestEnrichmentCandidateSelector:
     def setup_method(self):
         # Active items
-        self.p1 = ProductMaster.objects.create(code="A1", category="Electronics", is_active=True, specs=None)
-        self.p2 = ProductMaster.objects.create(code="A2", category="Home", is_active=True, specs={})
-        self.p3 = ProductMaster.objects.create(code="A3", category="electronics - Gadgets", is_active=True, specs={"color": "red"})
+        # p1: Active, specs=None, sku="SKU1" -> Should be included (specs is None)
+        self.p1 = ProductMaster.objects.create(code="A1", category="Electronics", is_active=True, specs=None, sku="SKU1", seo_title="T1", seo_description="D1")
+        # p2: Active, specs={}, sku="SKU2" -> Should be included (specs is {})
+        self.p2 = ProductMaster.objects.create(code="A2", category="Home", is_active=True, specs={}, sku="SKU2", seo_title="T2", seo_description="D2")
+        # p3: Active, specs={"color": "red"}, sku="SKU3", seo_title="T3", seo_description="D3" -> Should be excluded (has specs AND sku AND seo)
+        self.p3 = ProductMaster.objects.create(code="A3", category="electronics - Gadgets", is_active=True, specs={"color": "red"}, sku="SKU3", seo_title="T3", seo_description="D3")
+        # p6: Active, specs={"color": "blue"}, sku=None -> Should be included (sku is None)
+        self.p6 = ProductMaster.objects.create(code="A6", category="Electronics", is_active=True, specs={"color": "blue"}, sku=None, seo_title="T6", seo_description="D6")
 
         # Inactive items (should be excluded in all cases)
-        self.p4 = ProductMaster.objects.create(code="A4", category="Electronics", is_active=False, specs=None)
-        self.p5 = ProductMaster.objects.create(code="A5", category="Home", is_active=False, specs={"x": 1})
+        self.p4 = ProductMaster.objects.create(code="A4", category="Electronics", is_active=False, specs=None, sku="SKU4")
+        self.p5 = ProductMaster.objects.create(code="A5", category="Home", is_active=False, specs={"x": 1}, sku="SKU5")
 
         self.selector = EnrichmentCandidateSelector()
 
-    def test_default_filters_active_and_missing_specs(self):
-        qs = self.selector.get_queryset(category_filter=None, force=False, dry_run=False)
+    def test_default_filters_active_and_missing_specs_or_sku(self):
+        qs = self.selector.get_queryset(force=False, dry_run=False)
         ids = list(qs.values_list("code", flat=True))
-        # Should include only active with specs is null or empty dict, ordered by id/creation
-        assert ids == ["A1", "A2"], ids
+        # Should include A1 (specs=None), A2 (specs={}), A6 (sku=None)
+        assert set(ids) == {"A1", "A2", "A6"}, ids
 
-    def test_force_includes_active_regardless_of_specs(self):
-        qs = self.selector.get_queryset(category_filter=None, force=True, dry_run=False)
+    def test_force_includes_active_regardless_of_specs_or_sku(self):
+        qs = self.selector.get_queryset(force=True, dry_run=False)
         ids = list(qs.values_list("code", flat=True))
-        # All active items regardless of specs, ordered by id/creation
-        assert ids == ["A1", "A2", "A3"], ids
+        # All active items regardless of specs/sku
+        assert set(ids) == {"A1", "A2", "A3", "A6"}, ids
 
-    def test_category_filter_is_icontains_and_combines_with_specs_filter(self):
-        # With force=False, should include only items in categories containing 'electronic' and missing specs
-        qs = self.selector.get_queryset(category_filter="electronic", force=False, dry_run=False)
+    def test_dry_run_limits_to_three(self):
+        # dry_run returns early after applying only is_active filter
+        qs = self.selector.get_queryset(force=False, dry_run=True)
+        assert qs.count() <= 3
+        # Should be the first 3 active products by ID
         ids = list(qs.values_list("code", flat=True))
-        # p1 matches category and has missing specs; p3 matches category but has specs -> excluded
-        assert ids == ["A1"], ids
-
-    def test_dry_run_limits_to_three_and_skips_specs_filtering(self):
-        # dry_run returns early after applying only is_active and optional category filters, not specs filtering
-        qs = self.selector.get_queryset(category_filter=None, force=False, dry_run=True)
-        ids = list(qs.values_list("code", flat=True))
-        # First three active products by id: A1, A2, A3 (even though A3 has specs)
-        assert ids == ["A1", "A2", "A3"], ids
+        expected = ["A1", "A2", "A3"]  # Since they are created in this order
+        assert ids == expected, ids

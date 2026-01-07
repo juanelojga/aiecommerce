@@ -20,12 +20,12 @@ def product():
 def test_handle_product_not_found():
     """Test that the command raises CommandError if the product code does not exist."""
     with pytest.raises(CommandError) as excinfo:
-        call_command("sync_tecnomega_details", "NONEXISTENT")
+        call_command("verify_tecnomega_details", "NONEXISTENT")
     assert "ProductMaster with code 'NONEXISTENT' not found" in str(excinfo.value)
 
 
-@patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailParser")
-@patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailFetcher")
+@patch("aiecommerce.management.commands.verify_tecnomega_details.TecnomegaDetailParser")
+@patch("aiecommerce.management.commands.verify_tecnomega_details.TecnomegaDetailFetcher")
 def test_handle_dry_run_mode(mock_fetcher, mock_parser, product):
     """Test that in --dry-run mode, the command fetches and parses but does not save."""
     # Arrange
@@ -36,7 +36,7 @@ def test_handle_dry_run_mode(mock_fetcher, mock_parser, product):
     mock_parser_instance.parse.return_value = {"name": "Test Product", "price": 99.99}
 
     # Act
-    call_command("sync_tecnomega_details", product.code, stdout=out)
+    call_command("verify_tecnomega_details", product.code, stdout=out)
 
     # Assert
     output = out.getvalue()
@@ -47,12 +47,12 @@ def test_handle_dry_run_mode(mock_fetcher, mock_parser, product):
     # Verify no data was persisted
     assert ProductDetailScrape.objects.count() == 0
     # Verify orchestrator was not called
-    with patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailOrchestrator") as mock_orch:
-        call_command("sync_tecnomega_details", product.code, stdout=StringIO())
+    with patch("aiecommerce.management.commands.verify_tecnomega_details.TecnomegaDetailOrchestrator") as mock_orch:
+        call_command("verify_tecnomega_details", product.code, stdout=StringIO())
         mock_orch.return_value.sync_details.assert_not_called()
 
 
-@patch("aiecommerce.management.commands.sync_tecnomega_details.ProductMaster.objects.get")
+@patch("aiecommerce.management.commands.verify_tecnomega_details.ProductMaster.objects.get")
 def test_handle_dry_run_missing_product_code(mock_get, product):
     """Test that if product.code is somehow empty, dry run raises CommandError."""
     # Arrange
@@ -61,11 +61,11 @@ def test_handle_dry_run_missing_product_code(mock_get, product):
 
     # Act & Assert
     with pytest.raises(CommandError) as excinfo:
-        call_command("sync_tecnomega_details", "SOMECODE")
+        call_command("verify_tecnomega_details", "SOMECODE")
     assert "has no code to fetch" in str(excinfo.value)
 
 
-@patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailOrchestrator")
+@patch("aiecommerce.management.commands.verify_tecnomega_details.TecnomegaDetailOrchestrator")
 def test_handle_sync_success(mock_orchestrator, product):
     """Test the command successfully calls the orchestrator in live mode."""
     # Arrange
@@ -74,7 +74,7 @@ def test_handle_sync_success(mock_orchestrator, product):
     mock_orchestrator_instance.sync_details.return_value = True
 
     # Act
-    call_command("sync_tecnomega_details", product.code, "--no-dry-run", stdout=out)
+    call_command("verify_tecnomega_details", product.code, "--no-dry-run", stdout=out)
 
     # Assert
     output = out.getvalue()
@@ -82,7 +82,7 @@ def test_handle_sync_success(mock_orchestrator, product):
     mock_orchestrator_instance.sync_details.assert_called_once_with(product, session_id="manual_sync")
 
 
-@patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailOrchestrator")
+@patch("aiecommerce.management.commands.verify_tecnomega_details.TecnomegaDetailOrchestrator")
 def test_handle_sync_failure(mock_orchestrator, product):
     """Test the command reports a failure if the orchestrator returns False."""
     # Arrange
@@ -91,7 +91,7 @@ def test_handle_sync_failure(mock_orchestrator, product):
     mock_orchestrator_instance.sync_details.return_value = False
 
     # Act
-    call_command("sync_tecnomega_details", product.code, "--no-dry-run", stdout=out)
+    call_command("verify_tecnomega_details", product.code, "--no-dry-run", stdout=out)
 
     # Assert
     output = out.getvalue()
@@ -99,9 +99,9 @@ def test_handle_sync_failure(mock_orchestrator, product):
     mock_orchestrator_instance.sync_details.assert_called_once_with(product, session_id="manual_sync")
 
 
-@patch("aiecommerce.management.commands.sync_tecnomega_details.TecnomegaDetailFetcher.fetch_product_detail_html", side_effect=Exception("Fetch error"))
+@patch("aiecommerce.management.commands.verify_tecnomega_details.TecnomegaDetailFetcher.fetch_product_detail_html", side_effect=Exception("Fetch error"))
 def test_dry_run_handles_fetch_exception(mock_fetch, product):
     """Test that a fetch exception during a dry run is caught and reported."""
     with pytest.raises(CommandError) as excinfo:
-        call_command("sync_tecnomega_details", product.code)
+        call_command("verify_tecnomega_details", product.code)
     assert "Dry run failed: Fetch error" in str(excinfo.value)

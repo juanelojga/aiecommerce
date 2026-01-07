@@ -1,12 +1,13 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.utils import timezone
 from model_bakery import baker
 
 from aiecommerce.models.product import ProductMaster
-from aiecommerce.services.mercadolibre_impl.image_candidate_selector import ImageCandidateSelector
 from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
 from aiecommerce.services.mercadolibre_impl.query_constructor import QueryConstructor
+from aiecommerce.services.mercadolibre_impl.selector import ImageCandidateSelector
 
 
 @pytest.fixture
@@ -18,20 +19,26 @@ def mock_service():
 
 
 def test_dependency_injection(mock_service):
-    service = ImageSearchService(api_key="key", search_engine_id="id", service=mock_service)
-    assert service.api_key == "key"
-    assert service.search_engine_id == "id"
-    assert service.service == mock_service
+    with patch("aiecommerce.services.mercadolibre_impl.image_search_service.settings") as mock_settings:
+        mock_settings.GOOGLE_API_KEY = "key"
+        mock_settings.GOOGLE_SEARCH_ENGINE_ID = "id"
+        service = ImageSearchService(service=mock_service)
+        assert service.api_key == "key"
+        assert service.search_engine_id == "id"
+        assert service.service == mock_service
 
 
 def test_subdomain_blocking():
-    service = ImageSearchService(api_key="k", search_engine_id="i", service=MagicMock())
-    service.domain_blocklist = {"amazon.com"}
+    with patch("aiecommerce.services.mercadolibre_impl.image_search_service.settings") as mock_settings:
+        mock_settings.GOOGLE_API_KEY = "k"
+        mock_settings.GOOGLE_SEARCH_ENGINE_ID = "i"
+        service = ImageSearchService(service=MagicMock())
+        service.domain_blocklist = {"amazon.com"}
 
-    assert service._is_blocked("http://amazon.com/img.jpg") is True
-    assert service._is_blocked("http://www.amazon.com/img.jpg") is True
-    assert service._is_blocked("http://images.amazon.com/img.jpg") is True
-    assert service._is_blocked("http://example.com/img.jpg") is False
+        assert service._is_blocked("http://amazon.com/img.jpg") is True
+        assert service._is_blocked("http://www.amazon.com/img.jpg") is True
+        assert service._is_blocked("http://images.amazon.com/img.jpg") is True
+        assert service._is_blocked("http://example.com/img.jpg") is False
 
 
 def test_pagination(mock_service):
@@ -41,8 +48,11 @@ def test_pagination(mock_service):
 
     mock_service.cse.return_value.list.return_value.execute.side_effect = [page1, page2]
 
-    service = ImageSearchService(api_key="k", search_engine_id="i", service=mock_service)
-    urls = service.find_image_urls("query", image_search_count=15)
+    with patch("aiecommerce.services.mercadolibre_impl.image_search_service.settings") as mock_settings:
+        mock_settings.GOOGLE_API_KEY = "k"
+        mock_settings.GOOGLE_SEARCH_ENGINE_ID = "i"
+        service = ImageSearchService(service=mock_service)
+        urls = service.find_image_urls("query", image_search_count=15)
 
     assert len(urls) == 15
     assert mock_service.cse.return_value.list.call_count == 2
@@ -68,15 +78,19 @@ def test_query_constructor_configuration():
 
 @pytest.mark.django_db
 def test_image_candidate_selector_queryset():
-    selector = ImageCandidateSelector()
-    baker.make(ProductMaster, is_active=True, is_for_mercadolibre=True)
-    baker.make(ProductMaster, is_active=True, is_for_mercadolibre=True)
+    with patch("aiecommerce.services.mercadolibre_impl.filter.settings") as mock_settings:
+        mock_settings.MERCADOLIBRE_PUBLICATION_RULES = {"Cat": 100}
+        mock_settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS = 24
 
-    qs = selector.find_products_without_images()
-    from django.db.models import QuerySet
+        selector = ImageCandidateSelector()
+        baker.make(ProductMaster, is_active=True, category="Cat", price=150, last_updated=timezone.now())
+        baker.make(ProductMaster, is_active=True, category="Cat", price=150, last_updated=timezone.now())
 
-    assert isinstance(qs, QuerySet)
-    assert qs.count() == 2
+        qs = selector.get_pending_image_products()
+        from django.db.models import QuerySet
+
+        assert isinstance(qs, QuerySet)
+        assert qs.count() == 2
 
 
 def test_query_constructor_truncation():

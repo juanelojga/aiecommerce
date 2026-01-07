@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from aiecommerce.services.enrichment_impl.exceptions import EnrichmentError
-from aiecommerce.services.enrichment_impl.runner import EnrichmentRunner
+from aiecommerce.services.specifications_impl.exceptions import EnrichmentError
+from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
 from aiecommerce.tests.factories import ProductMasterFactory
 
 
@@ -24,17 +24,16 @@ def test_process_product_success_dry_run_true(caplog):
     expected_specs = {"power": "500W", "voltage": "110V"}
     service.enrich_product.return_value = _SpecStub(expected_specs)
 
-    runner = EnrichmentRunner(service=service, model_name="test-model")
+    runner = ProductSpecificationsOrchestrator(service=service)
 
     success, specs = runner.process_product(product, dry_run=True)
 
     # Assert service called with expected payload
     service.enrich_product.assert_called_once()
-    called_payload, called_model = service.enrich_product.call_args[0]
+    called_payload = service.enrich_product.call_args[0][0]
     assert called_payload["code"] == product.code
     assert called_payload["description"] == product.description
     assert called_payload["category"] == product.category
-    assert called_model == "test-model"
 
     # Assert return values
     assert success is True
@@ -57,7 +56,7 @@ def test_process_product_success_persists_and_uses_update_fields():
     expected_specs = {"battery": "2200mAh"}
     service.enrich_product.return_value = _SpecStub(expected_specs)
 
-    runner = EnrichmentRunner(service=service, model_name="gpt-model")
+    runner = ProductSpecificationsOrchestrator(service=service)
     # Spy by wrapping the bound save method
     from unittest.mock import patch
 
@@ -81,7 +80,7 @@ def test_process_product_no_data_returns_false_and_logs_warning(caplog):
     service = MagicMock()
     service.enrich_product.return_value = None
 
-    runner = EnrichmentRunner(service=service, model_name="any-model")
+    runner = ProductSpecificationsOrchestrator(service=service)
 
     with caplog.at_level("WARNING"):
         success, specs = runner.process_product(product, dry_run=False)
@@ -99,7 +98,7 @@ def test_process_product_handles_enrichment_error_logs_and_returns_false(caplog)
     service = MagicMock()
     service.enrich_product.side_effect = EnrichmentError("service failed")
 
-    runner = EnrichmentRunner(service=service, model_name="any-model")
+    runner = ProductSpecificationsOrchestrator(service=service)
 
     with caplog.at_level("ERROR"):
         success, specs = runner.process_product(product, dry_run=False)
@@ -116,7 +115,7 @@ def test_process_product_handles_unexpected_exception_logs_and_returns_false(cap
     service = MagicMock()
     service.enrich_product.side_effect = ValueError("boom")
 
-    runner = EnrichmentRunner(service=service, model_name="any-model")
+    runner = ProductSpecificationsOrchestrator(service=service)
 
     with caplog.at_level("ERROR"):
         success, specs = runner.process_product(product, dry_run=False)

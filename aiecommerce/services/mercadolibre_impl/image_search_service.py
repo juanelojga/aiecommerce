@@ -48,16 +48,11 @@ class ImageSearchService:
     ) -> None:
         self.api_key = api_key or getattr(settings, "GOOGLE_API_KEY", None)
         self.search_engine_id = search_engine_id or getattr(settings, "GOOGLE_SEARCH_ENGINE_ID", None)
+        self.service = service or (build("customsearch", "v1", developerKey=self.api_key) if self.api_key else None)
 
-        if not self.api_key or not self.search_engine_id:
+        if not self.api_key or not self.search_engine_id or not self.service:
             logger.error("GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID must be configured.")
             raise ValueError("API credentials missing.")
-
-        # If service is provided, use it. Otherwise build it.
-        if service:
-            self.service = service
-        else:
-            self.service = build("customsearch", "v1", developerKey=self.api_key)
 
         self.domain_blocklist = domain_blocklist if domain_blocklist is not None else self.DEFAULT_DOMAIN_BLOCKLIST
         self.query_constructor = query_constructor or QueryConstructor()
@@ -91,6 +86,9 @@ class ImageSearchService:
             num_to_fetch = min(image_search_count - len(image_urls), 10)
 
             try:
+                if self.service is None:
+                    break
+
                 result = self.service.cse().list(q=query, cx=self.search_engine_id, searchType="image", imgSize="HUGE", num=num_to_fetch, start=start_index).execute()
 
                 items = result.get("items", [])

@@ -2,20 +2,19 @@ import logging
 from typing import Any
 
 from aiecommerce.models import ProductMaster
-from aiecommerce.services.enrichment_impl.exceptions import EnrichmentError
-from aiecommerce.services.enrichment_impl.service import ProductEnrichmentService
+from aiecommerce.services.specifications_impl.exceptions import EnrichmentError
+from aiecommerce.services.specifications_impl.service import ProductSpecificationsService
 
 logger = logging.getLogger(__name__)
 
 
-class EnrichmentRunner:
+class ProductSpecificationsOrchestrator:
     """
     Orchestrates the enrichment process for a single product.
     """
 
-    def __init__(self, service: ProductEnrichmentService, model_name: str):
+    def __init__(self, service: ProductSpecificationsService):
         self.service = service
-        self.model_name = model_name
 
     def process_product(self, product: ProductMaster, dry_run: bool) -> tuple[bool, Any | None]:
         """
@@ -28,13 +27,14 @@ class EnrichmentRunner:
         Returns:
             A tuple containing a boolean indicating success and the extracted specs (or None).
         """
+
         try:
             product_data = {
                 "code": product.code,
                 "description": product.description,
                 "category": product.category,
             }
-            extracted_specs = self.service.enrich_product(product_data, self.model_name)
+            extracted_specs = self.service.enrich_product(product_data)
 
             if not extracted_specs:
                 logger.warning(f"Product {product.id}: Failed to extract specs (no data returned).")
@@ -45,6 +45,8 @@ class EnrichmentRunner:
 
             if not dry_run:
                 product.save(update_fields=["specs"])
+            else:
+                logger.info(f"DRY RUN: Obtained specs for product {product.id}: {specs_dict}")
 
             return True, specs_dict
 

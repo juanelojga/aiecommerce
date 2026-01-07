@@ -300,3 +300,28 @@ python manage.py sync_price_list
 - Notes:
   - Ensure you have already scraped data (e.g., via `scrape_tecnomega`) before running this command so there is data to process.
   - Review environment variables in `.env` as required by your setup.
+
+### 3) Enrich Products
+
+Enriches product master records by scraping for missing details (like SKU) and generating structured specifications using AI. For a detailed guide, see the [AI Content Pipeline Documentation](docs/mercadolibre/ai_content_pipeline.md).
+
+- **Command:**
+
+```bash
+python manage.py enrich_products [--force] [--delay <seconds>] [--dry-run]
+```
+
+- **Arguments:**
+  - `--force`: Forces reprocessing of products that already have specs.
+  - `--delay`: Delay in seconds between processing each product. Defaults to `0.5`.
+  - `--dry-run`: Performs API calls without saving to the database.
+
+- **Example usages:**
+
+```bash
+# Enrich all products missing specs
+python manage.py enrich_products
+
+# Force reprocessing of all products with a 2-second delay
+python manage.py enrich_products --force --delay 2
+```

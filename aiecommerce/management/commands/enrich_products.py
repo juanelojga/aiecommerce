@@ -1,46 +1,24 @@
-import json
-import os
-import time
-from typing import Any
-
 from django.core.management.base import BaseCommand
 
-from aiecommerce.services.enrichment_impl.runner import EnrichmentRunner
+from aiecommerce.services.enrichment_impl.orchestrator import EnrichmentOrchestrator
 from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSelector
-from aiecommerce.services.enrichment_impl.service import (
-    ConfigurationError,
-    ProductEnrichmentService,
-)
+from aiecommerce.services.mercadolibre_impl.ai_content.description_generator import DescriptionGeneratorService
+from aiecommerce.services.mercadolibre_impl.ai_content.orchestrator import AIContentOrchestrator
+from aiecommerce.services.mercadolibre_impl.ai_content.title_generator import TitleGeneratorService
+from aiecommerce.services.scrape_tecnomega_impl.detail_orchestrator import TecnomegaDetailOrchestrator
+from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
+from aiecommerce.services.specifications_impl.service import ProductSpecificationsService
 
 
 class Command(BaseCommand):
     help = "Enriches ProductMaster records with structured specs using AI"
 
-    def add_arguments(self, parser: Any) -> None:
-        parser.add_argument(
-            "--category",
-            type=str,
-            help="Filter by specific category (case-insensitive)",
-        )
-        parser.add_argument(
-            "--force",
-            action="store_true",
-            help="Reprocess products that already have specs",
-        )
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="API calls are performed, but no data is saved to the database.",
-        )
-        parser.add_argument(
-            "--delay",
-            type=float,
-            default=0.5,
-            help="Delay in seconds between processing each product.",
-        )
+    def add_arguments(self, parser):
+        parser.add_argument("--force", action="store_true", help="Reprocess products that already have specs")
+        parser.add_argument("--dry-run", action="store_true", help="Perform API calls without saving to DB")
+        parser.add_argument("--delay", type=float, default=0.5, help="Delay between products")
 
-    def handle(self, *args: Any, **options: Any) -> None:
-        category_filter = options["category"]
+    def handle(self, *args, **options):
         force = options["force"]
         dry_run = options["dry_run"]
         delay = options["delay"]
@@ -48,49 +26,19 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("--- DRY RUN MODE ACTIVATED ---"))
 
-        try:
-            self.stdout.write(self.style.HTTP_INFO("Initializing services..."))
-            model_name = os.environ.get("OPENROUTER_CLASSIFICATION_MODEL")
-            if not model_name:
-                raise ConfigurationError("OPENROUTER_CLASSIFICATION_MODEL env var is not set.")
+        # Initialize the specific specification service and its orchestrator
+        specs_service = ProductSpecificationsService()
+        specs_orchestrator = ProductSpecificationsOrchestrator(specs_service)
+        detail_orchestrator = TecnomegaDetailOrchestrator()
+        title_generator = TitleGeneratorService()
+        description_generator = DescriptionGeneratorService()
+        ai_content_generator = AIContentOrchestrator(title_generator=title_generator, description_generator=description_generator)
 
-            service = ProductEnrichmentService()
-            selector = EnrichmentCandidateSelector()
-            runner = EnrichmentRunner(service, model_name)
+        # Initialize the selector and the main batch orchestrator
+        selector = EnrichmentCandidateSelector()
+        orchestrator = EnrichmentOrchestrator(selector, specs_orchestrator, detail_orchestrator, ai_content_generator)
 
-        except ConfigurationError as e:
-            self.stdout.write(self.style.ERROR(f"Configuration Error: {e}"))
-            return
+        # Run the enrichment batch
+        stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
 
-        products_queryset = selector.get_queryset(category_filter, force, dry_run)
-        total_count = products_queryset.count()
-
-        if total_count == 0:
-            self.stdout.write(self.style.SUCCESS("No products need enrichment."))
-            return
-
-        self.stdout.write(self.style.SUCCESS(f"Found {total_count} products to enrich."))
-
-        processed_count = 0
-        success_count = 0
-
-        for product in products_queryset.iterator(chunk_size=100):
-            desc_preview = (product.description or "")[:60]
-            self.stdout.write(f"[{product.id}] {desc_preview}...")
-
-            success, specs = runner.process_product(product, dry_run)
-
-            if success and specs:
-                success_count += 1
-                cat_type = specs.get("category_type", "UNKNOWN")
-                self.stdout.write(self.style.SUCCESS(f"   -> Enriched as: {cat_type}"))
-                if dry_run:
-                    formatted_json = json.dumps(specs, indent=2)
-                    self.stdout.write(self.style.MIGRATE_HEADING(formatted_json))
-            else:
-                self.stdout.write(self.style.ERROR("   -> Failed to extract specs"))
-
-            processed_count += 1
-            time.sleep(delay)
-
-        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {processed_count} products ({success_count} successful)."))
+        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['processed']}/{stats['total']} products"))
