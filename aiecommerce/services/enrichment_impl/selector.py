@@ -25,6 +25,12 @@ class EnrichmentCandidateSelector:
 
         if not force:
             # Standard run: only include products with no specs or missing sku.
-            query = query.filter(Q(specs__isnull=True) | Q(specs={}) | Q(sku__isnull=True) | Q(seo_title__isnull=True) | Q(seo_description__isnull=True))
+            needs_enrichment = Q(specs__isnull=True) | Q(specs={}) | Q(sku__isnull=True) | Q(sku="") | Q(seo_title__isnull=True) | Q(seo_title="") | Q(seo_description__isnull=True) | Q(seo_description="")
+
+            query = query.filter(
+                is_active=True,
+                price__isnull=False,
+                category__isnull=False,
+            ).filter(needs_enrichment)
 
         return query.order_by("id")
