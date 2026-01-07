@@ -2,6 +2,9 @@ from django.core.management.base import BaseCommand
 
 from aiecommerce.services.enrichment_impl.orchestrator import EnrichmentOrchestrator
 from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSelector
+from aiecommerce.services.mercadolibre_impl.ai_content.description_generator import DescriptionGeneratorService
+from aiecommerce.services.mercadolibre_impl.ai_content.orchestrator import AIContentOrchestrator
+from aiecommerce.services.mercadolibre_impl.ai_content.title_generator import TitleGeneratorService
 from aiecommerce.services.scrape_tecnomega_impl.detail_orchestrator import TecnomegaDetailOrchestrator
 from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
 from aiecommerce.services.specifications_impl.service import ProductSpecificationsService
@@ -27,10 +30,13 @@ class Command(BaseCommand):
         specs_service = ProductSpecificationsService()
         specs_orchestrator = ProductSpecificationsOrchestrator(specs_service)
         detail_orchestrator = TecnomegaDetailOrchestrator()
+        title_generator = TitleGeneratorService()
+        description_generator = DescriptionGeneratorService()
+        ai_content_generator = AIContentOrchestrator(title_generator=title_generator, description_generator=description_generator)
 
         # Initialize the selector and the main batch orchestrator
         selector = EnrichmentCandidateSelector()
-        orchestrator = EnrichmentOrchestrator(selector, specs_orchestrator, detail_orchestrator)
+        orchestrator = EnrichmentOrchestrator(selector, specs_orchestrator, detail_orchestrator, ai_content_generator)
 
         # Run the enrichment batch
         stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)

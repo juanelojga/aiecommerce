@@ -25,6 +25,6 @@ class EnrichmentCandidateSelector:
 
         if not force:
             # Standard run: only include products with no specs or missing sku.
-            query = query.filter(Q(specs__isnull=True) | Q(specs={}) | Q(sku__isnull=True))
+            query = query.filter(Q(specs__isnull=True) | Q(specs={}) | Q(sku__isnull=True) | Q(seo_title__isnull=True) | Q(seo_description__isnull=True))
 
         return query.order_by("id")

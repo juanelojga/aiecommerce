@@ -3,6 +3,7 @@ import time
 import uuid
 
 from aiecommerce.services.enrichment_impl.selector import EnrichmentCandidateSelector
+from aiecommerce.services.mercadolibre_impl.ai_content.orchestrator import AIContentOrchestrator
 from aiecommerce.services.scrape_tecnomega_impl.detail_orchestrator import TecnomegaDetailOrchestrator
 from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
 
@@ -20,10 +21,12 @@ class EnrichmentOrchestrator:
         selector: EnrichmentCandidateSelector,
         specs_orchestrator: ProductSpecificationsOrchestrator,
         detail_orchestrator: TecnomegaDetailOrchestrator,
+        ai_content_generator: AIContentOrchestrator,
     ):
         self.selector = selector
         self.specs_orchestrator = specs_orchestrator
         self.detail_orchestrator = detail_orchestrator
+        self.ai_content_generator = ai_content_generator
 
     def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, int]:
         """
@@ -74,8 +77,16 @@ class EnrichmentOrchestrator:
             else:
                 logger.info(f"Product {product.id}: Skipping enrichment (Specs already present).")
 
+            if force or not product.seo_title or not product.seo_description:
+                try:
+                    self.ai_content_generator.process_product_content(product, dry_run, force)
+                except Exception as e:
+                    logger.error(f"Product {product.id}: AI enrichment crashed - {e}", exc_info=True)
+            else:
+                logger.info(f"Product {product.id}: Skipping enrichment (Specs already present).")
+
             if delay > 0:
                 time.sleep(delay)
 
-        logger.info(f"Batch completed: {stats['scraped']} scraped, {stats['enriched']} enriched.")
+        logger.info(f"Batch completed: {stats['scraped']} scraped, {stats['enriched']} enriched")
         return stats
