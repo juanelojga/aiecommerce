@@ -67,7 +67,7 @@ class EnrichmentOrchestrator:
             # --- STEP 2: AI Enrichment ---
             # Condition: Only run if the product has no specs or force is True
             # Note: product.specs defaults to an empty dict {} if not set
-            if force or not product.specs:
+            if force or not product.specs or product.specs == {}:
                 try:
                     enrich_success, _ = self.specs_orchestrator.process_product(product, dry_run)
                     if enrich_success:
@@ -83,7 +83,7 @@ class EnrichmentOrchestrator:
                 except Exception as e:
                     logger.error(f"Product {product.id}: AI enrichment crashed - {e}", exc_info=True)
             else:
-                logger.info(f"Product {product.id}: Skipping enrichment (Specs already present).")
+                logger.info(f"Product {product.id}: Skipping SEO enrichment (SEO content already present).")
 
             if delay > 0:
                 time.sleep(delay)

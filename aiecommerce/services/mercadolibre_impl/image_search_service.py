@@ -81,15 +81,14 @@ class ImageSearchService:
         image_urls: List[str] = []
         start_index = 1
 
-        if not self.service:
-            logger.error("ImageSearchService.service is not initialized.")
-            return []
-
         # Google Custom Search API 'start' parameter max value is usually around 100
         while len(image_urls) < image_search_count and start_index <= 100:
             num_to_fetch = min(image_search_count - len(image_urls), 10)
 
             try:
+                if self.service is None:
+                    break
+
                 result = self.service.cse().list(q=query, cx=self.search_engine_id, searchType="image", imgSize="HUGE", num=num_to_fetch, start=start_index).execute()
 
                 items = result.get("items", [])
