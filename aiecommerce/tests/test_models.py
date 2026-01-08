@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 
 from aiecommerce.tests.factories import (
+    ProductDetailScrapeFactory,
     ProductImageFactory,
     ProductMasterFactory,
     ProductRawPDFFactory,
@@ -71,9 +72,46 @@ def test_product_image_str():
 
 
 def test_product_master_price_precision():
-    """Assert that 'price_distributor' retains 2-decimal precision."""
+    """Assert that 'price' retains 2-decimal precision."""
     price = Decimal("12345.67")
     master_product = ProductMasterFactory(price=price)
     master_product.refresh_from_db()
     assert master_product.price == price
     assert master_product.price.as_tuple().exponent == -2
+
+
+def test_product_master_json_fields():
+    """Verify JSON fields in ProductMaster."""
+    specs = {"Weight": "1.2kg", "Color": "Silver"}
+    master_product = ProductMasterFactory(specs=specs)
+    master_product.refresh_from_db()
+    assert master_product.specs == specs
+
+
+def test_product_detail_scrape_str():
+    """Verify the __str__ method for ProductDetailScrape."""
+    master = ProductMasterFactory(code="SKU-DETAIL")
+    scrape = ProductDetailScrapeFactory(product=master)
+    expected_str = f"Detail Scrape for SKU-DETAIL at {scrape.created_at}"
+    assert str(scrape) == expected_str
+
+
+def test_product_detail_scrape_json_fields():
+    """Verify JSON fields in ProductDetailScrape."""
+    attributes = {"Brand": "Test", "Model": "X1"}
+    image_urls = ["http://img1.com", "http://img2.com"]
+    scrape = ProductDetailScrapeFactory(attributes=attributes, image_urls=image_urls)
+    scrape.refresh_from_db()
+    assert scrape.attributes == attributes
+    assert scrape.image_urls == image_urls
+
+
+def test_product_master_additional_fields():
+    """Verify additional fields in ProductMaster."""
+    master = ProductMasterFactory(sku="SKU-MASTER-001", is_for_mercadolibre=True, seo_title="Best Product Ever", gtin="1234567890123", gtin_source="google_search")
+    master.refresh_from_db()
+    assert master.sku == "SKU-MASTER-001"
+    assert master.is_for_mercadolibre is True
+    assert master.seo_title == "Best Product Ever"
+    assert master.gtin == "1234567890123"
+    assert master.gtin_source == "google_search"
