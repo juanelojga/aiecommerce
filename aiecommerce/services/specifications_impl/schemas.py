@@ -9,6 +9,7 @@ class BaseProductSpecs(BaseModel):
     model_name: Optional[str] = Field(None, description="The specific model identifier (e.g., Galaxy S24, MacBook Pro, PRO Q670M-C-CSM)")
     part_number: Optional[str] = Field(None, description="The SKU, MPN, or specific part number if found")
     color: Optional[str] = Field(None, description="Product color")
+    normalized_name: Optional[str] = Field(None, description="A clean, marketable name following format: [Brand] [Line] [Model] [Key Specs]")
 
 
 # --- 1. Computers & Laptops ---

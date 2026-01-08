@@ -71,6 +71,11 @@ class ProductSpecificationsService:
                             "Analyze the product text and extract technical specifications into the correct category structure. "
                             "Select the most appropriate schema from the list provided. "
                             "If specific details are missing, leave them as null."
+                            "RULES FOR MODEL & NAME:\n"
+                            "1. model_name: Extract ONLY the specific identifier (e.g., 'G3 15 3500').\n"
+                            "2. normalized_name: Construct a clean name: [Brand] [Product Line] [Model] [Main Spec]. "
+                            "Example: 'Dell Latitude 5430 Intel Core i5 16GB'.\n"
+                            "3. Remove distributor fluff like 'Not.', 'Cop.', or warranty notes."
                         ),
                     },
                     {"role": "user", "content": text_to_analyze},

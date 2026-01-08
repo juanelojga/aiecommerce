@@ -67,6 +67,9 @@ class ProductMaster(models.Model):
     gtin = models.CharField(max_length=14, null=True, blank=True, db_index=True, help_text="Verified EAN/GTIN/UPC code.")
     gtin_source = models.CharField(max_length=50, null=True, blank=True, help_text="Strategy used: google_search, ean_search_api, etc.")
 
+    normalized_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Standardized name: [Brand] [Line] [Model] [Specs]")
+    model_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="The specific model identifier (e.g., ProBook 440 G10).")
+
     def __str__(self):
         has_images = self.images.exists()
         return f"Master: {self.code} - {self.description or 'No description'} (Images: {'Yes' if has_images else 'No'})"

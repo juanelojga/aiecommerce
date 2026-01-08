@@ -108,10 +108,58 @@ def test_product_detail_scrape_json_fields():
 
 def test_product_master_additional_fields():
     """Verify additional fields in ProductMaster."""
-    master = ProductMasterFactory(sku="SKU-MASTER-001", is_for_mercadolibre=True, seo_title="Best Product Ever", gtin="1234567890123", gtin_source="google_search")
+    master = ProductMasterFactory(
+        sku="SKU-MASTER-001", is_for_mercadolibre=True, seo_title="Best Product Ever", gtin="1234567890123", gtin_source="google_search", normalized_name="Apple MacBook Pro M3 16GB 512GB", model_name="MacBook Pro M3"
+    )
     master.refresh_from_db()
     assert master.sku == "SKU-MASTER-001"
     assert master.is_for_mercadolibre is True
     assert master.seo_title == "Best Product Ever"
     assert master.gtin == "1234567890123"
     assert master.gtin_source == "google_search"
+    assert master.normalized_name == "Apple MacBook Pro M3 16GB 512GB"
+    assert master.model_name == "MacBook Pro M3"
+
+
+def test_product_master_stock_fields():
+    """Verify stock fields in ProductMaster."""
+    master = ProductMasterFactory(stock_principal="Si", stock_colon="No", stock_sur="5", stock_gye_norte="Si", stock_gye_sur="No")
+    master.refresh_from_db()
+    assert master.stock_principal == "Si"
+    assert master.stock_colon == "No"
+    assert master.stock_sur == "5"
+    assert master.stock_gye_norte == "Si"
+    assert master.stock_gye_sur == "No"
+
+
+def test_product_raw_pdf_fields():
+    """Verify other fields in ProductRawPDF."""
+    pdf = ProductRawPDFFactory(distributor_price=Decimal("99.99"), category_header="Laptops")
+    pdf.refresh_from_db()
+    assert pdf.distributor_price == Decimal("99.99")
+    assert pdf.category_header == "Laptops"
+
+
+def test_product_raw_web_fields():
+    """Verify other fields in ProductRawWeb."""
+    web = ProductRawWebFactory(stock_principal="Si", scrape_session_id="session-123", search_term="test-search")
+    web.refresh_from_db()
+    assert web.stock_principal == "Si"
+    assert web.scrape_session_id == "session-123"
+    assert web.search_term == "test-search"
+
+
+def test_product_image_fields():
+    """Verify other fields in ProductImage."""
+    image = ProductImageFactory(is_processed=True)
+    image.refresh_from_db()
+    assert image.is_processed is True
+
+
+def test_product_detail_scrape_fields():
+    """Verify other fields in ProductDetailScrape."""
+    scrape = ProductDetailScrapeFactory(price=Decimal("150.50"), currency="EUR", scrape_session_id="scrape-sess-456")
+    scrape.refresh_from_db()
+    assert scrape.price == Decimal("150.50")
+    assert scrape.currency == "EUR"
+    assert scrape.scrape_session_id == "scrape-sess-456"

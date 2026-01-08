@@ -8,8 +8,10 @@ from aiecommerce.tests.factories import ProductMasterFactory
 
 
 class _SpecStub:
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, model_name: str = "Test Model", normalized_name: str = "Test Brand Model"):
         self._data = data
+        self.model_name = model_name
+        self.normalized_name = normalized_name
 
     def model_dump(self, exclude_none: bool = False):  # mimic pydantic API used by the runner
         return self._data
@@ -70,7 +72,9 @@ def test_process_product_success_persists_and_uses_update_fields():
         # Ensure save called once with specific update_fields
         save_spy.assert_called_once()
         kwargs = save_spy.call_args.kwargs
-        assert kwargs.get("update_fields") == ["specs"]
+        update_fields = kwargs.get("update_fields")
+        assert isinstance(update_fields, list)
+        assert set(update_fields) == {"specs", "model_name", "normalized_name"}
 
 
 @pytest.mark.django_db
