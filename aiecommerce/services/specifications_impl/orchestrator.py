@@ -40,15 +40,19 @@ class ProductSpecificationsOrchestrator:
                 logger.warning(f"Product {product.id}: Failed to extract specs (no data returned).")
                 return False, None
 
-            specs_dict = extracted_specs.model_dump(exclude_none=True)
-            product.specs = specs_dict
+            if extracted_specs:
+                # Extract direct fields for better database access
+                product.model_name = extracted_specs.model_name
+                product.normalized_name = extracted_specs.normalized_name
 
-            if not dry_run:
-                product.save(update_fields=["specs"])
-            else:
-                logger.info(f"DRY RUN: Obtained specs for product {product.id}: {specs_dict}")
+                # Save full JSON as well
+                specs_dict = extracted_specs.model_dump(exclude_none=True)
+                product.specs = specs_dict
 
-            return True, specs_dict
+                if not dry_run:
+                    product.save(update_fields=["specs", "model_name", "normalized_name"])
+                return True, specs_dict
+            return False, None
 
         except EnrichmentError as e:
             logger.error(f"Product {product.id}: Service Error - {e}")
