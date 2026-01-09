@@ -1,11 +1,10 @@
-import os
 import unittest
 from unittest.mock import MagicMock, patch
 
 import instructor
 
 from aiecommerce.models import ProductMaster
-from aiecommerce.services.mercadolibre_impl.ai_content.title_generator import (
+from aiecommerce.services.ai_content_generator_impl import (
     MAX_TITLE_LENGTH,
     AITitle,
     TitleGeneratorService,
@@ -23,26 +22,11 @@ class TestTitleGeneratorService(unittest.TestCase):
 
     def test_init_with_client(self):
         service = TitleGeneratorService(client=self.mock_client)
-        self.assertEqual(service._client, self.mock_client)
+        self.assertEqual(service.client, self.mock_client)
 
-    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key", "OPENROUTER_BASE_URL": "https://test.url"})
-    @patch("aiecommerce.services.mercadolibre_impl.ai_content.title_generator.OpenAI")
-    @patch("instructor.from_openai")
-    def test_init_without_client_success(self, mock_from_openai, mock_openai):
-        mock_from_openai.return_value = self.mock_client
-        service = TitleGeneratorService()
-        self.assertEqual(service._client, self.mock_client)
-        mock_openai.assert_called_once_with(api_key="test_key", base_url="https://test.url")
-
-    @patch.dict(os.environ, {}, clear=True)
-    def test_init_without_client_failure(self):
-        with self.assertRaises(ValueError) as cm:
-            TitleGeneratorService()
-        self.assertIn("OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be set", str(cm.exception))
-
-    @patch("os.getenv")
-    def test_generate_title_success(self, mock_getenv):
-        mock_getenv.return_value = "test-model"
+    @patch("aiecommerce.services.ai_content_generator_impl.title_generator.settings")
+    def test_generate_title_success(self, mock_settings):
+        mock_settings.OPENROUTER_TITLE_GENERATION_MODEL = "test-model"
 
         # Mock the AI response
         mock_response = MagicMock(spec=AITitle)

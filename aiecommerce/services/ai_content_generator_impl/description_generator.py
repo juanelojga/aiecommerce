@@ -17,7 +17,7 @@ class DescriptionGeneratorService:
         Initializes the service, creating a client if not provided.
 
         Args:
-            client: An optional pre-configured instructor client. If None, a new
+            client: A pre-configured instructor client. If None, a new
                     client is created using environment variables.
 
         Raises:

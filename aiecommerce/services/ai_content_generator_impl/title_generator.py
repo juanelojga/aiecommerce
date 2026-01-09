@@ -1,10 +1,8 @@
 import json
 import logging
-import os
-from typing import Optional
 
 import instructor
-from openai import OpenAI
+from django.conf import settings
 from pydantic import BaseModel, Field
 
 from aiecommerce.models import ProductMaster
@@ -44,24 +42,14 @@ class AITitle(BaseModel):
 class TitleGeneratorService:
     """A service to generate SEO-friendly titles using an AI model."""
 
-    def __init__(self, client: Optional[instructor.Instructor] = None):
+    def __init__(self, client: instructor.Instructor):
         """
         Initializes the service.
 
         Args:
-            client: An optional `instructor.Instructor` client. If not provided,
-                    a new one will be created using environment variables.
+            client: A `instructor.Instructor` client.
         """
-        if client:
-            self._client = client
-        else:
-            api_key = os.environ.get("OPENROUTER_API_KEY")
-            base_url = os.getenv("OPENROUTER_BASE_URL")
-
-            if not api_key or not base_url:
-                raise ValueError("OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be set in environment variables if a client is not provided.")
-
-            self._client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
+        self.client = client
 
     def generate_title(self, product: ProductMaster) -> str:
         """
@@ -84,8 +72,8 @@ class TitleGeneratorService:
         try:
             prompt = SYSTEM_PROMPT.format(product_data=json.dumps(product_data, indent=2))
 
-            response = self._client.chat.completions.create(
-                model=os.getenv("OPENROUTER_TITLE_GENERATION_MODEL"),
+            response = self.client.chat.completions.create(
+                model=settings.OPENROUTER_TITLE_GENERATION_MODEL,
                 response_model=AITitle,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
