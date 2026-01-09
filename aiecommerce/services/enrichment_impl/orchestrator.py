@@ -30,29 +30,37 @@ class EnrichmentOrchestrator:
         queryset = self.selector.get_queryset(force, dry_run)
 
         total = queryset.count()
-        stats = {"total": total, "processed": 0, "scraped": 0, "enriched": 0}
+        stats = {"total": total, "enriched": 0}
 
         if total == 0:
             logger.info("No products need enrichment.")
             return stats
 
-        batch_session_id = f"enrich-batch-{uuid.uuid4().hex[:8]}"
+        batch_session_id = uuid.uuid4().hex[:8]
         logger.info(f"Starting enrichment batch {batch_session_id} for {total} products.")
 
         for product in queryset.iterator(chunk_size=100):
             # --- STEP: AI Enrichment ---
-            if force or not product.specs or product.specs == {} or not product.normalized_name or not product.model_name:
-                try:
-                    enrich_success, _ = self.specs_orchestrator.process_product(product, dry_run)
-                    if enrich_success:
-                        stats["enriched"] += 1
-                except Exception as e:
-                    logger.error(f"Product {product.id}: AI enrichment crashed - {e}", exc_info=True)
-            else:
-                logger.info(f"Product {product.id}: Skipping enrichment (Specs already present).")
+            if not force and hasattr(product, "specs") and product.specs:
+                self.logger_output(f"Product {product.code}: Skipping enrichment (specs already present)")
+                continue
+
+            try:
+                enrich_success, _ = self.specs_orchestrator.process_product(product, dry_run)
+                if enrich_success:
+                    stats["enriched"] += 1
+            except Exception as e:
+                self.logger_output(f"Product {product.code}: AI enrichment crashed - {e}")
 
             if delay > 0:
                 time.sleep(delay)
 
-        logger.info(f"Batch completed: {stats['scraped']} scraped, {stats['enriched']} enriched")
+        logger.info(f"Batch completed: {stats['enriched']} processed")
         return stats
+
+    def logger_output(self, message: str, level: str = "info"):
+        if level == "error":
+            logger.error(message)
+        else:
+            logger.info(message)
+        print(message)

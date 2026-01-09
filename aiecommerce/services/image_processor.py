@@ -61,6 +61,6 @@ class ImageProcessorService:
         """Processes an image using the transformer and analyzer."""
         return self.transformer.transform(image_bytes, with_background_removal=with_background_removal, background_analyzer=self.analyzer)
 
-    def upload_to_s3(self, image_bytes: bytes, product_id: int, image_name: str) -> str | None:
+    def upload_to_s3(self, image_bytes: bytes, product_code: str, image_name: str) -> str | None:
         """Uploads an image to storage and returns the public URL."""
-        return self.storage.upload(image_bytes, product_id, image_name)
+        return self.storage.upload(image_bytes, product_code, image_name)
