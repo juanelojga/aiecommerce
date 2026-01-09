@@ -67,8 +67,6 @@ class AIContentOrchestrator:
             results: Dict[str, Any] = {"product_id": product.pk, "updated": False, "generated_fields": []}
             should_update = False
 
-            print(product.code)
-
             try:
                 if force or not product.seo_title:
                     logger.info("Generating SEO title for product %s.", product.pk)
