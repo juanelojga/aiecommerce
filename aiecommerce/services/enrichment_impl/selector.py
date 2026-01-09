@@ -23,14 +23,15 @@ class EnrichmentCandidateSelector:
             # For a dry run, we fetch a small, predictable sample.
             return query.order_by("id")[:3]
 
+        query = query.filter(
+            is_active=True,
+            price__isnull=False,
+            category__isnull=False,
+        )
+
         if not force:
             # Standard run: only include products with no specs or missing sku.
-            needs_enrichment = Q(specs__isnull=True) | Q(specs={}) | Q(sku__isnull=True) | Q(sku="") | Q(seo_title__isnull=True) | Q(seo_title="") | Q(seo_description__isnull=True) | Q(seo_description="")
-
-            query = query.filter(
-                is_active=True,
-                price__isnull=False,
-                category__isnull=False,
-            ).filter(needs_enrichment)
+            needs_enrichment = Q(specs__isnull=True) | Q(specs={}) | Q(normalized_name__isnull=True) | Q(normalized_name="") | Q(model_name__isnull=True) | Q(model_name="")
+            query = query.filter(needs_enrichment)
 
         return query.order_by("id")
