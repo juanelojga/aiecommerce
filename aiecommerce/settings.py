@@ -170,6 +170,9 @@ GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")
 GOOGLE_SEARCH_ENGINE_ID = env("GOOGLE_SEARCH_ENGINE_ID", default="")
 IMAGE_SEARCH_COUNT = env.int("IMAGE_SEARCH_COUNT", default=10)
 
+# --- EAN Search ---
+EAN_SEARCH_TOKEN = env("EAN_SEARCH_TOKEN", default="")
+
 # --- Mercado Price Engine ---
 MERCADOLIBRE_IVA_RATE = env("MERCADOLIBRE_IVA_RATE", cast=Decimal, default=Decimal("0.15"))
 MERCADOLIBRE_COMMISSION_RATE = env("MERCADOLIBRE_COMMISSION_RATE", cast=Decimal, default=Decimal("0.10"))

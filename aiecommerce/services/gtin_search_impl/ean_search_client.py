@@ -1,5 +1,8 @@
 import logging
+from typing import Any, Dict, Generator
 
+import requests
+from django.conf import settings
 from eansearch import EANSearch
 
 logger = logging.getLogger(__name__)
@@ -10,30 +13,57 @@ class EANSearchClient:
     Implements the Tier 2 GTIN discovery strategy via the ean-search.org API.
     """
 
-    def __init__(self, api_token: str):
-        self.client = EANSearch(token=api_token)
+    def __init__(self) -> None:
+        self.client = EANSearch(token=settings.EAN_SEARCH_TOKEN)
 
-    def find_gtin(self, description: str) -> str | None:
+    def search(self, query: str) -> Generator[Dict[str, Any], None, None]:
         """
-        Searches for a GTIN (EAN) for a given product description.
+        Yields individual products from the lazy search.
+        """
+        for page in self.search_products_lazy(query):
+            for product in page.get("productlist", []):
+                yield product
+
+    def search_products_lazy(self, query: str) -> Generator[Dict[str, Any], None, None]:
+        """
+        Searches for products using the given query and yields results page by page.
 
         Args:
-            description: The product description to search for.
+            query: The search query.
 
-        Returns:
-            The EAN string if found, otherwise None.
+        Yields:
+            A dictionary representing a page of product results.
         """
-        try:
-            results = self.client.productSearch(description)
-            if results and len(results) > 0:
-                return results[0].get("ean")
-            logger.info("No results from ean-search for description: %s", description)
-            return None
-        except Exception as e:
-            logger.error(
-                "Error calling ean-search API for description '%s': %s",
-                description,
-                e,
-                exc_info=True,
-            )
-            return None
+        page = 0
+        while True:
+            try:
+                logger.info("Fetching page %d for query: '%s'", page, query)
+                # EANSearch class has productSearch(self, name, page=0, lang=1)
+                product_list = self.client.productSearch(query, page=page)
+
+                # The eansearch library 1.8.3 productSearch returns only the product list.
+                # If we have products, we yield them and try the next page.
+                # If productSearch returns an empty list or something else, we stop.
+                if not product_list or not isinstance(product_list, list):
+                    break
+
+                response = {"productlist": product_list}
+                yield response
+
+                # Arbitrary limit to avoid infinite loops if API always returns something
+                if page > 10:
+                    break
+
+                page += 1
+            except requests.exceptions.Timeout:
+                logger.warning("Timeout occurred during eansearch for query '%s' on page %d", query, page)
+                break
+            except Exception as e:
+                logger.error(
+                    "An error occurred during eansearch for query '%s' on page %d: %s",
+                    query,
+                    page,
+                    e,
+                    exc_info=True,
+                )
+                break
