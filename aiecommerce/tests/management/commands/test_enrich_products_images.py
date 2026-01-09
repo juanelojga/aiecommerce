@@ -21,7 +21,7 @@ def test_enrich_products_images_no_products(capsys):
 
 
 @pytest.mark.django_db
-@patch("aiecommerce.management.commands.enrich_products_images.process_product_image")
+@patch("aiecommerce.services.enrichment_images_impl.orchestrator.process_product_image")
 def test_enrich_products_images_dry_run(mock_process_product_image, capsys):
     """Test dry-run mode."""
     # Create products without images
@@ -40,12 +40,12 @@ def test_enrich_products_images_dry_run(mock_process_product_image, capsys):
 
 
 @pytest.mark.django_db
-@patch("aiecommerce.management.commands.enrich_products_images.process_product_image")
+@patch("aiecommerce.services.enrichment_images_impl.orchestrator.process_product_image")
 @patch("time.sleep", return_value=None)  # Speed up tests
 def test_enrich_products_images_normal_run(mock_sleep, mock_process_product_image, capsys):
     """Test normal run enqueuing tasks."""
-    p1 = baker.make(ProductMaster, is_active=True)
-    p2 = baker.make(ProductMaster, is_active=True)
+    p1 = baker.make(ProductMaster, is_active=True, code="CODE1")
+    p2 = baker.make(ProductMaster, is_active=True, code="CODE2")
 
     # One active with image (should be ignored)
     p3 = baker.make(ProductMaster, is_active=True)
@@ -67,11 +67,11 @@ def test_enrich_products_images_normal_run(mock_sleep, mock_process_product_imag
 
 
 @pytest.mark.django_db
-@patch("aiecommerce.management.commands.enrich_products_images.process_product_image")
+@patch("aiecommerce.services.enrichment_images_impl.orchestrator.process_product_image")
 @patch("time.sleep", return_value=None)
 def test_enrich_products_images_enqueue_failure(mock_sleep, mock_process_product_image, capsys):
     """Test handling of individual task enqueue failure."""
-    p1 = baker.make(ProductMaster, is_active=True)
+    p1 = baker.make(ProductMaster, is_active=True, code="CODE1")
 
     # Mock delay to raise an exception
     mock_process_product_image.delay.side_effect = Exception("Celery error")

@@ -50,7 +50,7 @@ class EnrichmentOrchestrator:
                 if enrich_success:
                     stats["enriched"] += 1
             except Exception as e:
-                self.logger_output(f"Product {product.code}: AI enrichment crashed - {e}")
+                self.logger_output(f"Product {product.code}: AI enrichment crashed - {e}", level="error")
 
             if delay > 0:
                 time.sleep(delay)

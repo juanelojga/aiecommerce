@@ -21,7 +21,7 @@ def test_process_product_image_success(mock_image_search_service, mock_image_pro
     """
     # Arrange
     caplog.set_level(logging.INFO)
-    product = baker.make(ProductMaster)
+    product = baker.make(ProductMaster, code="PROD001")
     fake_urls = [f"http://example.com/image-{i}.jpg" for i in range(5)]
     raw_image_data = b"raw_image_data"
 
@@ -70,7 +70,7 @@ def test_process_product_image_no_images_found(mock_image_search_service):
     if the image search returns no results.
     """
     # Arrange
-    product = baker.make(ProductMaster)
+    product = baker.make(ProductMaster, code="PROD003")
 
     mock_search_instance = mock_image_search_service.return_value
     mock_search_instance.build_search_query.return_value = "a search query"
@@ -94,7 +94,7 @@ def test_process_product_image_download_fails(mock_image_search_service, mock_im
     and does not stop the processing of other images.
     """
     # Arrange
-    product = baker.make(ProductMaster)
+    product = baker.make(ProductMaster, code="PROD002")
     fake_urls = [f"http://example.com/image-{i}.jpg" for i in range(3)]
 
     mock_search_instance = mock_image_search_service.return_value

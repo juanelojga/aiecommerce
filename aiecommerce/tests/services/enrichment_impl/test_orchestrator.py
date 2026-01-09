@@ -59,7 +59,7 @@ class TestEnrichmentOrchestrator:
         assert stats["total"] == 1
         assert stats["enriched"] == 0
         assert self.specs_orchestrator.process_product.assert_not_called
-        assert f"Product {p1.id}: Skipping enrichment" in caplog.text
+        assert f"Product {p1.code}: Skipping enrichment" in caplog.text
 
     @patch("time.sleep", return_value=None)
     def test_run_force_reenriches_even_with_specs(self, mock_sleep):
@@ -92,7 +92,7 @@ class TestEnrichmentOrchestrator:
             stats = self.orchestrator.run(force=False, dry_run=False)
 
         assert stats["enriched"] == 0
-        assert f"Product {p1.id}: AI enrichment crashed" in caplog.text
+        assert f"Product {p1.code}: AI enrichment crashed" in caplog.text
 
     @patch("time.sleep", return_value=None)
     def test_run_passes_dry_run_flag(self, mock_sleep):
