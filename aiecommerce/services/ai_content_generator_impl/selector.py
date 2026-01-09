@@ -3,7 +3,7 @@ from django.db.models import Q, QuerySet
 from aiecommerce.models import ProductMaster
 
 
-class EnrichmentImagesCandidateSelector:
+class AIContentGeneratorCandidateSelector:
     """Encapsulates all filtering logic for product enrichment."""
 
     def get_queryset(self, force: bool, dry_run: bool) -> QuerySet[ProductMaster, ProductMaster]:
@@ -28,7 +28,7 @@ class EnrichmentImagesCandidateSelector:
             return query.order_by("id")[:3]
 
         if not force:
-            needs_enrichment = Q(images__isnull=True)
+            needs_enrichment = Q(seo_title__isnull=True) | Q(seo_description__isnull=True) | Q(seo_title="") | Q(seo_description="")
             query = query.filter(needs_enrichment)
 
         return query.order_by("id")

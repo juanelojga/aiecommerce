@@ -2,11 +2,9 @@
 
 import json
 import logging
-import os
-from typing import Optional
 
 import instructor
-from openai import OpenAI
+from django.conf import settings
 
 from aiecommerce.models import ProductMaster
 
@@ -14,7 +12,7 @@ from aiecommerce.models import ProductMaster
 class DescriptionGeneratorService:
     """Service to generate product descriptions using an AI model for Mercado Libre."""
 
-    def __init__(self, client: Optional[instructor.Instructor] = None) -> None:
+    def __init__(self, client: instructor.Instructor) -> None:
         """
         Initializes the service, creating a client if not provided.
 
@@ -26,14 +24,7 @@ class DescriptionGeneratorService:
             ValueError: If the required environment variables for the client
                         are not set.
         """
-        if client:
-            self.client = client
-        else:
-            api_key = os.environ.get("OPENROUTER_API_KEY")
-            base_url = os.environ.get("OPENROUTER_BASE_URL")
-            if not api_key or not base_url:
-                raise ValueError("OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be set")
-            self.client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
+        self.client = client
         self.logger = logging.getLogger(__name__)
 
     def generate_description(self, product: ProductMaster) -> str:
@@ -61,7 +52,7 @@ class DescriptionGeneratorService:
         }
         product_data_json = json.dumps(product_data_dict, indent=2, ensure_ascii=False)
 
-        model_name = os.getenv("OPENROUTER_TITLE_GENERATION_MODEL", "openai/gpt-3.5-turbo")
+        model_name = settings.OPENROUTER_DESCRIPTION_GENERATION_MODEL
 
         system_prompt = self._get_system_prompt(product_data=product_data_json)
         self.logger.info(
