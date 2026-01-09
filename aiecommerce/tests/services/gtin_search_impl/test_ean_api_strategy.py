@@ -119,6 +119,17 @@ class TestEANSearchAPIStrategy:
             assert gtin == "EAN1"
             mock_cache.set.assert_not_called()
 
+    def test_process_results_golden_match_not_live_no_caching(self, strategy, mock_matcher):
+        product = ProductMaster(sku="SKU1")
+        results = [{"name": "Golden Product", "ean": "GOLDEN123"}]
+        mock_matcher.calculate_confidence_score.return_value = (0.99, None)
+
+        with patch("aiecommerce.services.gtin_search_impl.ean_api_strategy.cache") as mock_cache:
+            gtin = strategy._process_results(product, results, is_live_search=False, cache_key="some_key")
+
+            assert gtin == "GOLDEN123"
+            mock_cache.set.assert_not_called()
+
     def test_process_results_empty_results(self, strategy):
         product = ProductMaster(sku="SKU1")
         results: list[dict] = []
@@ -163,3 +174,36 @@ class TestEANSearchAPIStrategy:
 
             assert gtin is None
             assert mock_execute.call_count == 2
+
+    def test_search_for_gtin_short_model_name_only_sku(self, strategy):
+        # Model name "HP" is too short (<= 2), so _get_query(use_sku=False) returns None
+        product = ProductMaster(sku="SKU_HP", model_name="HP")
+
+        with patch.object(strategy, "_execute_search") as mock_execute:
+            mock_execute.return_value = "GTIN_FROM_SKU"
+
+            gtin = strategy.search_for_gtin(product)
+
+            assert gtin == "GTIN_FROM_SKU"
+            # Should have skipped model search and gone straight to SKU search
+            assert mock_execute.call_count == 1
+            assert mock_execute.call_args[0][1] == "SKU_HP"
+
+    def test_get_query_no_specs(self, strategy):
+        product = ProductMaster(model_name="Inspiron 15", specs=None)
+        assert strategy._get_query(product, use_sku=False) == "Inspiron 15"
+
+    def test_process_results_with_hard_gate_penalty_logging(self, strategy, mock_matcher):
+        # This test ensures the logging logic for hard-gate penalty is hit
+        product = ProductMaster(sku="SKU1")
+        results = [{"name": "Penalty Product", "ean": "EAN1"}]
+        # score 0.0 and critical_field "manufacturer"
+        mock_matcher.calculate_confidence_score.return_value = (0.0, "manufacturer")
+
+        with patch("aiecommerce.services.gtin_search_impl.ean_api_strategy.logger") as mock_logger:
+            with patch("aiecommerce.services.gtin_search_impl.ean_api_strategy.cache"):
+                strategy._process_results(product, results, is_live_search=True, cache_key="some_key")
+
+                # Check if the penalty message was logged
+                penalty_log_called = any("Hard-gate penalty by: manufacturer" in call.args[0] for call in mock_logger.info.call_args_list)
+                assert penalty_log_called
