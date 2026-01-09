@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings  # Import settings
 from django.core.cache import cache
 from django.core.management.base import BaseCommand, CommandParser
 
@@ -25,11 +26,15 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options) -> None:
+        # Display current cache backend
+        cache_backend = settings.CACHES["default"]["BACKEND"]
+        self.stdout.write(self.style.NOTICE(f"Current Cache Backend: {cache_backend}"))
+
         product_code = options["product_code"]
         clear_cache = options["clear_cache"]
 
         try:
-            product = ProductMaster.objects.get(sku=product_code)
+            product = ProductMaster.objects.get(code=product_code)
         except ProductMaster.DoesNotExist:
             self.stdout.write(self.style.ERROR(f"Product with SKU '{product_code}' not found."))
             return
@@ -38,7 +43,7 @@ class Command(BaseCommand):
 
         # Instantiate dependencies
         client = EANSearchClient()
-        matcher = ProductMatcher()
+        matcher = ProductMatcher(product)
         strategy = EANSearchAPIStrategy(client=client, matcher=matcher)
 
         if clear_cache:

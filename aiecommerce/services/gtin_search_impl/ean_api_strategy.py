@@ -97,7 +97,7 @@ class EANSearchAPIStrategy:
         - If no golden match is found after checking all results, it caches the full list.
         - Finally, it returns the best candidate that meets the minimum threshold.
         """
-        best_candidate_gtin: Optional[str] = None
+        best_candidate_ean: Optional[str] = None
         best_score = 0.0
         processed_results_for_cache: List[APIResult] = []
 
@@ -109,20 +109,23 @@ class EANSearchAPIStrategy:
             if is_live_search:
                 processed_results_for_cache.append(result)
 
-            score = self.matcher.calculate_confidence(result.get("name", ""), product.specs or {})
+            score, critical_field = self.matcher.calculate_confidence_score(result.get("name", ""))
 
-            logger.info("  - Candidate: '%s' (GTIN: %s), Score: %.2f", result.get("name"), result.get("gtin"), score)
+            log_message = f"  - Candidate: '{result.get('name')}' (GTIN: {result.get('ean')}), Score: {score:.2f}"
+            if score == 0.0 and critical_field:
+                log_message += f" (Hard-gate penalty by: {critical_field})"
+            logger.info(log_message)
 
             if score > self.GOLDEN_MATCH_THRESHOLD:
                 logger.info("    ^ Golden Match found!")
                 # Golden Match found, stop immediately and return.
                 if is_live_search and processed_results_for_cache:
                     cache.set(cache_key, processed_results_for_cache, timeout=7 * 24 * 60 * 60)
-                return result.get("gtin")
+                return result.get("ean")
 
             if score > best_score:
                 best_score = score
-                best_candidate_gtin = result.get("gtin")
+                best_candidate_ean = result.get("ean")
 
         if not candidates_found:
             logger.info("  -> No candidates found in results.")
@@ -134,8 +137,8 @@ class EANSearchAPIStrategy:
 
         # If no Golden Match was found, return the best candidate if it's good enough.
         if best_score > self.MINIMUM_CANDIDATE_THRESHOLD:
-            logger.info("Best candidate GTIN: %s with score %.2f", best_candidate_gtin, best_score)
-            return best_candidate_gtin
+            logger.info("Best candidate EAN: %s with score %.2f", best_candidate_ean, best_score)
+            return best_candidate_ean
 
         logger.info("No candidate met the minimum threshold.")
         return None
