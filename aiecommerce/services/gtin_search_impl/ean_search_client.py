@@ -37,6 +37,7 @@ class EANSearchClient:
         page = 0
         while True:
             try:
+                logger.info("Fetching page %d for query: '%s'", page, query)
                 # EANSearch class has productSearch(self, name, page=0, lang=1)
                 product_list = self.client.productSearch(query, page=page)
 

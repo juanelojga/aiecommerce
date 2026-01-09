@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, Iterable, List, Optional
 
 from django.core.cache import cache
@@ -6,6 +7,8 @@ from aiecommerce.models import ProductMaster
 
 from .ean_search_client import EANSearchClient
 from .matcher import ProductMatcher
+
+logger = logging.getLogger(__name__)
 
 APIResult = Dict[str, Any]
 
@@ -65,9 +68,11 @@ class EANSearchAPIStrategy:
         cached_results = cache.get(cache_key)
 
         if cached_results:
+            logger.info("Cache hit for query: '%s'. Using cached results.", query)
             results_iterable = cached_results
             is_live_search = False
         else:
+            logger.info("Cache miss for query: '%s'. Fetching from API.", query)
             results_iterable = self.client.search(query)
             is_live_search = True
 
@@ -96,26 +101,41 @@ class EANSearchAPIStrategy:
         best_score = 0.0
         processed_results_for_cache: List[APIResult] = []
 
+        logger.info("Processing results for product '%s'...", product.sku)
+
+        candidates_found = False
         for result in results:
+            candidates_found = True
             if is_live_search:
                 processed_results_for_cache.append(result)
 
             score = self.matcher.calculate_confidence(result.get("name", ""), product.specs or {})
 
+            logger.info("  - Candidate: '%s' (GTIN: %s), Score: %.2f", result.get("name"), result.get("gtin"), score)
+
             if score > self.GOLDEN_MATCH_THRESHOLD:
+                logger.info("    ^ Golden Match found!")
                 # Golden Match found, stop immediately and return.
+                if is_live_search and processed_results_for_cache:
+                    cache.set(cache_key, processed_results_for_cache, timeout=7 * 24 * 60 * 60)
                 return result.get("gtin")
 
             if score > best_score:
                 best_score = score
                 best_candidate_gtin = result.get("gtin")
 
+        if not candidates_found:
+            logger.info("  -> No candidates found in results.")
+
         # Loop finished. If it was a live search that didn't find a golden match, cache results.
         if is_live_search and processed_results_for_cache:
+            logger.info("Caching %d results for query.", len(processed_results_for_cache))
             cache.set(cache_key, processed_results_for_cache, timeout=7 * 24 * 60 * 60)
 
         # If no Golden Match was found, return the best candidate if it's good enough.
         if best_score > self.MINIMUM_CANDIDATE_THRESHOLD:
+            logger.info("Best candidate GTIN: %s with score %.2f", best_candidate_gtin, best_score)
             return best_candidate_gtin
 
+        logger.info("No candidate met the minimum threshold.")
         return None
