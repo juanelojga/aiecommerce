@@ -6,11 +6,11 @@ django-stubs==5.2.8
 django-stubs-ext==5.2.8
 djangorestframework-stubs==3.16.6
 factory_boy==3.3.3
-Faker==39.1.0
+Faker==40.1.0
 identify==2.6.15
 iniconfig==2.3.0
 mock==5.2.0
-model-bakery==1.20.5
+model-bakery==1.21.0
 mypy==1.19.1
 mypy_extensions==1.1.0
 nodeenv==1.10.0
@@ -20,8 +20,8 @@ pluggy==1.6.0
 pre_commit==4.5.1
 pytest==9.0.2
 pytest-django==4.11.1
-ruff==0.14.10
+ruff==0.14.11
 types-pytz==2025.2.0.20251108
 types-PyYAML==6.0.12.20250915
-types-requests==2.32.4.20250913
-virtualenv==20.35.4
+types-requests==2.32.4.20260107
+virtualenv==20.36.1
