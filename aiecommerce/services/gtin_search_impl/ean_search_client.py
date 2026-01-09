@@ -16,6 +16,14 @@ class EANSearchClient:
     def __init__(self) -> None:
         self.client = EANSearch(token=settings.EAN_SEARCH_TOKEN)
 
+    def search(self, query: str) -> Generator[Dict[str, Any], None, None]:
+        """
+        Yields individual products from the lazy search.
+        """
+        for page in self.search_products_lazy(query):
+            for product in page.get("productlist", []):
+                yield product
+
     def search_products_lazy(self, query: str) -> Generator[Dict[str, Any], None, None]:
         """
         Searches for products using the given query and yields results page by page.
