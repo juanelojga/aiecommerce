@@ -83,6 +83,9 @@ class EANSearchAPIStrategy:
         if use_sku:
             return product.sku
         if product.model_name and len(product.model_name) > 2:
+            manufacturer = product.specs.get("manufacturer") if product.specs else None
+            if manufacturer:
+                return f"{manufacturer} {product.model_name}"
             return product.model_name
         return None
 
