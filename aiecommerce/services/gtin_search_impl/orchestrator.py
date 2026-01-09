@@ -66,18 +66,6 @@ class GTINDiscoveryOrchestrator:
 
         # --- TIER 2 ---
         logger.info(f"--- STARTING TIER 2 (EAN SEARCH) FOR PRODUCT SKU: {product.sku} ---")
-        try:
-            tier2_query = self._build_tier2_query(product)
-            if not tier2_query:
-                logger.warning(f"Skipping Tier 2 for {product.sku}: No query could be built.")
-                return None
-
-            logger.info(f"Tier 2 Search Query: '{tier2_query}'")
-            if gtin := self.ean_client.find_gtin(tier2_query):
-                logger.info(f"--- TIER 2 SUCCESS: Found GTIN for {product.sku} via EAN Search API. ---")
-                return {"gtin": gtin, "source": "ean_search_api"}
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during Tier 2 execution: {e}", exc_info=True)
 
         logger.warning(f"--- ALL TIERS FAILED: Could not discover GTIN for Product SKU: {product.sku} ---")
         return None
