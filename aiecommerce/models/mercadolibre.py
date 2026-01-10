@@ -56,6 +56,30 @@ class MercadoLibreListing(models.Model):
         blank=True,
         help_text=_("Details of the last synchronization error, if any."),
     )
+    final_price = models.DecimalField(
+        _("Final Price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("The final price of the listing on Mercado Libre."),
+    )
+    net_price = models.DecimalField(
+        _("Net Price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("The net price of the listing before Mercado Libre fees."),
+    )
+    profit = models.DecimalField(
+        _("Profit"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("The estimated profit from the listing."),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 from aiecommerce.models import MercadoLibreToken
 from aiecommerce.services.mercadolibre_category_impl.category_predictor import MercadolibreCategoryPredictorService
 from aiecommerce.services.mercadolibre_category_impl.orchestrator import MercadolibreEnrichmentCategoryOrchestrator
+from aiecommerce.services.mercadolibre_category_impl.price import MercadoLibrePriceEngine
 from aiecommerce.services.mercadolibre_category_impl.selector import MercadolibreCategorySelector
 from aiecommerce.services.mercadolibre_impl import MercadoLibreClient
 from aiecommerce.services.mercadolibre_impl.auth_service import MercadoLibreAuthService
@@ -45,7 +46,9 @@ class Command(BaseCommand):
 
         category_predictor = MercadolibreCategoryPredictorService(client=client, site_id=site_id)
 
-        orchestrator = MercadolibreEnrichmentCategoryOrchestrator(selector, category_predictor)
+        price_engine = MercadoLibrePriceEngine()
+
+        orchestrator = MercadolibreEnrichmentCategoryOrchestrator(selector=selector, category_predictor=category_predictor, price_engine=price_engine)
 
         # Run the enrichment batch
         stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)

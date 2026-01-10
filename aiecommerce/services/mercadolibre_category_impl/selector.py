@@ -20,13 +20,13 @@ class MercadolibreCategorySelector:
         query = ProductMaster.objects.filter(
             is_active=True,
             is_for_mercadolibre=True,
+            mercadolibre_listing__isnull=True,  # Exclude products that already have a MercadoLibreListing
         )
 
         if dry_run:
             # For a dry run, we fetch a small, predictable sample.
             return query.order_by("id")[:3]
 
-        # TODO: Check the real requirements
         if not force:
             needs_enrichment = Q(gtin__isnull=True) | Q(gtin="") | Q(model_name__isnull=False)
             query = query.filter(needs_enrichment)
