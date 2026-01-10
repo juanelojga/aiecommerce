@@ -6,6 +6,7 @@ from aiecommerce.models.mercadolibre import MercadoLibreListing
 from aiecommerce.services.mercadolibre_category_impl.category_predictor import MercadolibreCategoryPredictorService
 from aiecommerce.services.mercadolibre_category_impl.price import MercadoLibrePriceEngine
 from aiecommerce.services.mercadolibre_category_impl.selector import MercadolibreCategorySelector
+from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,11 @@ class MercadolibreEnrichmentCategoryOrchestrator:
     for all candidate products.
     """
 
-    def __init__(self, selector: MercadolibreCategorySelector, category_predictor: MercadolibreCategoryPredictorService, price_engine: MercadoLibrePriceEngine):
+    def __init__(self, selector: MercadolibreCategorySelector, category_predictor: MercadolibreCategoryPredictorService, price_engine: MercadoLibrePriceEngine, stock_engine: MercadoLibreStockEngine):
         self.selector = selector
         self.category_predictor = category_predictor
         self.price_engine = price_engine
+        self.stock_engine = stock_engine
 
     def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, int]:
         """
@@ -55,6 +57,8 @@ class MercadolibreEnrichmentCategoryOrchestrator:
                     listing.profit = calculated_prices["profit"]
                 else:
                     logger.warning(f"Product {product.code} has no price, skipping price calculation for listing.")
+
+                listing.available_quantity = self.stock_engine.get_available_quantity(product)
 
                 if not dry_run:
                     listing.category_id = category_id

@@ -80,6 +80,12 @@ class MercadoLibreListing(models.Model):
         blank=True,
         help_text=_("The estimated profit from the listing."),
     )
+    available_quantity = models.IntegerField(
+        _("Available Quantity"),
+        null=True,
+        blank=True,
+        help_text=_("The available stock quantity on Mercado Libre."),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

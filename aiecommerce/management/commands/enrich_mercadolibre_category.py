@@ -5,6 +5,7 @@ from aiecommerce.services.mercadolibre_category_impl.category_predictor import M
 from aiecommerce.services.mercadolibre_category_impl.orchestrator import MercadolibreEnrichmentCategoryOrchestrator
 from aiecommerce.services.mercadolibre_category_impl.price import MercadoLibrePriceEngine
 from aiecommerce.services.mercadolibre_category_impl.selector import MercadolibreCategorySelector
+from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
 from aiecommerce.services.mercadolibre_impl import MercadoLibreClient
 from aiecommerce.services.mercadolibre_impl.auth_service import MercadoLibreAuthService
 from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
@@ -47,8 +48,9 @@ class Command(BaseCommand):
         category_predictor = MercadolibreCategoryPredictorService(client=client, site_id=site_id)
 
         price_engine = MercadoLibrePriceEngine()
+        stock_engine = MercadoLibreStockEngine()
 
-        orchestrator = MercadolibreEnrichmentCategoryOrchestrator(selector=selector, category_predictor=category_predictor, price_engine=price_engine)
+        orchestrator = MercadolibreEnrichmentCategoryOrchestrator(selector=selector, category_predictor=category_predictor, price_engine=price_engine, stock_engine=stock_engine)
 
         # Run the enrichment batch
         stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
