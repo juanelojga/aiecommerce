@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Dict, Optional, Union
 
 from django.conf import settings
 from django.db.models import Q, QuerySet
@@ -9,9 +9,9 @@ from aiecommerce.models.product import ProductMaster
 
 
 class MercadoLibreFilter:
-    def __init__(self):
-        self.publication_rules = settings.MERCADOLIBRE_PUBLICATION_RULES
-        self.freshness_threshold_hours = settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
+    def __init__(self) -> None:
+        self.publication_rules: Dict[str, Union[int, Dict[str, int]]] = settings.MERCADOLIBRE_PUBLICATION_RULES
+        self.freshness_threshold_hours: int = settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
 
     def _get_freshness_limit(self, now: Optional[datetime] = None) -> datetime:
         base_time = now or timezone.now()
@@ -51,7 +51,7 @@ class MercadoLibreFilter:
                 else:
                     threshold = rule_config
 
-                if threshold is not None and product.price >= threshold:
+                if threshold is not None and product.price is not None and product.price >= threshold:
                     return True
 
         return False

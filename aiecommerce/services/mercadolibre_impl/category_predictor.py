@@ -7,6 +7,7 @@ from .exceptions import MLAPIError
 logger = logging.getLogger(__name__)
 
 
+# TODO: Remove
 class CategoryPredictorService:
     """
     Service to predict the Mercado Libre category for a given product title.
