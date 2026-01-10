@@ -43,7 +43,7 @@ class EnrichmentImagesOrchestrator:
                 self.logger_output(f"Would process Product ID: {product.id}, SKU: {product.sku}")
                 continue
 
-            if product.code:
+            if product.id:
                 try:
                     process_product_image.delay(product.id)
                     self.logger_output(f"Successfully enqueued task for Product ID: {product.id}")

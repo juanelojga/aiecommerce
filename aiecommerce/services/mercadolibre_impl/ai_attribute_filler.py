@@ -148,7 +148,7 @@ class AIAttributeFiller:
                         "confidence": "high",  # Confidence is based on successful verification
                         "source": "internet",
                         "match_notes": gtin_response.product_match_notes,
-                        "details": first_gtin.model_dump(),
+                        "tecnomega_product_details_fetcher_impl": first_gtin.model_dump(),
                     }
 
         # 5️⃣ Enforce GTIN fallback rules

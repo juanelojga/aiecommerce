@@ -31,4 +31,4 @@ class Command(BaseCommand):
             self.stdout.write(f"  - Products Updated: {results['updated_count']}")
             self.stdout.write(f"  - Products Marked as Inactive: {results['inactive_count']}")
         else:
-            self.stdout.write(self.style.WARNING("Normalization process did not run. Check logs for details."))
+            self.stdout.write(self.style.WARNING("Normalization process did not run. Check logs for tecnomega_product_details_fetcher_impl."))
