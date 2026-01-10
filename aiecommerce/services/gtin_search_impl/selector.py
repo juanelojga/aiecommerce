@@ -3,7 +3,7 @@ from django.db.models import Q, QuerySet
 from aiecommerce.models import ProductMaster
 
 
-class EnrichmentCandidateSelector:
+class GTINSearchSelector:
     """Encapsulates all filtering logic for product enrichment."""
 
     def get_queryset(self, force: bool, dry_run: bool) -> QuerySet[ProductMaster, ProductMaster]:
@@ -28,7 +28,7 @@ class EnrichmentCandidateSelector:
             return query.order_by("id")[:3]
 
         if not force:
-            needs_enrichment = Q(specs__isnull=True) | Q(specs={}) | Q(normalized_name__isnull=True) | Q(normalized_name="") | Q(model_name__isnull=True) | Q(model_name="")
+            needs_enrichment = Q(gtin__isnull=True) | Q(gtin="") | Q(model_name__isnull=False)
             query = query.filter(needs_enrichment)
 
         return query.order_by("id")

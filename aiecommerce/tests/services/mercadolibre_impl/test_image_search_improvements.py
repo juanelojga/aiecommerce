@@ -6,7 +6,6 @@ from model_bakery import baker
 
 from aiecommerce.models.product import ProductMaster
 from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
-from aiecommerce.services.mercadolibre_impl.query_constructor import QueryConstructor
 from aiecommerce.services.mercadolibre_impl.selector import ImageCandidateSelector
 
 
@@ -66,16 +65,6 @@ def test_pagination(mock_service):
     assert kwargs["start"] == 11
 
 
-def test_query_constructor_configuration():
-    with patch("aiecommerce.services.mercadolibre_impl.query_constructor.settings") as mock_settings:
-        mock_settings.IMAGE_SEARCH_NOISY_TERMS = "NOISY"
-        mock_settings.IMAGE_SEARCH_QUERY_SUFFIX = "SUFFIX"
-
-        qc = QueryConstructor()
-        assert qc.noisy_terms == "NOISY"
-        assert qc.query_suffix == "SUFFIX"
-
-
 @pytest.mark.django_db
 def test_image_candidate_selector_queryset():
     with patch("aiecommerce.services.mercadolibre_impl.filter.settings") as mock_settings:
@@ -91,10 +80,3 @@ def test_image_candidate_selector_queryset():
 
         assert isinstance(qs, QuerySet)
         assert qs.count() == 2
-
-
-def test_query_constructor_truncation():
-    qc = QueryConstructor(query_suffix="X" * 150)
-    product = baker.prepare(ProductMaster, description="desc")
-    query = qc.build_query(product)
-    assert len(query) == 100

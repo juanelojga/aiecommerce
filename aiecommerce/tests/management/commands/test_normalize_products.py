@@ -98,4 +98,4 @@ def test_normalize_products_when_service_returns_none_prints_warning(monkeypatch
     out = capsys.readouterr().out
     assert "Starting product normalization..." in out
     # Warning style prefixes output with the message; ensure core text is present
-    assert "Normalization process did not run. Check logs for details." in out
+    assert "Normalization process did not run. Check logs for tecnomega_product_details_fetcher_impl." in out

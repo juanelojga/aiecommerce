@@ -92,7 +92,7 @@ class ProductImage(models.Model):
 
 class ProductDetailScrape(models.Model):
     """
-    Stores structured product details scraped from deep-link pages.
+    Stores structured product tecnomega_product_details_fetcher_impl scraped from deep-link pages.
     Linked to ProductMaster via a ForeignKey.
     """
 

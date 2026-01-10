@@ -1,129 +1,138 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aiecommerce.services.specifications_impl.exceptions import EnrichmentError
-from aiecommerce.services.specifications_impl.orchestrator import ProductSpecificationsOrchestrator
+from aiecommerce.services.enrichment_impl.orchestrator import EnrichmentOrchestrator
 from aiecommerce.tests.factories import ProductMasterFactory
 
 
-class _SpecStub:
-    def __init__(self, data: dict, model_name: str = "Test Model", normalized_name: str = "Test Brand Model"):
-        self._data = data
-        self.model_name = model_name
-        self.normalized_name = normalized_name
-
-    def model_dump(self, exclude_none: bool = False):  # mimic pydantic API used by the runner
-        return self._data
-
-
 @pytest.mark.django_db
-def test_process_product_success_dry_run_true(caplog):
-    product = ProductMasterFactory(specs=None)
+class TestEnrichmentOrchestrator:
+    def setup_method(self):
+        self.selector = MagicMock()
+        self.specs_orchestrator = MagicMock()
+        self.orchestrator = EnrichmentOrchestrator(selector=self.selector, specs_orchestrator=self.specs_orchestrator)
 
-    # Mock service to return a stub with model_dump
-    service = MagicMock()
-    expected_specs = {"power": "500W", "voltage": "110V"}
-    service.enrich_product.return_value = _SpecStub(expected_specs)
+    def test_run_empty_queryset(self, caplog):
+        self.selector.get_queryset.return_value.count.return_value = 0
 
-    runner = ProductSpecificationsOrchestrator(service=service)
+        with caplog.at_level("INFO"):
+            stats = self.orchestrator.run(force=False, dry_run=False)
 
-    success, specs = runner.process_product(product, dry_run=True)
+        assert stats["total"] == 0
+        assert "No products need enrichment." in caplog.text
+        self.specs_orchestrator.process_product.assert_not_called()
 
-    # Assert service called with expected payload
-    service.enrich_product.assert_called_once()
-    called_payload = service.enrich_product.call_args[0][0]
-    assert called_payload["code"] == product.code
-    assert called_payload["description"] == product.description
-    assert called_payload["category"] == product.category
+    @patch("time.sleep", return_value=None)
+    def test_run_success(self, mock_sleep):
+        p1 = ProductMasterFactory(specs=None)
+        p2 = ProductMasterFactory(specs=None)
 
-    # Assert return values
-    assert success is True
-    assert specs == expected_specs
+        # Mock queryset iterator
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 2
+        mock_queryset.iterator.return_value = [p1, p2]
+        self.selector.get_queryset.return_value = mock_queryset
 
-    # In-memory object updated
-    assert product.specs == expected_specs
+        # Mock process_product success
+        self.specs_orchestrator.process_product.return_value = (True, {"some": "specs"})
 
-    # Not persisted when dry_run=True
-    product.refresh_from_db()
-    # Factory may set default {} on specs; ensure it didn't persist expected specs
-    assert product.specs != expected_specs
+        stats = self.orchestrator.run(force=False, dry_run=False, delay=0.1)
 
+        assert stats["total"] == 2
+        assert stats["enriched"] == 2
+        assert self.specs_orchestrator.process_product.call_count == 2
+        assert mock_sleep.call_count == 2
 
-@pytest.mark.django_db
-def test_process_product_success_persists_and_uses_update_fields():
-    product = ProductMasterFactory(specs=None)
+    @patch("time.sleep", return_value=None)
+    def test_run_skips_products_with_specs(self, mock_sleep, caplog):
+        p1 = ProductMasterFactory(specs={"already": "here"}, normalized_name="Name", model_name="Model")
 
-    service = MagicMock()
-    expected_specs = {"battery": "2200mAh"}
-    service.enrich_product.return_value = _SpecStub(expected_specs)
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [p1]
+        self.selector.get_queryset.return_value = mock_queryset
 
-    runner = ProductSpecificationsOrchestrator(service=service)
-    # Spy by wrapping the bound save method
-    from unittest.mock import patch
+        with caplog.at_level("INFO"):
+            stats = self.orchestrator.run(force=False, dry_run=False)
 
-    with patch.object(product, "save", wraps=product.save) as save_spy:
-        success, specs = runner.process_product(product, dry_run=False)
+        assert stats["total"] == 1
+        assert stats["enriched"] == 0
+        assert self.specs_orchestrator.process_product.assert_not_called
+        assert f"Product {p1.code}: Skipping enrichment" in caplog.text
 
-        assert success is True
-        assert specs == expected_specs
-        assert product.specs == expected_specs
+    @patch("time.sleep", return_value=None)
+    def test_run_force_reenriches_even_with_specs(self, mock_sleep):
+        p1 = ProductMasterFactory(specs={"already": "here"}, normalized_name="Name", model_name="Model")
 
-        # Ensure save called once with specific update_fields
-        save_spy.assert_called_once()
-        kwargs = save_spy.call_args.kwargs
-        update_fields = kwargs.get("update_fields")
-        assert isinstance(update_fields, list)
-        assert set(update_fields) == {"specs", "model_name", "normalized_name"}
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [p1]
+        self.selector.get_queryset.return_value = mock_queryset
 
+        self.specs_orchestrator.process_product.return_value = (True, {"new": "specs"})
 
-@pytest.mark.django_db
-def test_process_product_no_data_returns_false_and_logs_warning(caplog):
-    product = ProductMasterFactory(specs=None)
+        stats = self.orchestrator.run(force=True, dry_run=False)
 
-    service = MagicMock()
-    service.enrich_product.return_value = None
+        assert stats["enriched"] == 1
+        self.specs_orchestrator.process_product.assert_called_once_with(p1, False)
 
-    runner = ProductSpecificationsOrchestrator(service=service)
+    @patch("time.sleep", return_value=None)
+    def test_run_handles_process_product_exception(self, mock_sleep, caplog):
+        p1 = ProductMasterFactory(specs=None)
 
-    with caplog.at_level("WARNING"):
-        success, specs = runner.process_product(product, dry_run=False)
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [p1]
+        self.selector.get_queryset.return_value = mock_queryset
 
-    assert success is False
-    assert specs is None
-    # Verify warning mention
-    assert any("Failed to extract specs" in rec.message for rec in caplog.records)
+        self.specs_orchestrator.process_product.side_effect = Exception("AI failure")
 
+        with caplog.at_level("ERROR"):
+            stats = self.orchestrator.run(force=False, dry_run=False)
 
-@pytest.mark.django_db
-def test_process_product_handles_enrichment_error_logs_and_returns_false(caplog):
-    product = ProductMasterFactory(specs=None)
+        assert stats["enriched"] == 0
+        assert f"Product {p1.code}: AI enrichment crashed" in caplog.text
 
-    service = MagicMock()
-    service.enrich_product.side_effect = EnrichmentError("service failed")
+    @patch("time.sleep", return_value=None)
+    def test_run_passes_dry_run_flag(self, mock_sleep):
+        p1 = ProductMasterFactory(specs=None)
 
-    runner = ProductSpecificationsOrchestrator(service=service)
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [p1]
+        self.selector.get_queryset.return_value = mock_queryset
 
-    with caplog.at_level("ERROR"):
-        success, specs = runner.process_product(product, dry_run=False)
+        self.specs_orchestrator.process_product.return_value = (True, {"dry": "specs"})
 
-    assert success is False
-    assert specs is None
-    assert any("Service Error" in rec.message for rec in caplog.records)
+        self.orchestrator.run(force=False, dry_run=True)
 
+        self.specs_orchestrator.process_product.assert_called_once_with(p1, True)
 
-@pytest.mark.django_db
-def test_process_product_handles_unexpected_exception_logs_and_returns_false(caplog):
-    product = ProductMasterFactory(specs=None)
+    @patch("time.sleep", return_value=None)
+    def test_run_with_failed_enrichment(self, mock_sleep):
+        p1 = ProductMasterFactory(specs=None)
 
-    service = MagicMock()
-    service.enrich_product.side_effect = ValueError("boom")
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [p1]
+        self.selector.get_queryset.return_value = mock_queryset
 
-    runner = ProductSpecificationsOrchestrator(service=service)
+        # Mock process_product returning False
+        self.specs_orchestrator.process_product.return_value = (False, {})
 
-    with caplog.at_level("ERROR"):
-        success, specs = runner.process_product(product, dry_run=False)
+        stats = self.orchestrator.run(force=False, dry_run=False)
 
-    assert success is False
-    assert specs is None
-    assert any("An unexpected error occurred" in rec.message for rec in caplog.records)
+        assert stats["total"] == 1
+        assert stats["enriched"] == 0
+        self.specs_orchestrator.process_product.assert_called_once_with(p1, False)
+
+    def test_logger_output_info(self, caplog):
+        with caplog.at_level("INFO"):
+            self.orchestrator.logger_output("Test info message", level="info")
+        assert "Test info message" in caplog.text
+
+    def test_logger_output_error(self, caplog):
+        with caplog.at_level("ERROR"):
+            self.orchestrator.logger_output("Test error message", level="error")
+        assert "Test error message" in caplog.text

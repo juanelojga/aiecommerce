@@ -7,62 +7,86 @@ from aiecommerce.services.gtin_search_impl.orchestrator import GTINDiscoveryOrch
 
 class TestGTINDiscoveryOrchestrator(unittest.TestCase):
     def setUp(self):
-        self.mock_ean_strategy = MagicMock()
+        self.mock_selector = MagicMock()
         self.mock_google_strategy = MagicMock()
-        self.orchestrator = GTINDiscoveryOrchestrator(ean_api_strategy=self.mock_ean_strategy, google_strategy=self.mock_google_strategy)
+        self.orchestrator = GTINDiscoveryOrchestrator(selector=self.mock_selector, google_strategy=self.mock_google_strategy)
         self.mock_product = MagicMock(spec=ProductMaster)
-        self.mock_product.sku = "TEST-SKU"
+        self.mock_product.code = "TEST-SKU"
+        self.mock_product.gtin = None
+        self.mock_product.gtin_source = None
 
-    def test_discover_gtin_tier1_success(self):
-        # Tier 1 returns a GTIN
-        self.mock_ean_strategy.search_for_gtin.return_value = "1234567890123"
+    def test_run_success(self):
+        # Setup mock queryset
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [self.mock_product]
+        self.mock_selector.get_queryset.return_value = mock_queryset
 
-        result = self.orchestrator.discover_gtin(self.mock_product)
+        # Setup mock strategy return value
+        self.mock_google_strategy.execute.return_value = {"gtin": "1234567890123", "gtin_source": "GOOGLE"}
 
-        self.assertEqual(result, {"gtin": "1234567890123", "source": "EAN_API"})
-        self.mock_ean_strategy.search_for_gtin.assert_called_once_with(self.mock_product)
+        # Run the orchestrator
+        result = self.orchestrator.run(force=False, dry_run=False, delay=0)
+
+        # Assertions
+        self.assertEqual(result, {"total": 1, "processed": 1})
+        self.mock_google_strategy.execute.assert_called_once_with(self.mock_product)
+        self.assertEqual(self.mock_product.gtin, "1234567890123")
+        self.assertEqual(self.mock_product.gtin_source, "GOOGLE")
+        self.mock_product.save.assert_called_once_with(update_fields=["gtin", "gtin_source"])
+
+    def test_run_no_products(self):
+        # Setup mock queryset with 0 products
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 0
+        self.mock_selector.get_queryset.return_value = mock_queryset
+
+        # Run the orchestrator
+        result = self.orchestrator.run(force=False, dry_run=False, delay=0)
+
+        # Assertions
+        self.assertEqual(result, {"total": 0, "processed": 0})
         self.mock_google_strategy.execute.assert_not_called()
 
-    def test_discover_gtin_tier1_fail_tier2_success(self):
-        # Tier 1 fails, Tier 2 succeeds
-        self.mock_ean_strategy.search_for_gtin.return_value = None
-        self.mock_google_strategy.execute.return_value = {"gtin": "0987654321098", "source": "GOOGLE"}
+    def test_run_dry_run_does_not_save(self):
+        # Setup mock queryset
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [self.mock_product]
+        self.mock_selector.get_queryset.return_value = mock_queryset
 
-        result = self.orchestrator.discover_gtin(self.mock_product)
+        # Setup mock strategy return value
+        self.mock_google_strategy.execute.return_value = {"gtin": "1234567890123", "gtin_source": "GOOGLE"}
 
-        self.assertEqual(result, {"gtin": "0987654321098", "source": "GOOGLE"})
-        self.mock_ean_strategy.search_for_gtin.assert_called_once_with(self.mock_product)
+        # Run the orchestrator with dry_run=True
+        result = self.orchestrator.run(force=False, dry_run=True, delay=0)
+
+        # Assertions
+        self.assertEqual(result, {"total": 1, "processed": 1})
         self.mock_google_strategy.execute.assert_called_once_with(self.mock_product)
+        # Should NOT save when dry_run is True
+        self.mock_product.save.assert_not_called()
 
-    def test_discover_gtin_all_tiers_fail(self):
-        # Both tiers fail
-        self.mock_ean_strategy.search_for_gtin.return_value = None
-        self.mock_google_strategy.execute.return_value = None
+    def test_run_exception_continues_processing(self):
+        # Setup mock products
+        product1 = MagicMock(spec=ProductMaster)
+        product1.code = "SKU1"
+        product2 = MagicMock(spec=ProductMaster)
+        product2.code = "SKU2"
 
-        result = self.orchestrator.discover_gtin(self.mock_product)
+        # Setup mock queryset
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 2
+        mock_queryset.iterator.return_value = [product1, product2]
+        self.mock_selector.get_queryset.return_value = mock_queryset
 
-        self.assertIsNone(result)
-        self.mock_ean_strategy.search_for_gtin.assert_called_once_with(self.mock_product)
-        self.mock_google_strategy.execute.assert_called_once_with(self.mock_product)
+        # First product fails, second succeeds
+        self.mock_google_strategy.execute.side_effect = [Exception("Error"), {"gtin": "123", "gtin_source": "GOOGLE"}]
 
-    def test_discover_gtin_tier1_exception_falls_back_to_tier2(self):
-        # Tier 1 raises exception, Tier 2 succeeds
-        self.mock_ean_strategy.search_for_gtin.side_effect = Exception("Tier 1 Error")
-        self.mock_google_strategy.execute.return_value = {"gtin": "5555555555555", "source": "GOOGLE"}
+        # Run the orchestrator
+        result = self.orchestrator.run(force=False, dry_run=False, delay=0)
 
-        result = self.orchestrator.discover_gtin(self.mock_product)
-
-        self.assertEqual(result, {"gtin": "5555555555555", "source": "GOOGLE"})
-        self.mock_ean_strategy.search_for_gtin.assert_called_once_with(self.mock_product)
-        self.mock_google_strategy.execute.assert_called_once_with(self.mock_product)
-
-    def test_discover_gtin_tier2_exception_returns_none(self):
-        # Tier 1 fails, Tier 2 raises exception
-        self.mock_ean_strategy.search_for_gtin.return_value = None
-        self.mock_google_strategy.execute.side_effect = Exception("Tier 2 Error")
-
-        result = self.orchestrator.discover_gtin(self.mock_product)
-
-        self.assertIsNone(result)
-        self.mock_ean_strategy.search_for_gtin.assert_called_once_with(self.mock_product)
-        self.mock_google_strategy.execute.assert_called_once_with(self.mock_product)
+        # Assertions
+        self.assertEqual(result, {"total": 2, "processed": 2})
+        self.assertEqual(self.mock_google_strategy.execute.call_count, 2)
+        product2.save.assert_called_once()

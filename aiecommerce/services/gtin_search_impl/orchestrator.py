@@ -1,9 +1,10 @@
 import logging
+import time
+import uuid
+from typing import Any
 
-from aiecommerce.models import ProductMaster
-
-from .ean_api_strategy import EANSearchAPIStrategy
 from .google_search_strategy import GoogleGTINStrategy
+from .selector import GTINSearchSelector
 
 logger = logging.getLogger(__name__)
 
@@ -11,41 +12,48 @@ logger = logging.getLogger(__name__)
 class GTINDiscoveryOrchestrator:
     """Orchestrates the discovery of GTIN codes for products."""
 
-    def __init__(self, ean_api_strategy: EANSearchAPIStrategy, google_strategy: GoogleGTINStrategy):
-        self.ean_api_strategy = ean_api_strategy
+    def __init__(self, selector: GTINSearchSelector, google_strategy: GoogleGTINStrategy):
+        self.selector = selector
         self.google_strategy = google_strategy
 
-    def discover_gtin(self, product: ProductMaster) -> dict[str, str] | None:
+    def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, Any]:
         """
         Attempts to discover a GTIN for a given product using a tiered search strategy.
 
-        Tier 1: EAN Search API Strategy
-        - High-priority search against a barcode database.
-
-        Tier 2: Google Search Strategy
+        Google Search Strategy
         - Fallback that executes a series of predefined Google searches.
 
         Returns: A dictionary with 'gtin' and 'source' if found, otherwise None.
         """
-        # --- TIER 1 ---
-        logger.info(f"--- STARTING TIER 1 (EAN API) FOR PRODUCT SKU: {product.sku} ---")
-        try:
-            if gtin := self.ean_api_strategy.search_for_gtin(product):
-                logger.info(f"--- TIER 1 SUCCESS: Found GTIN for {product.sku} ---")
-                return {"gtin": gtin, "source": "EAN_API"}
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during Tier 1 execution: {e}", exc_info=True)
-        logger.info(f"--- TIER 1 FAILED FOR: {product.sku} ---")
 
-        # --- TIER 2 ---
-        logger.info(f"--- STARTING TIER 2 (GOOGLE) FOR PRODUCT SKU: {product.sku} ---")
-        try:
-            if result := self.google_strategy.execute(product):
-                logger.info(f"--- TIER 2 SUCCESS: Found GTIN for {product.sku} ---")
-                return result
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during Tier 2 execution: {e}", exc_info=True)
-        logger.info(f"--- TIER 2 FAILED FOR: {product.sku} ---")
+        queryset = self.selector.get_queryset(force, dry_run)
 
-        logger.warning(f"--- ALL TIERS FAILED: Could not discover GTIN for Product SKU: {product.sku} ---")
-        return None
+        total = queryset.count()
+        stats = {"total": total, "processed": 0}
+
+        if total == 0:
+            logger.info("No products need images enrichment.")
+            return stats
+
+        batch_session_id = uuid.uuid4().hex[:8]
+        logger.info(f"Starting images enrichment batch {batch_session_id} for {total} products.")
+
+        for product in queryset.iterator(chunk_size=100):
+            logger.info(f"--- STARTING (GOOGLE) FOR PRODUCT SKU: {product.code} ---")
+            try:
+                result = self.google_strategy.execute(product)
+                logger.info(f"--- Found GTIN for {product.code} {result} ---")
+                if result and not dry_run:
+                    product.gtin = result["gtin"]
+                    product.gtin_source = result["gtin_source"]
+                    product.save(update_fields=["gtin", "gtin_source"])
+            except Exception as e:
+                logger.error(f"An unexpected error occurred during execution: {e}", exc_info=True)
+
+            stats["processed"] += 1
+
+            if delay > 0:
+                time.sleep(delay)
+
+        logger.info(f"Finished content enrichment batch {batch_session_id} for {total} products. Processed {stats['processed']} products.")
+        return stats

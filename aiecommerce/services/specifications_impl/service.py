@@ -70,7 +70,7 @@ class ProductSpecificationsService:
                             "You are an expert technical product cataloguer. "
                             "Analyze the product text and extract technical specifications into the correct category structure. "
                             "Select the most appropriate schema from the list provided. "
-                            "If specific details are missing, leave them as null."
+                            "If specific tecnomega_product_details_fetcher_impl are missing, leave them as null."
                             "RULES FOR MODEL & NAME:\n"
                             "1. model_name: Extract ONLY the specific identifier (e.g., 'G3 15 3500').\n"
                             "2. normalized_name: Construct a clean name: [Brand] [Product Line] [Model] [Main Spec]. "

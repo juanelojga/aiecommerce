@@ -15,15 +15,15 @@ class StorageGateway:
         self.bucket_name = bucket_name
         self.region_name = region_name
 
-    def upload(self, image_bytes: bytes, product_id: int, image_name: str) -> str | None:
+    def upload(self, image_bytes: bytes, product_code: str, image_name: str) -> str | None:
         """Uploads an image to S3 and returns the public URL."""
         if not self.bucket_name:
             logger.error("Bucket name not configured for StorageGateway.")
             return None
 
-        logger.info(f"Uploading {image_name} for product {product_id} to S3.")
+        logger.info(f"Uploading {image_name} for product {product_code} to S3.")
         try:
-            s3_key = f"products/{product_id}/{image_name}.jpg"
+            s3_key = f"products/{product_code}/{image_name}.jpg"
 
             self.s3_client.upload_fileobj(
                 BytesIO(image_bytes),
@@ -41,5 +41,5 @@ class StorageGateway:
             logger.info(f"Successfully uploaded to {s3_url}")
             return s3_url
         except (BotoCoreError, ClientError) as e:
-            logger.error(f"Error uploading image {image_name} for product {product_id} to S3: {e}")
+            logger.error(f"Error uploading image {image_name} for product {product_code} to S3: {e}")
             return None

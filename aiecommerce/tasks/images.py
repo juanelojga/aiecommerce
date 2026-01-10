@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def process_product_image(product_id: int) -> None:
+def process_product_image(product_id_or_code) -> None:
     """
     Fetches a product, finds up to 5 images, processes them, and saves them.
 
@@ -26,13 +26,15 @@ def process_product_image(product_id: int) -> None:
         - Process the image (resize, center, etc.). Remove background only for the first one.
         - Upload to S3.
     4.  Create a ProductImage record for each successfully uploaded image.
-    5.  If no images are processed, update the MercadoLibreListing status to 'ERROR'.
     """
     try:
-        product = ProductMaster.objects.get(pk=product_id)
+        if str(product_id_or_code).isdigit():
+            product = ProductMaster.objects.get(id=int(product_id_or_code))
+        else:
+            product = ProductMaster.objects.get(code=product_id_or_code)
         logger.info(f"Processing images for product: {product.description}")
     except ProductMaster.DoesNotExist:
-        logger.error(f"ProductMaster with id {product_id} not found.")
+        logger.error(f"ProductMaster with ID/code {product_id_or_code} not found.")
         return
 
     image_search_service = ImageSearchService()
@@ -40,20 +42,11 @@ def process_product_image(product_id: int) -> None:
     image_processor_service.clear_session_hashes()
 
     search_query = image_search_service.build_search_query(product)
-    image_urls = image_search_service.find_image_urls(search_query, image_search_count=settings.IMAGE_SEARCH_COUNT)
-
-    if not image_urls:
-        logger.warning(f"Image search failed for product {product.id}: No results found.")
-        with transaction.atomic():
-            listing, _ = MercadoLibreListing.objects.update_or_create(
-                product_master=product,
-                defaults={
-                    "status": "ERROR",
-                    "sync_error": "Image search failed: No results found",
-                },
-            )
-            logger.info(f"Updated MercadoLibreListing {listing.id} to ERROR state.")
+    if not search_query:
+        logger.error(f"Could not build search query for product {product.id}.")
         return
+
+    image_urls = image_search_service.find_image_urls(search_query, image_search_count=settings.IMAGE_SEARCH_COUNT)
 
     logger.info(f"Found {len(image_urls)} images for product {product.id}.")
 
@@ -75,7 +68,11 @@ def process_product_image(product_id: int) -> None:
 
         # Use a generic name for the image, as we don't have one from the search
         image_name = f"image_{i + 1}"
-        s3_url = image_processor_service.upload_to_s3(processed_image_bytes, product.id, image_name)
+
+        if not product.code:
+            continue
+
+        s3_url = image_processor_service.upload_to_s3(processed_image_bytes, product.code, image_name)
 
         if s3_url:
             product_image = ProductImage(product=product, url=s3_url, order=i, is_processed=True)
@@ -87,12 +84,11 @@ def process_product_image(product_id: int) -> None:
             logger.info(f"Successfully created {len(processed_images)} ProductImage records for product {product.id}.")
     else:
         logger.warning(f"Image processing failed for product {product.id}: No images could be processed.")
-        with transaction.atomic():
-            listing, _ = MercadoLibreListing.objects.update_or_create(
-                product_master=product,
-                defaults={
-                    "status": "ERROR",
-                    "sync_error": "Image processing failed: No images were downloaded or uploaded",
-                },
-            )
-            logger.info(f"Updated MercadoLibreListing {listing.id} to ERROR state because no images were processed.")
+        # Update MercadoLibreListing if it exists
+        try:
+            listing, created = MercadoLibreListing.objects.get_or_create(product_master=product)
+            listing.status = MercadoLibreListing.Status.ERROR
+            listing.sync_error = "Image search failed: No results found"
+            listing.save()
+        except Exception as e:
+            logger.error(f"Failed to update MercadoLibreListing for product {product.id}: {e}")

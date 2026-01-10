@@ -72,7 +72,7 @@ class MercadoLibreAuthService:
             logger.exception(f"Unexpected error refreshing ML token for user {token_record.user_id}")
             raise MLTokenRefreshError("An unexpected error occurred during token refresh") from e
 
-        # Update token details
+        # Update token tecnomega_product_details_fetcher_impl
         token_record.access_token = token_data["access_token"]
         token_record.refresh_token = token_data["refresh_token"]
         token_record.expires_at = self.clock.now() + timedelta(seconds=token_data["expires_in"])
