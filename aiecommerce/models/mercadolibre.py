@@ -30,6 +30,13 @@ class MercadoLibreListing(models.Model):
         blank=True,
         help_text=_("The unique identifier for the listing on Mercado Libre."),
     )
+    category_id = models.CharField(
+        _("Mercado Libre Category ID"),
+        max_length=30,
+        null=True,
+        blank=True,
+        help_text=_("The category ID for the listing on Mercado Libre."),
+    )
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
