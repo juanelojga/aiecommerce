@@ -39,7 +39,7 @@ class AIContentOrchestrator:
         self.client = client
         self.selector = selector
 
-    def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> Dict[str, Any]:
+    def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, Any]:
         """
         Generates and updates SEO title and description for a single product.
 
