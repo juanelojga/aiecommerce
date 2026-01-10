@@ -30,7 +30,7 @@ class EnrichmentOrchestrator:
         queryset = self.selector.get_queryset(force, dry_run)
 
         total = queryset.count()
-        stats = {"total": total, "enriched": 0}
+        stats = {"total": total, "processed": 0}
 
         if total == 0:
             logger.info("No products need enrichment.")
@@ -48,14 +48,14 @@ class EnrichmentOrchestrator:
             try:
                 enrich_success, _ = self.specs_orchestrator.process_product(product, dry_run)
                 if enrich_success:
-                    stats["enriched"] += 1
+                    stats["processed"] += 1
             except Exception as e:
                 self.logger_output(f"Product {product.code}: AI enrichment crashed - {e}", level="error")
 
             if delay > 0:
                 time.sleep(delay)
 
-        logger.info(f"Batch completed: {stats['enriched']} processed")
+        logger.info(f"Batch completed: {stats['processed']} processed")
         return stats
 
     def logger_output(self, message: str, level: str = "info"):
