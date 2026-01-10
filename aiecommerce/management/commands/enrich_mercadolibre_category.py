@@ -1,6 +1,10 @@
+import instructor
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from openai import OpenAI
 
 from aiecommerce.models import MercadoLibreToken
+from aiecommerce.services.mercadolibre_category_impl.ai_attribute_filler import MercadolibreAIAttributeFiller
 from aiecommerce.services.mercadolibre_category_impl.attribute_fetcher import MercadolibreCategoryAttributeFetcher
 from aiecommerce.services.mercadolibre_category_impl.category_predictor import MercadolibreCategoryPredictorService
 from aiecommerce.services.mercadolibre_category_impl.orchestrator import MercadolibreEnrichmentCategoryOrchestrator
@@ -52,12 +56,19 @@ class Command(BaseCommand):
         price_engine = MercadoLibrePriceEngine()
         stock_engine = MercadoLibreStockEngine()
 
+        api_key = settings.OPENROUTER_API_KEY
+        base_url = settings.OPENROUTER_BASE_URL
+
+        open_client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
+        attribute_filler = MercadolibreAIAttributeFiller(client=open_client)
+
         orchestrator = MercadolibreEnrichmentCategoryOrchestrator(
             selector=selector,
             category_predictor=category_predictor,
             price_engine=price_engine,
             stock_engine=stock_engine,
             attribute_fetcher=attribute_fetcher,
+            attribute_filler=attribute_filler,
         )
 
         # Run the enrichment batch

@@ -3,6 +3,7 @@ import time
 import uuid
 
 from aiecommerce.models.mercadolibre import MercadoLibreListing
+from aiecommerce.services.mercadolibre_category_impl.ai_attribute_filler import MercadolibreAIAttributeFiller
 from aiecommerce.services.mercadolibre_category_impl.attribute_fetcher import MercadolibreCategoryAttributeFetcher
 from aiecommerce.services.mercadolibre_category_impl.category_predictor import MercadolibreCategoryPredictorService
 from aiecommerce.services.mercadolibre_category_impl.price import MercadoLibrePriceEngine
@@ -25,12 +26,14 @@ class MercadolibreEnrichmentCategoryOrchestrator:
         price_engine: MercadoLibrePriceEngine,
         stock_engine: MercadoLibreStockEngine,
         attribute_fetcher: MercadolibreCategoryAttributeFetcher,
+        attribute_filler: MercadolibreAIAttributeFiller,
     ):
         self.selector = selector
         self.category_predictor = category_predictor
         self.price_engine = price_engine
         self.stock_engine = stock_engine
         self.attribute_fetcher = attribute_fetcher
+        self.attribute_filler = attribute_filler
 
     def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, int]:
         """
@@ -71,7 +74,8 @@ class MercadolibreEnrichmentCategoryOrchestrator:
 
                 if category_id is not None:
                     attributes = self.attribute_fetcher.get_category_attributes(category_id)
-                    print(f"Attributes: {attributes}")
+                    data = self.attribute_filler.fill_and_validate(product, attributes)
+                    print(f"Attributes: {data}")
 
                 if not dry_run:
                     listing.category_id = category_id
