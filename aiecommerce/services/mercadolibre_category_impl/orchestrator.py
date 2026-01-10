@@ -73,9 +73,9 @@ class MercadolibreEnrichmentCategoryOrchestrator:
                 listing.available_quantity = self.stock_engine.get_available_quantity(product)
 
                 if category_id is not None:
-                    attributes = self.attribute_fetcher.get_category_attributes(category_id)
-                    data = self.attribute_filler.fill_and_validate(product, attributes)
-                    print(f"Attributes: {data}")
+                    raw_attributes = self.attribute_fetcher.get_category_attributes(category_id)
+                    attributes = self.attribute_filler.fill_and_validate(product, raw_attributes)
+                    listing.attributes = attributes
 
                 if not dry_run:
                     listing.category_id = category_id

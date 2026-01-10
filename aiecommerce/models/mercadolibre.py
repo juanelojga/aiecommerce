@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
 
 from aiecommerce.models.product import ProductMaster
@@ -85,6 +86,12 @@ class MercadoLibreListing(models.Model):
         null=True,
         blank=True,
         help_text=_("The available stock quantity on Mercado Libre."),
+    )
+    attributes = JSONField(
+        _("Mercado Libre Attributes"),
+        null=True,
+        blank=True,
+        help_text=_("JSON field to store Mercado Libre attributes."),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
