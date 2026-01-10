@@ -108,3 +108,31 @@ class TestEnrichmentOrchestrator:
         self.orchestrator.run(force=False, dry_run=True)
 
         self.specs_orchestrator.process_product.assert_called_once_with(p1, True)
+
+    @patch("time.sleep", return_value=None)
+    def test_run_with_failed_enrichment(self, mock_sleep):
+        p1 = ProductMasterFactory(specs=None)
+
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = 1
+        mock_queryset.iterator.return_value = [p1]
+        self.selector.get_queryset.return_value = mock_queryset
+
+        # Mock process_product returning False
+        self.specs_orchestrator.process_product.return_value = (False, {})
+
+        stats = self.orchestrator.run(force=False, dry_run=False)
+
+        assert stats["total"] == 1
+        assert stats["enriched"] == 0
+        self.specs_orchestrator.process_product.assert_called_once_with(p1, False)
+
+    def test_logger_output_info(self, caplog):
+        with caplog.at_level("INFO"):
+            self.orchestrator.logger_output("Test info message", level="info")
+        assert "Test info message" in caplog.text
+
+    def test_logger_output_error(self, caplog):
+        with caplog.at_level("ERROR"):
+            self.orchestrator.logger_output("Test error message", level="error")
+        assert "Test error message" in caplog.text

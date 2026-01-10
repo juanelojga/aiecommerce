@@ -18,7 +18,7 @@ def test_handle_success(monkeypatch):
     import aiecommerce.management.commands.enrich_products_specs as mod
 
     mock_orchestrator_instance = MagicMock()
-    mock_orchestrator_instance.run.return_value = {"processed": 5, "total": 10}
+    mock_orchestrator_instance.run.return_value = {"enriched": 5, "total": 10}
 
     # We need to mock EnrichmentOrchestrator class to return our mock instance
     mock_orchestrator_class = MagicMock(return_value=mock_orchestrator_instance)
@@ -49,7 +49,7 @@ def test_handle_force_and_dry_run(monkeypatch):
     import aiecommerce.management.commands.enrich_products_specs as mod
 
     mock_orchestrator_instance = MagicMock()
-    mock_orchestrator_instance.run.return_value = {"processed": 2, "total": 2}
+    mock_orchestrator_instance.run.return_value = {"enriched": 2, "total": 2}
 
     mock_orchestrator_class = MagicMock(return_value=mock_orchestrator_instance)
     monkeypatch.setattr(mod, "EnrichmentOrchestrator", mock_orchestrator_class)
@@ -81,7 +81,7 @@ def test_call_command():
 
     with patch("aiecommerce.management.commands.enrich_products_specs.EnrichmentOrchestrator") as mock_orch_class:
         mock_orch_instance = mock_orch_class.return_value
-        mock_orch_instance.run.return_value = {"processed": 0, "total": 0}
+        mock_orch_instance.run.return_value = {"enriched": 0, "total": 0}
 
         with (
             patch("aiecommerce.management.commands.enrich_products_specs.ProductSpecificationsService"),

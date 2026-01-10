@@ -41,7 +41,7 @@ class EnrichmentOrchestrator:
 
         for product in queryset.iterator(chunk_size=100):
             # --- STEP: AI Enrichment ---
-            if not force and hasattr(product, "specs") and product.specs:
+            if not force and hasattr(product, "specs") and product.specs and product.model_name and product.normalized_name:
                 self.logger_output(f"Product {product.code}: Skipping enrichment (specs already present)")
                 continue
 
