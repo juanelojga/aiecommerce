@@ -33,4 +33,4 @@ class Command(BaseCommand):
         # Run the enrichment batch
         stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
 
-        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['enriched']}/{stats['total']} products"))
+        self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['processed']}/{stats['total']} products"))

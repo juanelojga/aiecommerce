@@ -6,7 +6,7 @@ from aiecommerce.models import MercadoLibreListing, MercadoLibreToken, ProductDe
 # Register your models
 @admin.register(ProductMaster)
 class ProductMasterAdmin(admin.ModelAdmin):
-    list_display = ("code", "price", "is_active", "sku", "gtin", "last_updated")
+    list_display = ("code", "price", "is_active", "sku", "gtin", "is_for_mercadolibre", "last_updated")
     list_filter = ("is_active", "category")
     search_fields = ("code", "description")
 

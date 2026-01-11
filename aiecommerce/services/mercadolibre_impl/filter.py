@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Mapping, Optional
 
 from django.conf import settings
 from django.db.models import Q, QuerySet
@@ -11,11 +11,11 @@ from aiecommerce.models.product import ProductMaster
 class MercadoLibreFilter:
     def __init__(
         self,
-        publication_rules: Optional[Dict[str, Any]] = None,
+        publication_rules: Optional[Mapping[str, Any]] = None,
         freshness_threshold_hours: Optional[int] = None,
-    ):
-        self.publication_rules = publication_rules if publication_rules is not None else settings.MERCADOLIBRE_PUBLICATION_RULES
-        self.freshness_threshold_hours = freshness_threshold_hours if freshness_threshold_hours is not None else settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
+    ) -> None:
+        self.publication_rules: Mapping[str, Any] = publication_rules if publication_rules is not None else settings.MERCADOLIBRE_PUBLICATION_RULES
+        self.freshness_threshold_hours: int = freshness_threshold_hours if freshness_threshold_hours is not None else settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS
 
     def _get_freshness_limit(self, now: Optional[datetime] = None) -> datetime:
         base_time = now or timezone.now()
@@ -55,7 +55,7 @@ class MercadoLibreFilter:
                 else:
                     threshold = rule_config
 
-                if threshold is not None and product.price >= threshold:
+                if threshold is not None and product.price is not None and product.price >= threshold:
                     return True
 
         return False
@@ -74,6 +74,9 @@ class MercadoLibreFilter:
             price__isnull=False,
             category__isnull=False,
             last_updated__gte=freshness_limit,
+            model_name__isnull=False,
+            sku__isnull=False,
+            seo_title__isnull=False,
         )
 
         # 2. Build Q object for publication rules

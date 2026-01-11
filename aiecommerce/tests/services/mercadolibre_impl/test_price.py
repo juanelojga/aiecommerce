@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.test import SimpleTestCase, override_settings
 
-from aiecommerce.services.mercadolibre_impl.price import MercadoLibrePriceEngine
+from aiecommerce.services.mercadolibre_category_impl.price import MercadoLibrePriceEngine
 
 
 class TestMercadoLibrePriceEngine(SimpleTestCase):

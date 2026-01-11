@@ -72,8 +72,26 @@ def test_image_candidate_selector_queryset():
         mock_settings.MERCADOLIBRE_FRESHNESS_THRESHOLD_HOURS = 24
 
         selector = ImageCandidateSelector()
-        baker.make(ProductMaster, is_active=True, category="Cat", price=150, last_updated=timezone.now())
-        baker.make(ProductMaster, is_active=True, category="Cat", price=150, last_updated=timezone.now())
+        baker.make(
+            ProductMaster,
+            is_active=True,
+            category="Cat",
+            price=150,
+            last_updated=timezone.now(),
+            model_name="Model",
+            sku="SKU",
+            seo_title="SEO Title",
+        )
+        baker.make(
+            ProductMaster,
+            is_active=True,
+            category="Cat",
+            price=150,
+            last_updated=timezone.now(),
+            model_name="Model2",
+            sku="SKU2",
+            seo_title="SEO Title2",
+        )
 
         qs = selector.get_pending_image_products()
         from django.db.models import QuerySet

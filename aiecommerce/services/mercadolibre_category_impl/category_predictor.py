@@ -1,13 +1,13 @@
 import logging
 from typing import Optional
 
-from .client import MercadoLibreClient
-from .exceptions import MLAPIError
+from aiecommerce.services.mercadolibre_impl import MercadoLibreClient
+from aiecommerce.services.mercadolibre_impl.exceptions import MLAPIError
 
 logger = logging.getLogger(__name__)
 
 
-class CategoryPredictorService:
+class MercadolibreCategoryPredictorService:
     """
     Service to predict the Mercado Libre category for a given product title.
     """

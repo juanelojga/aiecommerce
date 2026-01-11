@@ -1,12 +1,12 @@
 import logging
 from typing import Dict, List
 
-from .client import MercadoLibreClient
+from aiecommerce.services.mercadolibre_impl import MercadoLibreClient
 
 logger = logging.getLogger(__name__)
 
 
-class CategoryAttributeFetcher:
+class MercadolibreCategoryAttributeFetcher:
     """
     Fetches and filters category attributes from the Mercado Libre API.
 
@@ -23,7 +23,7 @@ class CategoryAttributeFetcher:
         """
         self.client = client
 
-    def get_required_attributes(self, category_id: str) -> List[Dict]:
+    def get_category_attributes(self, category_id: str) -> List[Dict]:
         """
         Retrieves all attributes for a category and filters for required ones.
 
@@ -50,7 +50,10 @@ class CategoryAttributeFetcher:
                 return []
 
             for attr in attributes:
-                attr_tags = attr.get("tags", [])
+                attr_tags = attr.get("tags")
+                if not isinstance(attr_tags, (list, set, tuple)):
+                    continue
+
                 if any(tag in attr_tags for tag in required_tags):
                     required_attributes.append(attr)
 

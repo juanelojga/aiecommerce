@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
 
 from aiecommerce.models.product import ProductMaster
@@ -30,6 +31,13 @@ class MercadoLibreListing(models.Model):
         blank=True,
         help_text=_("The unique identifier for the listing on Mercado Libre."),
     )
+    category_id = models.CharField(
+        _("Mercado Libre Category ID"),
+        max_length=30,
+        null=True,
+        blank=True,
+        help_text=_("The category ID for the listing on Mercado Libre."),
+    )
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
@@ -48,6 +56,42 @@ class MercadoLibreListing(models.Model):
         null=True,
         blank=True,
         help_text=_("Details of the last synchronization error, if any."),
+    )
+    final_price = models.DecimalField(
+        _("Final Price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("The final price of the listing on Mercado Libre."),
+    )
+    net_price = models.DecimalField(
+        _("Net Price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("The net price of the listing before Mercado Libre fees."),
+    )
+    profit = models.DecimalField(
+        _("Profit"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("The estimated profit from the listing."),
+    )
+    available_quantity = models.IntegerField(
+        _("Available Quantity"),
+        null=True,
+        blank=True,
+        help_text=_("The available stock quantity on Mercado Libre."),
+    )
+    attributes = JSONField(
+        _("Mercado Libre Attributes"),
+        null=True,
+        blank=True,
+        help_text=_("JSON field to store Mercado Libre attributes."),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
