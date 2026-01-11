@@ -30,4 +30,4 @@ class MercadolibreCategorySelector:
             needs_enrichment = Q(mercadolibre_listing__isnull=True)
             query = query.filter(needs_enrichment)
 
-        return query.order_by("id")[:4]
+        return query.order_by("id")
