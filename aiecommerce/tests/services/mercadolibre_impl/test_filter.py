@@ -96,13 +96,13 @@ class TestMercadoLibreFilter:
         filter_service = MercadoLibreFilter(publication_rules=rules, freshness_threshold_hours=24)
 
         # Create eligible products
-        ProductMaster.objects.create(code="E1", price=200, category="Electronics", is_active=True)
-        ProductMaster.objects.create(code="L1", price=600, category="Laptops", is_active=True)
+        ProductMaster.objects.create(code="E1", price=200, category="Electronics", is_active=True, model_name="M1", sku="S1", seo_title="T1")
+        ProductMaster.objects.create(code="L1", price=600, category="Laptops", is_active=True, model_name="M2", sku="S2", seo_title="T2")
 
         # Create ineligible products
-        ProductMaster.objects.create(code="E2", price=50, category="Electronics", is_active=True)
-        ProductMaster.objects.create(code="L2", price=400, category="Laptops", is_active=True)
-        ProductMaster.objects.create(code="E3", price=200, category="Electronics", is_active=False)
+        ProductMaster.objects.create(code="E2", price=50, category="Electronics", is_active=True, model_name="M3", sku="S3", seo_title="T3")
+        ProductMaster.objects.create(code="L2", price=400, category="Laptops", is_active=True, model_name="M4", sku="S4", seo_title="T4")
+        ProductMaster.objects.create(code="E3", price=200, category="Electronics", is_active=False, model_name="M5", sku="S5", seo_title="T5")
 
         eligible = filter_service.get_eligible_products()
         assert eligible.count() == 2
@@ -111,7 +111,15 @@ class TestMercadoLibreFilter:
 
     def test_get_eligible_products_empty_rules(self):
         filter_service = MercadoLibreFilter(publication_rules={}, freshness_threshold_hours=24)
-        ProductMaster.objects.create(code="E1", price=200, category="Electronics", is_active=True)
+        ProductMaster.objects.create(
+            code="E1",
+            price=200,
+            category="Electronics",
+            is_active=True,
+            model_name="M1",
+            sku="S1",
+            seo_title="T1",
+        )
 
         eligible = filter_service.get_eligible_products()
         assert eligible.count() == 0

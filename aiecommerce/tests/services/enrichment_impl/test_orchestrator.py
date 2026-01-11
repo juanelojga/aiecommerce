@@ -40,7 +40,7 @@ class TestEnrichmentOrchestrator:
         stats = self.orchestrator.run(force=False, dry_run=False, delay=0.1)
 
         assert stats["total"] == 2
-        assert stats["enriched"] == 2
+        assert stats["processed"] == 2
         assert self.specs_orchestrator.process_product.call_count == 2
         assert mock_sleep.call_count == 2
 
@@ -57,7 +57,7 @@ class TestEnrichmentOrchestrator:
             stats = self.orchestrator.run(force=False, dry_run=False)
 
         assert stats["total"] == 1
-        assert stats["enriched"] == 0
+        assert stats["processed"] == 0
         assert self.specs_orchestrator.process_product.assert_not_called
         assert f"Product {p1.code}: Skipping enrichment" in caplog.text
 
@@ -74,7 +74,7 @@ class TestEnrichmentOrchestrator:
 
         stats = self.orchestrator.run(force=True, dry_run=False)
 
-        assert stats["enriched"] == 1
+        assert stats["processed"] == 1
         self.specs_orchestrator.process_product.assert_called_once_with(p1, False)
 
     @patch("time.sleep", return_value=None)
@@ -91,7 +91,7 @@ class TestEnrichmentOrchestrator:
         with caplog.at_level("ERROR"):
             stats = self.orchestrator.run(force=False, dry_run=False)
 
-        assert stats["enriched"] == 0
+        assert stats["processed"] == 0
         assert f"Product {p1.code}: AI enrichment crashed" in caplog.text
 
     @patch("time.sleep", return_value=None)
@@ -124,7 +124,7 @@ class TestEnrichmentOrchestrator:
         stats = self.orchestrator.run(force=False, dry_run=False)
 
         assert stats["total"] == 1
-        assert stats["enriched"] == 0
+        assert stats["processed"] == 0
         self.specs_orchestrator.process_product.assert_called_once_with(p1, False)
 
     def test_logger_output_info(self, caplog):

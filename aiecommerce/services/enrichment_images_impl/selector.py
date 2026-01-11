@@ -31,4 +31,4 @@ class EnrichmentImagesCandidateSelector:
             needs_enrichment = Q(images__isnull=True)
             query = query.filter(needs_enrichment)
 
-        return query.order_by("id")
+        return query.order_by("id")[:2]
