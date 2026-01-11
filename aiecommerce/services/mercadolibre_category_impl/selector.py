@@ -1,12 +1,12 @@
 from django.db.models import Q, QuerySet
 
-from aiecommerce.models import ProductMaster
+from aiecommerce.models import MercadoLibreListing, ProductMaster
 
 
 class MercadolibreCategorySelector:
     """Encapsulates all filtering logic for product enrichment."""
 
-    def get_queryset(self, force: bool, dry_run: bool) -> QuerySet[ProductMaster, ProductMaster]:
+    def get_queryset(self, force: bool, dry_run: bool) -> QuerySet[ProductMaster]:
         """
         Builds and returns the queryset of products to be enriched.
 
@@ -27,7 +27,12 @@ class MercadolibreCategorySelector:
             return query.order_by("id")[:3]
 
         if not force:
-            needs_enrichment = Q(mercadolibre_listing__isnull=True)
+            needs_enrichment = Q(mercadolibre_listing__isnull=True) | Q(
+                mercadolibre_listing__status__in=[
+                    MercadoLibreListing.Status.PENDING,
+                    MercadoLibreListing.Status.ERROR,
+                ]
+            )
             query = query.filter(needs_enrichment)
 
         return query.order_by("id")

@@ -50,7 +50,10 @@ class MercadolibreCategoryAttributeFetcher:
                 return []
 
             for attr in attributes:
-                attr_tags = attr.get("tags", [])
+                attr_tags = attr.get("tags")
+                if not isinstance(attr_tags, (list, set, tuple)):
+                    continue
+
                 if any(tag in attr_tags for tag in required_tags):
                     required_attributes.append(attr)
 
