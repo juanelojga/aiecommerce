@@ -20,7 +20,7 @@ class MercadoLibrePublisherService:
     def __init__(self, client: MercadoLibreClient):
         self.client = client
 
-    def build_payload(self, product: ProductMaster) -> Dict[str, Any]:
+    def build_payload(self, product: ProductMaster, test: bool = False) -> Dict[str, Any]:
         """Constructs the JSON payload for the POST /items endpoint."""
         listing = product.mercadolibre_listing
 
@@ -29,8 +29,10 @@ class MercadoLibrePublisherService:
 
         price = float(listing.final_price) if listing.final_price is not None else 0.0
 
+        title = "Item de test - No ofertar" if test else product.seo_title
+
         return {
-            "title": product.seo_title,
+            "title": title,
             "category_id": listing.category_id,
             "price": price,
             "currency_id": "USD",
@@ -43,14 +45,14 @@ class MercadoLibrePublisherService:
             "sale_terms": [{"id": "WARRANTY_TYPE", "value_name": "Garantía de fábrica"}, {"id": "WARRANTY_TIME", "value_name": "12 meses"}],
         }
 
-    def publish_product(self, product: ProductMaster, dry_run: bool = False) -> Dict[str, Any]:
+    def publish_product(self, product: ProductMaster, dry_run: bool = False, test: bool = False) -> Dict[str, Any]:
         """
         Executes the publication process.
         1. Create item (POST /items)
         2. Create description (POST /items/{id}/description)
         """
 
-        payload = self.build_payload(product)
+        payload = self.build_payload(product, test=test)
 
         if dry_run:
             logger.info(f"[Dry-Run] Payload for product {product.code} generated.")
