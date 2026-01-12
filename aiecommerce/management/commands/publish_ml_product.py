@@ -58,7 +58,7 @@ class Command(BaseCommand):
             client = MercadoLibreClient(access_token=token_instance.access_token)
             publisher = MercadoLibrePublisherService(client=client)
 
-            orchestrator = PublisherOrchestrator(publisher=publisher, sandbox=sandbox)
+            orchestrator = PublisherOrchestrator(publisher=publisher)
             orchestrator.run(product_code=product_code, dry_run=dry_run, sandbox=sandbox)
             self.stdout.write(self.style.SUCCESS("--- Publication process finished ---"))
 

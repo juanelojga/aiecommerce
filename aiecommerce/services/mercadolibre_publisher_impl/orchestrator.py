@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class PublisherOrchestrator:
-    def __init__(self, publisher: MercadoLibrePublisherService, sandbox: bool):
+    def __init__(self, publisher: MercadoLibrePublisherService):
         self.publisher = publisher
 
     def run(self, product_code: str, dry_run: bool, sandbox: bool) -> None:

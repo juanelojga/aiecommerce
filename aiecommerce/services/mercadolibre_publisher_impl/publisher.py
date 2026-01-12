@@ -55,7 +55,6 @@ class MercadoLibrePublisherService:
         payload = self.build_payload(product, test=test)
 
         if dry_run:
-            logger.info(f"[Dry-Run] Payload for product {product.code} generated.")
             logger.info(f"[Dry-Run] Payload for product {product.code} generated:\n{payload}")
             return {"dry_run": True, "payload": payload}
 

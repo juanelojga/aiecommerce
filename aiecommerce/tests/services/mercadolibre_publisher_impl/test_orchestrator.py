@@ -8,7 +8,7 @@ class TestPublisherOrchestrator:
     def test_run_product_found(self, mock_selector):
         # Arrange
         mock_publisher = MagicMock()
-        orchestrator = PublisherOrchestrator(publisher=mock_publisher, sandbox=True)
+        orchestrator = PublisherOrchestrator(publisher=mock_publisher)
 
         product_code = "TEST-CODE"
         dry_run = False
@@ -29,7 +29,7 @@ class TestPublisherOrchestrator:
     def test_run_product_not_found(self, mock_logger, mock_selector):
         # Arrange
         mock_publisher = MagicMock()
-        orchestrator = PublisherOrchestrator(publisher=mock_publisher, sandbox=True)
+        orchestrator = PublisherOrchestrator(publisher=mock_publisher)
 
         product_code = "NON-EXISTENT"
         dry_run = False
