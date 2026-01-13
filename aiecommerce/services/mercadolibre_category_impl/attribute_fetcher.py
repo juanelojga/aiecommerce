@@ -38,9 +38,6 @@ class MercadolibreCategoryAttributeFetcher:
             Returns an empty list if the API call fails or no required
             attributes are found.
         """
-        required_tags = {"required", "new_required", "conditional_required"}
-        required_attributes: List[Dict] = []
-
         try:
             logger.info(f"Fetching attributes for category_id: {category_id}")
             attributes = self.client.get(f"categories/{category_id}/attributes")
@@ -49,15 +46,13 @@ class MercadolibreCategoryAttributeFetcher:
                 logger.warning(f"Expected a list of attributes, but got {type(attributes)}")
                 return []
 
+            required_tags = {"required", "new_required", "conditional_required"}
+            required_attributes = []
             for attr in attributes:
-                attr_tags = attr.get("tags")
-                if not isinstance(attr_tags, (list, set, tuple)):
-                    continue
-
-                if any(tag in attr_tags for tag in required_tags):
+                tags = attr.get("tags")
+                if isinstance(tags, list) and any(tag in required_tags for tag in tags):
                     required_attributes.append(attr)
 
-            logger.info(f"Found {len(required_attributes)} required attributes for category_id: {category_id}")
             return required_attributes
         except Exception as e:
             logger.error(
