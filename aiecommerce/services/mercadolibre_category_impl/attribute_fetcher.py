@@ -8,10 +8,9 @@ logger = logging.getLogger(__name__)
 
 class MercadolibreCategoryAttributeFetcher:
     """
-    Fetches and filters category attributes from the Mercado Libre API.
+    Fetches category attributes from the Mercado Libre API.
 
-    This service is responsible for retrieving attributes for a given category
-    and identifying which of them are mandatory for listing a product.
+    This service is responsible for retrieving attributes for a given category.
     """
 
     def __init__(self, client: MercadoLibreClient):
@@ -25,7 +24,7 @@ class MercadolibreCategoryAttributeFetcher:
 
     def get_category_attributes(self, category_id: str) -> List[Dict]:
         """
-        Retrieves all attributes for a category and filters for required ones.
+        Retrieves all attributes for a category.
 
         Args:
             category_id: The Mercado Libre category ID.
