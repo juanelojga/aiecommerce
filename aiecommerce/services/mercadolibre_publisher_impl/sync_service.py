@@ -26,7 +26,7 @@ class MercadoLibreSyncService:
 
         update_payload: dict[str, Any] = {}
         if new_price and new_price != listing.final_price:
-            update_payload["price"] = new_price
+            update_payload["price"] = float(new_price)  # Convert Decimal to float
         if new_quantity != listing.available_quantity:
             update_payload["available_quantity"] = new_quantity
 
