@@ -92,3 +92,5 @@ xlrd==2.0.2
 yarl==1.22.0
 eansearch==1.8.3
 rapidfuzz
+gunicorn
+whitenoise[brotli]
