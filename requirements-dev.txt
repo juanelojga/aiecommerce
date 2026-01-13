@@ -1,7 +1,10 @@
 -r requirements.txt
+boto3-stubs==1.42.19
+botocore-stubs==1.42.19
 celery-types==0.24.0
 cfgv==3.5.0
 distlib==0.4.0
+django-extensions==4.1
 django-stubs==5.2.8
 django-stubs-ext==5.2.8
 djangorestframework-stubs==3.16.6
@@ -21,7 +24,9 @@ pre_commit==4.5.1
 pytest==9.0.2
 pytest-django==4.11.1
 ruff==0.14.10
+types-awscrt==0.30.0
 types-pytz==2025.2.0.20251108
 types-PyYAML==6.0.12.20250915
 types-requests==2.32.4.20250913
+types-s3transfer==0.16.0
 virtualenv==20.35.4
