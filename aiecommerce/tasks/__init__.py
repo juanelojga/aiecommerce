@@ -12,6 +12,7 @@ from .periodic import (
     run_prune_scrapes,
     run_publish_ml_product,
     run_scrape_tecnomega,
+    run_sync_ml_listings,
     run_sync_price_list,
     run_update_ml_eligibility,
 )
@@ -32,4 +33,5 @@ __all__ = (
     "run_scrape_tecnomega",
     "run_sync_price_list",
     "run_update_ml_eligibility",
+    "run_sync_ml_listings",
 )

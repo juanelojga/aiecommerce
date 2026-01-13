@@ -58,4 +58,8 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_update_ml_eligibility",
         "schedule": crontab(minute=40, hour="8-19", day_of_week="mon-sat"),
     },
+    "run_sync_ml_listings-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_sync_ml_listings",
+        "schedule": crontab(minute=45, hour="8-19", day_of_week="mon-sat"),
+    },
 }

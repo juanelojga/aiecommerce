@@ -80,3 +80,9 @@ def run_sync_price_list():
 def run_update_ml_eligibility():
     """Run the update_ml_eligibility management command."""
     call_command("update_ml_eligibility")
+
+
+@shared_task
+def run_sync_ml_listings():
+    """Run the sync_ml_listings management command."""
+    call_command("sync_ml_listings")
