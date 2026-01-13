@@ -4,7 +4,6 @@ botocore-stubs==1.42.19
 celery-types==0.24.0
 cfgv==3.5.0
 distlib==0.4.0
-django-extensions==4.1
 django-stubs==5.2.8
 django-stubs-ext==5.2.8
 djangorestframework-stubs==3.16.6

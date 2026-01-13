@@ -2,8 +2,6 @@ from django.db import models
 from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
 
-from aiecommerce.models.product import ProductMaster
-
 
 class MercadoLibreListing(models.Model):
     """
@@ -17,7 +15,7 @@ class MercadoLibreListing(models.Model):
         ERROR = "ERROR", _("Error")
 
     product_master = models.OneToOneField(
-        ProductMaster,
+        "aiecommerce.ProductMaster",
         on_delete=models.CASCADE,
         related_name="mercadolibre_listing",
         help_text=_("The master product associated with this listing."),
