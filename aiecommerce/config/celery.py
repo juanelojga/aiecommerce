@@ -34,16 +34,28 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_normalize_products",
         "schedule": crontab(minute=10, hour="8-19", day_of_week="mon-sat"),
     },
-    "enrich-hourly-mon-sat": {
-        "task": "aiecommerce.tasks.periodic.run_enrich_products",
+    "enrich-products-content-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_content",
         "schedule": crontab(minute=15, hour="8-19", day_of_week="mon-sat"),
     },
-    "ml-eligibility-hourly-mon-sat": {
-        "task": "aiecommerce.tasks.periodic.run_ml_eligibility_update",
+    "enrich-products-details-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_details",
         "schedule": crontab(minute=20, hour="8-19", day_of_week="mon-sat"),
     },
-    "image-fetcher-hourly-mon-sat": {
-        "task": "aiecommerce.tasks.periodic.run_image_fetcher",
+    "enrich-products-images-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_images",
         "schedule": crontab(minute=25, hour="8-19", day_of_week="mon-sat"),
+    },
+    "enrich-products-specs-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_specs",
+        "schedule": crontab(minute=30, hour="8-19", day_of_week="mon-sat"),
+    },
+    "enrich-mercadolibre-category-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_mercadolibre_category",
+        "schedule": crontab(minute=35, hour="8-19", day_of_week="mon-sat"),
+    },
+    "update-ml-eligibility-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_update_ml_eligibility",
+        "schedule": crontab(minute=40, hour="8-19", day_of_week="mon-sat"),
     },
 }
