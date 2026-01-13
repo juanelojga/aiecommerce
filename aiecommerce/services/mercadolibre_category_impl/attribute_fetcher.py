@@ -8,10 +8,9 @@ logger = logging.getLogger(__name__)
 
 class MercadolibreCategoryAttributeFetcher:
     """
-    Fetches and filters category attributes from the Mercado Libre API.
+    Fetches category attributes from the Mercado Libre API.
 
-    This service is responsible for retrieving attributes for a given category
-    and identifying which of them are mandatory for listing a product.
+    This service is responsible for retrieving attributes for a given category.
     """
 
     def __init__(self, client: MercadoLibreClient):
@@ -25,18 +24,13 @@ class MercadolibreCategoryAttributeFetcher:
 
     def get_category_attributes(self, category_id: str) -> List[Dict]:
         """
-        Retrieves all attributes for a category and filters for required ones.
-
-        An attribute is considered required if its 'tags' list contains
-        'required', 'new_required', or 'conditional_required'.
+        Retrieves all attributes for a category.
 
         Args:
             category_id: The Mercado Libre category ID.
 
         Returns:
-            A list of attribute dictionaries that are considered required.
-            Returns an empty list if the API call fails or no required
-            attributes are found.
+            A list of attribute dictionaries
         """
         try:
             logger.info(f"Fetching attributes for category_id: {category_id}")
@@ -46,14 +40,7 @@ class MercadolibreCategoryAttributeFetcher:
                 logger.warning(f"Expected a list of attributes, but got {type(attributes)}")
                 return []
 
-            required_tags = {"required", "new_required", "conditional_required"}
-            required_attributes = []
-            for attr in attributes:
-                tags = attr.get("tags")
-                if isinstance(tags, list) and any(tag in required_tags for tag in tags):
-                    required_attributes.append(attr)
-
-            return required_attributes
+            return attributes
         except Exception as e:
             logger.error(
                 f"Error fetching attributes for category_id {category_id}: {e}",

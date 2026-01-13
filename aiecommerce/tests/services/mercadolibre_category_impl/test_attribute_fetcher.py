@@ -32,10 +32,14 @@ class TestMercadolibreCategoryAttributeFetcher:
         result = fetcher.get_category_attributes(category_id)
 
         # Assertions
-        assert len(result) == 3
+        assert len(result) == 7
         assert result[0]["id"] == "COLOR"
         assert result[1]["id"] == "SIZE"
         assert result[2]["id"] == "MATERIAL"
+        assert result[3]["id"] == "BRAND"
+        assert result[4]["id"] == "MODEL"
+        assert result[5]["id"] == "WARRANTY"
+        assert result[6]["id"] == "EAN"
         mock_client.get.assert_called_once_with(f"categories/{category_id}/attributes")
 
     def test_get_category_attributes_no_required(self, fetcher, mock_client):
@@ -51,7 +55,9 @@ class TestMercadolibreCategoryAttributeFetcher:
         result = fetcher.get_category_attributes(category_id)
 
         # Assertions
-        assert result == []
+        assert len(result) == 2
+        assert result[0]["id"] == "BRAND"
+        assert result[1]["id"] == "MODEL"
         mock_client.get.assert_called_once_with(f"categories/{category_id}/attributes")
 
     def test_get_category_attributes_not_a_list(self, fetcher, mock_client):
@@ -103,5 +109,7 @@ class TestMercadolibreCategoryAttributeFetcher:
         result = fetcher.get_category_attributes(category_id)
 
         # Assertions
-        assert result == []
+        assert len(result) == 2
+        assert result[0]["id"] == "ATTR1"
+        assert result[1]["id"] == "ATTR2"
         mock_client.get.assert_called_once_with(f"categories/{category_id}/attributes")
