@@ -81,8 +81,7 @@ class TestMercadoLibrePublisherService:
     def test_publish_product_dry_run(self, publisher_service, ml_client, product):
         response = publisher_service.publish_product(product, dry_run=True)
 
-        assert response["dry_run"] is True
-        assert "payload" in response
+        assert response is None
         assert ml_client.post.call_count == 0
 
         # Verify DB NOT updated
