@@ -15,8 +15,13 @@ def ml_client():
 
 
 @pytest.fixture
-def publisher_service(ml_client):
-    return MercadoLibrePublisherService(client=ml_client)
+def attribute_fixer():
+    return MagicMock()
+
+
+@pytest.fixture
+def publisher_service(ml_client, attribute_fixer):
+    return MercadoLibrePublisherService(client=ml_client, attribute_fixer=attribute_fixer)
 
 
 @pytest.fixture
@@ -116,3 +121,31 @@ class TestMercadoLibrePublisherService:
         # and it would have been rolled back if it was in an atomic block,
         # but the ML API call is external.
         # The current implementation updates DB ONLY after both API calls succeed.
+
+    def test_publish_product_retry_with_attribute_fix(self, publisher_service, ml_client, attribute_fixer, product):
+        # 1. First call to post("items", ...) fails with 400 Validation Error
+        # 2. Attribute fixer is called
+        # 3. Second call to post("items", ...) succeeds
+        # 4. Call to post("items/MLA987654321/description", ...) succeeds
+
+        error_msg = 'HTTP Error 400: {"cause":[{"code":"invalid_attributes"}]}'
+        ml_client.post.side_effect = [
+            MLAPIError(error_msg),
+            {"id": "MLA987654321"},
+            {"id": "MLA987654321-desc"},
+        ]
+
+        fixed_attributes = [{"id": "COLOR", "value_name": "Rojo (Fixed)"}]
+        attribute_fixer.fix_attributes.return_value = fixed_attributes
+
+        response = publisher_service.publish_product(product)
+
+        assert response["id"] == "MLA987654321"
+        assert attribute_fixer.fix_attributes.call_count == 1
+        assert ml_client.post.call_count == 3
+
+        # Verify DB update with fixed attributes
+        product.refresh_from_db()
+        listing = product.mercadolibre_listing
+        assert listing.attributes == fixed_attributes
+        assert listing.status == MercadoLibreListing.Status.ACTIVE
