@@ -20,7 +20,7 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     "scrape-hourly-mon-sat": {
         "task": "aiecommerce.tasks.periodic.run_scrape_tecnomega",
-        "schedule": crontab(minute=0, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=0, hour="8-18/2", day_of_week="mon-sat"),
     },
     "sync-price-list-daily": {
         "task": "aiecommerce.tasks.periodic.run_sync_price_list",
@@ -32,34 +32,30 @@ app.conf.beat_schedule = {
     },
     "normalize-hourly-mon-sat": {
         "task": "aiecommerce.tasks.periodic.run_normalize_products",
-        "schedule": crontab(minute=10, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=10, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-content-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_content",
-        "schedule": crontab(minute=15, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=15, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-details-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_details",
-        "schedule": crontab(minute=20, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=20, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-images-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_images",
-        "schedule": crontab(minute=25, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=25, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-specs-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_specs",
-        "schedule": crontab(minute=30, hour="8-19", day_of_week="mon-sat"),
-    },
-    "enrich-mercadolibre-category-hourly": {
-        "task": "aiecommerce.tasks.periodic.run_enrich_mercadolibre_category",
-        "schedule": crontab(minute=35, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=30, hour="8-18/2", day_of_week="mon-sat"),
     },
     "update-ml-eligibility-hourly": {
         "task": "aiecommerce.tasks.periodic.run_update_ml_eligibility",
-        "schedule": crontab(minute=40, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
     },
     "run_sync_ml_listings-hourly": {
         "task": "aiecommerce.tasks.periodic.run_sync_ml_listings",
-        "schedule": crontab(minute=45, hour="8-19", day_of_week="mon-sat"),
+        "schedule": crontab(minute=45, hour="8-18/2", day_of_week="mon-sat"),
     },
 }
