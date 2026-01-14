@@ -1,8 +1,12 @@
 import logging
 
+import instructor
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from openai import OpenAI
 
 from aiecommerce.models import MercadoLibreToken
+from aiecommerce.services.mercadolibre_category_impl.attribute_fixer import MercadolibreAttributeFixer
 from aiecommerce.services.mercadolibre_impl import MercadoLibreClient
 from aiecommerce.services.mercadolibre_impl.auth_service import MercadoLibreAuthService
 from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
@@ -56,7 +60,14 @@ class Command(BaseCommand):
 
         try:
             client = MercadoLibreClient(access_token=token_instance.access_token)
-            publisher = MercadoLibrePublisherService(client=client)
+
+            api_key = settings.OPENROUTER_API_KEY
+            base_url = settings.OPENROUTER_BASE_URL
+
+            open_client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
+            attribute_fixer = MercadolibreAttributeFixer(client=open_client)
+
+            publisher = MercadoLibrePublisherService(client=client, attribute_fixer=attribute_fixer)
 
             orchestrator = PublisherOrchestrator(publisher=publisher)
             orchestrator.run(product_code=product_code, dry_run=dry_run, sandbox=sandbox)
