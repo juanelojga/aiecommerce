@@ -53,7 +53,7 @@ class MercadoLibrePublisherService:
         match = re.search(r"HTTP Error 400: (\{.*\})", error_str)
         return match.group(1) if match else None
 
-    def publish_product(self, product: ProductMaster, dry_run: bool = False, test: bool = False) -> Dict[str, Any]:
+    def publish_product(self, product: ProductMaster, dry_run: bool = False, test: bool = False):
         """
         Executes publication with a self-healing retry for validation errors.
         """
@@ -66,7 +66,7 @@ class MercadoLibrePublisherService:
 
             if dry_run:
                 logger.info(f"[Dry-Run] Payload generated: {payload}")
-                return {"dry_run": True, "payload": payload}
+                return
 
             try:
                 # Step 1: Create the Listing
@@ -118,7 +118,4 @@ class MercadoLibrePublisherService:
                 listing.sync_error = error_str
                 listing.save()
                 raise
-
-        return {
-            "attempts": attempts,
-        }
+        return
