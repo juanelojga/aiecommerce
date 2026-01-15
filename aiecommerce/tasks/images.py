@@ -6,7 +6,7 @@ from celery import shared_task
 from django.conf import settings
 from django.db import transaction
 
-from aiecommerce.models import MercadoLibreListing, ProductImage, ProductMaster
+from aiecommerce.models import ProductImage, ProductMaster
 from aiecommerce.services.image_processor import ImageProcessorService
 from aiecommerce.services.mercadolibre_impl.image_search_service import ImageSearchService
 
@@ -84,11 +84,3 @@ def process_product_image(product_id_or_code) -> None:
             logger.info(f"Successfully created {len(processed_images)} ProductImage records for product {product.id}.")
     else:
         logger.warning(f"Image processing failed for product {product.id}: No images could be processed.")
-        # Update MercadoLibreListing if it exists
-        try:
-            listing, created = MercadoLibreListing.objects.get_or_create(product_master=product)
-            listing.status = MercadoLibreListing.Status.ERROR
-            listing.sync_error = "Image search failed: No results found"
-            listing.save()
-        except Exception as e:
-            logger.error(f"Failed to update MercadoLibreListing for product {product.id}: {e}")
