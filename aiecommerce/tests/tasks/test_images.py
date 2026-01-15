@@ -6,7 +6,7 @@ from unittest.mock import call, patch
 import pytest
 from model_bakery import baker
 
-from aiecommerce.models import MercadoLibreListing, ProductImage, ProductMaster
+from aiecommerce.models import ProductImage, ProductMaster
 from aiecommerce.tasks.images import process_product_image
 
 pytestmark = pytest.mark.django_db
@@ -64,12 +64,12 @@ def test_process_product_image_success(mock_image_search_service, mock_image_pro
 
 
 @patch("aiecommerce.tasks.images.ImageSearchService")
-def test_process_product_image_no_images_found(mock_image_search_service):
+def test_process_product_image_no_images_found(mock_image_search_service, caplog):
     """
-    Verify that the MercadoLibreListing is updated to an ERROR state
-    if the image search returns no results.
+    Verify that a warning is logged if the image search returns no results.
     """
     # Arrange
+    caplog.set_level(logging.INFO)
     product = baker.make(ProductMaster, code="PROD003")
 
     mock_search_instance = mock_image_search_service.return_value
@@ -80,10 +80,8 @@ def test_process_product_image_no_images_found(mock_image_search_service):
     process_product_image(product.id)
 
     # Assert
-    listing = MercadoLibreListing.objects.get(product_master=product)
-    assert listing.status == "ERROR"
-    assert listing.sync_error == "Image search failed: No results found"
     assert ProductImage.objects.count() == 0
+    assert f"Image processing failed for product {product.id}: No images could be processed." in caplog.text
 
 
 @patch("aiecommerce.tasks.images.ImageProcessorService")
