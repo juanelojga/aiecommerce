@@ -21,6 +21,7 @@ class EnrichmentImagesCandidateSelector:
             is_active=True,
             price__isnull=False,
             category__isnull=False,
+            is_for_mercadolibre=True,
         )
 
         if dry_run:
