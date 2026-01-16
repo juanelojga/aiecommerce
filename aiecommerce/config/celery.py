@@ -20,7 +20,7 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     "scrape-hourly-mon-sat": {
         "task": "aiecommerce.tasks.periodic.run_scrape_tecnomega",
-        "schedule": crontab(minute=0, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=1, hour="8-18/2", day_of_week="mon-sat"),
     },
     "sync-price-list-daily": {
         "task": "aiecommerce.tasks.periodic.run_sync_price_list",
