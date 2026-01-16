@@ -11,7 +11,7 @@ from aiecommerce.models import ProductMaster
 def test_enrich_products_images_no_products(capsys):
     """Test when no products exist without images."""
     # Create a product with an image
-    product = baker.make(ProductMaster, is_active=True, price=10.0, category="Test Category")
+    product = baker.make(ProductMaster, is_active=True, price=10.0, category="Test Category", is_for_mercadolibre=True)
     baker.make("aiecommerce.ProductImage", product=product)
 
     call_command("enrich_products_images")
@@ -25,12 +25,13 @@ def test_enrich_products_images_no_products(capsys):
 def test_enrich_products_images_dry_run(mock_process_product_image, capsys):
     """Test dry-run mode."""
     # Create products without images
-    p1 = baker.make(ProductMaster, sku="SKU001", description="Desc 1", is_active=True, price=10.0, category="Test Category")
-    p2 = baker.make(ProductMaster, sku="SKU002", description="Desc 2", is_active=True, price=20.0, category="Test Category")
+    p1 = baker.make(ProductMaster, sku="SKU001", description="Desc 1", is_active=True, price=10.0, category="Test Category", is_for_mercadolibre=True)
+    p2 = baker.make(ProductMaster, sku="SKU002", description="Desc 2", is_active=True, price=20.0, category="Test Category", is_for_mercadolibre=True)
 
     call_command("enrich_products_images", "--dry-run")
 
     captured = capsys.readouterr()
+    assert "--- DRY RUN MODE ACTIVATED ---" in captured.out
     assert "--- DRY RUN MODE: No tasks will be enqueued. ---" in captured.out
     assert f"Would process Product ID: {p1.id}, SKU: {p1.sku}" in captured.out
     assert f"Would process Product ID: {p2.id}, SKU: {p2.sku}" in captured.out
@@ -44,15 +45,15 @@ def test_enrich_products_images_dry_run(mock_process_product_image, capsys):
 @patch("time.sleep", return_value=None)  # Speed up tests
 def test_enrich_products_images_normal_run(mock_sleep, mock_process_product_image, capsys):
     """Test normal run enqueuing tasks."""
-    p1 = baker.make(ProductMaster, is_active=True, code="CODE1", price=10.0, category="Test Category")
-    p2 = baker.make(ProductMaster, is_active=True, code="CODE2", price=20.0, category="Test Category")
+    p1 = baker.make(ProductMaster, is_active=True, code="CODE1", price=10.0, category="Test Category", is_for_mercadolibre=True)
+    p2 = baker.make(ProductMaster, is_active=True, code="CODE2", price=20.0, category="Test Category", is_for_mercadolibre=True)
 
     # One active with image (should be ignored)
-    p3 = baker.make(ProductMaster, is_active=True, price=30.0, category="Test Category")
+    p3 = baker.make(ProductMaster, is_active=True, price=30.0, category="Test Category", is_for_mercadolibre=True)
     baker.make("aiecommerce.ProductImage", product=p3)
 
     # One inactive without image (should be ignored)
-    baker.make(ProductMaster, is_active=False, price=40.0, category="Test Category")
+    baker.make(ProductMaster, is_active=False, price=40.0, category="Test Category", is_for_mercadolibre=True)
 
     call_command("enrich_products_images")
 
@@ -71,7 +72,7 @@ def test_enrich_products_images_normal_run(mock_sleep, mock_process_product_imag
 @patch("time.sleep", return_value=None)
 def test_enrich_products_images_enqueue_failure(mock_sleep, mock_process_product_image, capsys):
     """Test handling of individual task enqueue failure."""
-    p1 = baker.make(ProductMaster, is_active=True, code="CODE1", price=10.0, category="Test Category")
+    p1 = baker.make(ProductMaster, is_active=True, code="CODE1", price=10.0, category="Test Category", is_for_mercadolibre=True)
 
     # Mock delay to raise an exception
     mock_process_product_image.delay.side_effect = Exception("Celery error")
