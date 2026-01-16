@@ -9,15 +9,15 @@ class TestEnrichmentCandidateSelector:
     def setup_method(self):
         # Active items
         # p1: Active, specs=None, price=10.0, category="Electronics" -> Should be included (specs is None)
-        self.p1 = ProductMaster.objects.create(code="A1", category="Electronics", is_active=True, specs=None, normalized_name="N1", model_name="M1", price=10.0)
+        self.p1 = ProductMaster.objects.create(code="A1", category="Electronics", is_active=True, specs=None, normalized_name="N1", model_name="M1", price=10.0, is_for_mercadolibre=True)
         # p2: Active, specs={}, price=20.0, category="Home" -> Should be included (specs is {})
-        self.p2 = ProductMaster.objects.create(code="A2", category="Home", is_active=True, specs={}, normalized_name="N2", model_name="M2", price=20.0)
+        self.p2 = ProductMaster.objects.create(code="A2", category="Home", is_active=True, specs={}, normalized_name="N2", model_name="M2", price=20.0, is_for_mercadolibre=True)
         # p3: Active, specs={"color": "red"}, price=30.0, category="Gadgets", normalized_name="N3", model_name="M3" -> Should be excluded (everything present)
-        self.p3 = ProductMaster.objects.create(code="A3", category="Gadgets", is_active=True, specs={"color": "red"}, price=30.0, normalized_name="N3", model_name="M3")
+        self.p3 = ProductMaster.objects.create(code="A3", category="Gadgets", is_active=True, specs={"color": "red"}, price=30.0, normalized_name="N3", model_name="M3", is_for_mercadolibre=True)
         # p6: Active, specs={"color": "blue"}, price=40.0, category="Electronics", normalized_name=None -> Should be included (normalized_name is None)
-        self.p6 = ProductMaster.objects.create(code="A6", category="Electronics", is_active=True, specs={"color": "blue"}, price=40.0, normalized_name=None, model_name="M6")
+        self.p6 = ProductMaster.objects.create(code="A6", category="Electronics", is_active=True, specs={"color": "blue"}, price=40.0, normalized_name=None, model_name="M6", is_for_mercadolibre=True)
         # p7: Active, specs={"color": "green"}, price=50.0, category="Electronics", model_name="" -> Should be included (model_name is empty)
-        self.p7 = ProductMaster.objects.create(code="A7", category="Electronics", is_active=True, specs={"color": "green"}, price=50.0, normalized_name="N7", model_name="")
+        self.p7 = ProductMaster.objects.create(code="A7", category="Electronics", is_active=True, specs={"color": "green"}, price=50.0, normalized_name="N7", model_name="", is_for_mercadolibre=True)
 
         # Inactive items (should be excluded in all cases)
         self.p4 = ProductMaster.objects.create(code="A4", category="Electronics", is_active=False, specs=None, price=50.0)
