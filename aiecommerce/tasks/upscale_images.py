@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 
+import boto3
 from celery import shared_task
+from django.conf import settings
 from django.db import transaction
 
 from aiecommerce.models.product import ProductDetailScrape, ProductImage, ProductMaster
@@ -42,7 +44,19 @@ def process_highres_image_task(product_code: str) -> None:
 
     downloader = ImageDownloader()
     transformer = HighResImageTransformer()
-    storage = StorageGateway()
+
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+
+    storage = StorageGateway(
+        s3_client=s3_client,
+        bucket_name=settings.AWS_STORAGE_BUCKET_NAME,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
 
     for i, image_url in enumerate(image_urls):
         image_name = f"tecnomega-image_{i + 1}"
