@@ -82,3 +82,10 @@ class ImageTransformer:
         except Exception as e:
             logger.error(f"Error transforming image: {e}")
             return None
+
+
+class HighResImageTransformer(ImageTransformer):
+    """Image transformer for high-resolution images (1200x1200)."""
+
+    def __init__(self, **kwargs):
+        super().__init__(canvas_size=(1200, 1200), **kwargs)
