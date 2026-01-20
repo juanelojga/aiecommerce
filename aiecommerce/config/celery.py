@@ -36,22 +36,26 @@ app.conf.beat_schedule = {
     },
     "run_sync_ml_listings-hourly": {
         "task": "aiecommerce.tasks.periodic.run_sync_ml_listings",
-        "schedule": crontab(minute=2, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=12, hour="8-18/2", day_of_week="mon-sat"),
     },
-    "enrich-products-details-hourly": {
-        "task": "aiecommerce.tasks.periodic.run_enrich_products_details",
+    "run_update_ml_eligibility": {
+        "task": "aiecommerce.tasks.periodic.run_update_ml_eligibility",
         "schedule": crontab(minute=15, hour="8-18/2", day_of_week="mon-sat"),
+    },
+    "run_upscale_scraped-images-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_upscale_scraped_images",
+        "schedule": crontab(minute=20, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-content-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_content",
-        "schedule": crontab(minute=20, hour="8-18/2", day_of_week="mon-sat"),
-    },
-    "enrich-products-images-hourly": {
-        "task": "aiecommerce.tasks.periodic.run_enrich_products_images",
         "schedule": crontab(minute=25, hour="8-18/2", day_of_week="mon-sat"),
+    },
+    "enrich-products-details-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_details",
+        "schedule": crontab(minute=30, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-specs-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_specs",
-        "schedule": crontab(minute=30, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
     },
 }

@@ -6,9 +6,19 @@ from aiecommerce.models import MercadoLibreListing, MercadoLibreToken, ProductDe
 # Register your models
 @admin.register(ProductMaster)
 class ProductMasterAdmin(admin.ModelAdmin):
-    list_display = ("code", "price", "is_active", "sku", "gtin", "is_for_mercadolibre", "last_updated")
+    list_display = ("code", "get_ml_id", "price", "is_active", "sku", "gtin", "is_for_mercadolibre", "last_updated")
     list_filter = ("is_active", "category")
-    search_fields = ("code", "description")
+    search_fields = ("code", "description", "mercadolibre_listing__ml_id")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("mercadolibre_listing")
+
+    @admin.display(description="ML ID", ordering="mercadolibre_listing__ml_id")
+    def get_ml_id(self, obj):
+        try:
+            return obj.mercadolibre_listing.ml_id or "-"
+        except MercadoLibreListing.DoesNotExist:
+            return "-"
 
 
 @admin.register(MercadoLibreListing)

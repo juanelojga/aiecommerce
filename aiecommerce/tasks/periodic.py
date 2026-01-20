@@ -86,3 +86,9 @@ def run_update_ml_eligibility():
 def run_sync_ml_listings():
     """Run the sync_ml_listings management command."""
     call_command("sync_ml_listings")
+
+
+@shared_task
+def run_upscale_scraped_images():
+    """Run the sync_ml_listings management command."""
+    call_command("upscale_scraped_images")
