@@ -39,7 +39,7 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=15, hour="8-18/2", day_of_week="mon-sat"),
     },
     "run_upscale_scraped-images-hourly": {
-        "task": "aiecommerce.tasks.periodic.run_normalize_products",
+        "task": "aiecommerce.tasks.periodic.run_upscale_scraped_images",
         "schedule": crontab(minute=20, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-products-content-hourly": {
