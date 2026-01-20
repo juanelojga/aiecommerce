@@ -22,11 +22,6 @@ class ImageDownloader:
             response = requests.get(url, timeout=self.timeout, stream=True)
             response.raise_for_status()
 
-            content_type = response.headers.get("Content-Type", "")
-            if not content_type.startswith("image/"):
-                logger.warning(f"URL {url} did not return an image content type: {content_type}")
-                return None
-
             content_length = response.headers.get("Content-Length")
             if content_length and int(content_length) > self.max_size_bytes:
                 logger.warning(f"Image at {url} exceeds maximum size: {content_length} bytes")

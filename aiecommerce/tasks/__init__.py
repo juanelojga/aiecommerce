@@ -15,7 +15,9 @@ from .periodic import (
     run_sync_ml_listings,
     run_sync_price_list,
     run_update_ml_eligibility,
+    run_upscale_scraped_images,
 )
+from .upscale_images import process_highres_image_task
 
 __all__ = (
     "test_celery_worker",
@@ -34,4 +36,6 @@ __all__ = (
     "run_sync_price_list",
     "run_update_ml_eligibility",
     "run_sync_ml_listings",
+    "run_upscale_scraped_images",
+    "process_highres_image_task",
 )
