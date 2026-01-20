@@ -33,8 +33,16 @@ class HighResImageTransformer:
             # Convert to RGBA to handle transparency and different color modes
             img = img.convert("RGBA")
 
-            # Create a thumbnail (in-place) that fits within the target size
-            img.thumbnail(target_size, Image.Resampling.LANCZOS)
+            # Calculate scaling factor to fit within the target size, maintaining aspect ratio.
+            # This ensures that smaller images are upscaled to fill the canvas.
+            width_ratio = target_size[0] / img.width
+            height_ratio = target_size[1] / img.height
+            scale_factor = min(width_ratio, height_ratio)
+
+            new_width = int(img.width * scale_factor)
+            new_height = int(img.height * scale_factor)
+
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
             # Create a new white background canvas in RGB mode
             background = Image.new("RGB", target_size, (255, 255, 255))

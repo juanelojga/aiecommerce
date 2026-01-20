@@ -59,6 +59,8 @@ def process_highres_image_task(product_code: str) -> None:
     )
 
     for i, image_url in enumerate(image_urls):
+        image_url = image_url.replace("/sm/", "/lg/").replace("-sm.", "-lg.")
+
         image_name = f"tecnomega-image_{i + 1}"
 
         try:
