@@ -19,9 +19,10 @@ class TestBatchPublisherOrchestrator:
 
     def test_get_pending_listings(self, batch_orchestrator):
         # Create some listings
-        MercadoLibreListingFactory(status=MercadoLibreListing.Status.PENDING)
-        MercadoLibreListingFactory(status=MercadoLibreListing.Status.PENDING)
-        MercadoLibreListingFactory(status="PUBLISHED")  # Should be ignored
+        MercadoLibreListingFactory(status=MercadoLibreListing.Status.PENDING, available_quantity=10)
+        MercadoLibreListingFactory(status=MercadoLibreListing.Status.PENDING, available_quantity=5)
+        MercadoLibreListingFactory(status=MercadoLibreListing.Status.PENDING, available_quantity=0)  # Should be ignored (stock 0)
+        MercadoLibreListingFactory(status="PUBLISHED", available_quantity=10)  # Should be ignored (wrong status)
 
         pending = batch_orchestrator._get_pending_listings()
 
