@@ -12,9 +12,16 @@ class BatchPublisherOrchestrator:
         self.publisher_orchestrator = publisher_orchestrator
 
     def _get_pending_listings(self) -> List[MercadoLibreListing]:
-        """Fetches all listings with 'PENDING' status that are designated for Mercado Libre."""
+        """Fetches all listings with 'PENDING' status and available_quantity > 0 for Mercado Libre."""
         logger.debug("Fetching pending listings for Mercado Libre.")
-        listings = list(MercadoLibreListing.objects.filter(status=MercadoLibreListing.Status.PENDING))
+
+        # Add condition for available_quantity > 0
+        listings = list(
+            MercadoLibreListing.objects.filter(
+                status=MercadoLibreListing.Status.PENDING,
+                available_quantity__gt=0,  # Ensures only listings with stock > 0
+            )
+        )
         logger.info(f"Found {len(listings)} pending listings for Mercado Libre.")
         return listings
 
