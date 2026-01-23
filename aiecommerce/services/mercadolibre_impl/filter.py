@@ -68,16 +68,22 @@ class MercadoLibreFilter:
         now = timezone.now()
         freshness_limit = self._get_freshness_limit(now=now)
 
+        # Define the branch fields to check
+        branch_fields = ["stock_colon", "stock_sur", "stock_gye_norte", "stock_gye_sur"]
+
+        # Build an OR condition: (stock_colon='SI' OR stock_sur='SI' OR ...)
+        branch_query = Q()
+        for field in branch_fields:
+            branch_query |= Q(**{field: "Si"})
+
         # 1. Base QuerySet
         queryset = ProductMaster.objects.filter(
             is_active=True,
             price__isnull=False,
             category__isnull=False,
             last_updated__gte=freshness_limit,
-            model_name__isnull=False,
-            sku__isnull=False,
-            seo_title__isnull=False,
-        )
+            stock_principal="Si",
+        ).filter(branch_query)
 
         # 2. Build Q object for publication rules
         rules_q = Q()
