@@ -30,7 +30,7 @@ class Command(BaseCommand):
         stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
 
         if stats["total"] == 0:
-            self.stdout.write(self.style.WARNING("No products found without images."))
+            self.stdout.write(self.style.WARNING("No products found."))
         else:
             self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['processed']}/{stats['total']} products"))
             self.stdout.write(self.style.SUCCESS(f"Enqueued {stats['processed']}/{stats['total']} tasks"))
