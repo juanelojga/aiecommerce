@@ -39,6 +39,30 @@ class TestMercadoLibreSyncService:
             assert result is False
             ml_client.put.assert_not_called()
 
+    def test_sync_listing_force_update(self, sync_service, ml_client):
+        product = ProductMasterFactory(price=Decimal("100.00"), is_active=True)
+        listing = MercadoLibreListingFactory(
+            product_master=product,
+            final_price=Decimal("180.52"),
+            available_quantity=4,
+            ml_id="ML123",
+        )
+
+        with patch.object(sync_service._price_engine, "calculate") as mock_calc, patch.object(sync_service._stock_engine, "get_available_quantity") as mock_stock:
+            mock_calc.return_value = {"final_price": Decimal("180.52"), "net_price": Decimal("161.18"), "profit": Decimal("22.00")}
+            mock_stock.return_value = 4
+
+            result = sync_service.sync_listing(listing, force=True)
+
+            assert result is True
+            ml_client.put.assert_called_once_with("items/ML123", json={"price": Decimal("180.52"), "available_quantity": 4})
+
+            listing.refresh_from_db()
+            assert listing.final_price == Decimal("180.52")
+            assert listing.net_price == Decimal("161.18")
+            assert listing.profit == Decimal("22.00")
+            assert listing.available_quantity == 4
+
     def test_sync_listing_price_update(self, sync_service, ml_client):
         product = ProductMasterFactory(price=Decimal("110.00"), is_active=True)
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id="ML123")
@@ -162,3 +186,20 @@ class TestMercadoLibreSyncService:
             assert l1 in called_listings
             assert l2 in called_listings
             assert l3 not in called_listings
+
+    def test_sync_all_listings_force(self, sync_service, ml_client):
+        l1 = MercadoLibreListingFactory(status=MercadoLibreListing.Status.ACTIVE, final_price=100, available_quantity=5, ml_id="ML1")
+        l2 = MercadoLibreListingFactory(status=MercadoLibreListing.Status.ACTIVE, final_price=200, available_quantity=10, ml_id="ML2")
+
+        with patch.object(sync_service, "sync_listing") as mock_sync_listing:
+            mock_sync_listing.return_value = True
+
+            sync_service.sync_all_listings(force=True)
+
+            assert mock_sync_listing.call_count == 2
+            called_listings = [call.args[0] for call in mock_sync_listing.call_args_list]
+            assert l1 in called_listings
+            assert l2 in called_listings
+            for call in mock_sync_listing.call_args_list:
+                assert call.args[1] is False
+                assert call.args[2] is True
