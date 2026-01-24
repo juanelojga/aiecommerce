@@ -1,4 +1,5 @@
 import io
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,6 +8,7 @@ from django.core.management import CommandError, call_command
 from aiecommerce.models import MercadoLibreToken
 from aiecommerce.models.mercadolibre import MercadoLibreListing
 from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
+from aiecommerce.services.mercadolibre_publisher_impl.sync_service import MercadoLibreSyncService
 
 
 @pytest.fixture
@@ -213,3 +215,125 @@ def test_sync_listing_not_found(
     # Assert
     output = out.getvalue()
     assert "Listing with id NONEXISTENT not found." in output
+
+
+def test_sync_listing_updates_price_and_quantity(monkeypatch):
+    price_engine = MagicMock()
+    price_engine.calculate.return_value = {
+        "final_price": Decimal("12.50"),
+        "net_price": Decimal("10.00"),
+        "profit": Decimal("2.50"),
+    }
+    stock_engine = MagicMock()
+    stock_engine.get_available_quantity.return_value = 5
+    monkeypatch.setattr(
+        "aiecommerce.services.mercadolibre_publisher_impl.sync_service.MercadoLibrePriceEngine",
+        MagicMock(return_value=price_engine),
+    )
+    monkeypatch.setattr(
+        "aiecommerce.services.mercadolibre_publisher_impl.sync_service.MercadoLibreStockEngine",
+        MagicMock(return_value=stock_engine),
+    )
+
+    client = MagicMock()
+    service = MercadoLibreSyncService(ml_client=client)
+
+    product_master = MagicMock()
+    product_master.price = Decimal("10.00")
+    product_master.is_active = True
+    listing = MagicMock()
+    listing.product_master = product_master
+    listing.final_price = Decimal("10.00")
+    listing.available_quantity = 1
+    listing.ml_id = "MLC123"
+
+    result = service.sync_listing(listing, dry_run=False)
+
+    assert result is True
+    client.put.assert_called_once_with(
+        "items/MLC123",
+        json={"price": 12.5, "available_quantity": 5},
+    )
+    assert listing.final_price == Decimal("12.50")
+    assert listing.net_price == Decimal("10.00")
+    assert listing.profit == Decimal("2.50")
+    assert listing.available_quantity == 5
+    listing.save.assert_called_once_with(
+        update_fields=["final_price", "net_price", "profit", "available_quantity"],
+    )
+
+
+def test_sync_listing_no_changes_skips_update(monkeypatch):
+    price_engine = MagicMock()
+    price_engine.calculate.return_value = {
+        "final_price": Decimal("10.00"),
+        "net_price": Decimal("8.00"),
+        "profit": Decimal("2.00"),
+    }
+    stock_engine = MagicMock()
+    stock_engine.get_available_quantity.return_value = 3
+    monkeypatch.setattr(
+        "aiecommerce.services.mercadolibre_publisher_impl.sync_service.MercadoLibrePriceEngine",
+        MagicMock(return_value=price_engine),
+    )
+    monkeypatch.setattr(
+        "aiecommerce.services.mercadolibre_publisher_impl.sync_service.MercadoLibreStockEngine",
+        MagicMock(return_value=stock_engine),
+    )
+
+    client = MagicMock()
+    service = MercadoLibreSyncService(ml_client=client)
+
+    product_master = MagicMock()
+    product_master.price = Decimal("10.00")
+    product_master.is_active = True
+    listing = MagicMock()
+    listing.product_master = product_master
+    listing.final_price = Decimal("10.00")
+    listing.available_quantity = 3
+    listing.ml_id = "MLC999"
+
+    result = service.sync_listing(listing, dry_run=False)
+
+    assert result is False
+    client.put.assert_not_called()
+    listing.save.assert_not_called()
+
+
+def test_sync_listing_dry_run_skips_client_update(monkeypatch):
+    price_engine = MagicMock()
+    price_engine.calculate.return_value = {
+        "final_price": Decimal("15.00"),
+        "net_price": Decimal("12.00"),
+        "profit": Decimal("3.00"),
+    }
+    stock_engine = MagicMock()
+    stock_engine.get_available_quantity.return_value = 2
+    monkeypatch.setattr(
+        "aiecommerce.services.mercadolibre_publisher_impl.sync_service.MercadoLibrePriceEngine",
+        MagicMock(return_value=price_engine),
+    )
+    monkeypatch.setattr(
+        "aiecommerce.services.mercadolibre_publisher_impl.sync_service.MercadoLibreStockEngine",
+        MagicMock(return_value=stock_engine),
+    )
+
+    client = MagicMock()
+    service = MercadoLibreSyncService(ml_client=client)
+
+    product_master = MagicMock()
+    product_master.price = Decimal("10.00")
+    product_master.is_active = True
+    listing = MagicMock()
+    listing.product_master = product_master
+    listing.final_price = Decimal("10.00")
+    listing.available_quantity = 1
+    listing.ml_id = "MLC777"
+
+    result = service.sync_listing(listing, dry_run=True)
+
+    assert result is True
+    client.put.assert_not_called()
+    listing.save.assert_not_called()
+    assert listing.final_price == Decimal("10.00")
+    assert listing.available_quantity == 1
