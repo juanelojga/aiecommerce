@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from typing import Any
 
 from aiecommerce.models.mercadolibre import MercadoLibreListing
@@ -28,12 +29,16 @@ class MercadoLibreSyncService:
             new_quantity = self._stock_engine.get_available_quantity(listing.product_master)
 
         update_payload: dict[str, Any] = {}
-        if new_price and new_price != listing.final_price:
-            update_payload["price"] = float(new_price)  # Convert Decimal to float
-        if new_quantity != listing.available_quantity:
+        if force:
+            update_payload["price"] = Decimal(new_price) if new_price else listing.final_price
             update_payload["available_quantity"] = new_quantity
+        else:
+            if new_price and new_price != listing.final_price:
+                update_payload["price"] = Decimal(new_price)  # Convert Decimal to float
+            if new_quantity != listing.available_quantity:
+                update_payload["available_quantity"] = new_quantity
 
-        if not force or not update_payload:
+        if not update_payload:
             logger.debug(f"No changes for listing {listing.ml_id}.")
             return False
 
