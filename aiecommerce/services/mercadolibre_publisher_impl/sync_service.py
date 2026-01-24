@@ -29,16 +29,12 @@ class MercadoLibreSyncService:
         update_fields: list[str] = []
         if new_price and new_price != listing.final_price:
             update_payload["price"] = float(new_price)  # Convert Decimal to float
-            listing.final_price = new_price
             update_fields.append("final_price")
             if calculated_price:
-                listing.net_price = calculated_price["net_price"]
-                listing.profit = calculated_price["profit"]
                 update_fields.extend(["net_price", "profit"])
 
         if new_quantity != listing.available_quantity:
             update_payload["available_quantity"] = new_quantity
-            listing.available_quantity = new_quantity
             update_fields.append("available_quantity")
 
         if not update_payload:
@@ -47,16 +43,25 @@ class MercadoLibreSyncService:
 
         logger.info(f"Listing {listing.ml_id} requires update. Payload: {update_payload}.")
 
-        if not dry_run and listing.ml_id:
-            try:
-                if force or update_payload:
-                    self._ml_client.put(f"items/{listing.ml_id}", json=update_payload)
-                if update_fields:
-                    listing.save(update_fields=update_fields)
-                logger.info(f"Successfully updated listing {listing.ml_id} on Mercado Libre and database.")
-            except Exception as e:
-                logger.error(f"Failed to update listing {listing.ml_id}: {e}")
-                return False
+        if dry_run or not listing.ml_id:
+            return True
+
+        try:
+            if force or update_payload:
+                self._ml_client.put(f"items/{listing.ml_id}", json=update_payload)
+            if update_fields:
+                if "final_price" in update_fields:
+                    listing.final_price = new_price
+                if "available_quantity" in update_fields:
+                    listing.available_quantity = new_quantity
+                if calculated_price and "net_price" in update_fields:
+                    listing.net_price = calculated_price["net_price"]
+                    listing.profit = calculated_price["profit"]
+                listing.save(update_fields=update_fields)
+            logger.info(f"Successfully updated listing {listing.ml_id} on Mercado Libre and database.")
+        except Exception as e:
+            logger.error(f"Failed to update listing {listing.ml_id}: {e}")
+            return False
         return True
 
     def sync_all_listings(self, dry_run: bool = False, force: bool = False) -> None:
