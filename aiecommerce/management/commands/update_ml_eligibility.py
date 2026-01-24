@@ -2,41 +2,35 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 
-from aiecommerce.services.mercadolibre_impl.eligibility import (
-    MercadoLibreEligibilityService,
-)
-from aiecommerce.services.mercadolibre_impl.filter import MercadoLibreFilter
+from aiecommerce.services.update_ml_eligibility_impl.orchestrator import UpdateMlEligibilityCandidateOrchestrator
+from aiecommerce.services.update_ml_eligibility_impl.selector import UpdateMlEligibilityCandidateSelector
 
 
 class Command(BaseCommand):
     help = "Updates the 'is_for_mercadolibre' flag on all ProductMaster instances."
 
     def add_arguments(self, parser: Any) -> None:
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Calculates which products would be changed without saving to the database.",
-        )
+        parser.add_argument("--force", action="store_true", help="Includes products that doesn't have stock")
+        parser.add_argument("--dry-run", action="store_true", help="Show which products would be processed, but do not enqueue any tasks.")
+        parser.add_argument("--delay", type=float, default=0.5, help="Delay between products")
 
     def handle(self, *args: Any, **options: Any) -> None:
+        force = options["force"]
         dry_run = options["dry_run"]
+        delay = options["delay"]
 
         if dry_run:
             self.stdout.write(self.style.WARNING("--- DRY RUN MODE ACTIVATED ---"))
 
-        self.stdout.write(self.style.HTTP_INFO("Initializing services..."))
-        ml_filter = MercadoLibreFilter()
-        service = MercadoLibreEligibilityService(ml_filter)
+        # Initialize the selector and the main batch orchestrator
+        selector = UpdateMlEligibilityCandidateSelector()
+        orchestrator = UpdateMlEligibilityCandidateOrchestrator(selector)
 
-        self.stdout.write(self.style.HTTP_INFO("Updating eligibility flags..."))
-        result = service.update_eligibility_flags(dry_run=dry_run)
+        # Run the enrichment batch
+        stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
 
-        enabled_count = result["enabled"]
-        disabled_count = result["disabled"]
-
-        if dry_run:
-            self.stdout.write(self.style.SUCCESS(f"\n--- DRY RUN RESULTS ---\nProducts that would be enabled: {enabled_count}\nProducts that would be disabled: {disabled_count}"))
+        if stats["total"] == 0:
+            self.stdout.write(self.style.WARNING("No products found."))
         else:
-            self.stdout.write(self.style.SUCCESS(f"\n--- UPDATE COMPLETE ---\nProducts enabled: {enabled_count}\nProducts disabled: {disabled_count}"))
-
-        self.stdout.write(self.style.SUCCESS("Operation finished."))
+            self.stdout.write(self.style.SUCCESS(f"\nCompleted. Processed {stats['processed']}/{stats['total']} products"))
+            self.stdout.write(self.style.SUCCESS(f"Enqueued {stats['processed']}/{stats['total']} tasks"))
