@@ -79,7 +79,7 @@ def test_sync_all_listings_success(
 
     mock_token_model.objects.filter.assert_called_with(is_test_user=False)
     mock_auth_service.get_valid_token.assert_called_once_with(user_id="user_123")
-    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=False)
+    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=False, force=False)
 
 
 def test_sync_single_listing_by_id_success(
@@ -109,7 +109,11 @@ def test_sync_single_listing_by_id_success(
     assert "Syncing listing: MLC123" in output
     assert "Listing MLC123 updated." in output
     mock_listing_model.objects.get.assert_called_with(pk="1")
-    mock_sync_service.sync_listing.assert_called_once_with(mock_listing, dry_run=False)
+    mock_sync_service.sync_listing.assert_called_once_with(
+        mock_listing,
+        dry_run=False,
+        force=False,
+    )
 
 
 def test_sync_single_listing_by_ml_id_success(
@@ -146,6 +150,11 @@ def test_sync_single_listing_by_ml_id_success(
     assert mock_listing_model.objects.get.call_count == 2
     mock_listing_model.objects.get.assert_any_call(pk="MLC123")
     mock_listing_model.objects.get.assert_any_call(ml_id="MLC123")
+    mock_sync_service.sync_listing.assert_called_once_with(
+        mock_listing,
+        dry_run=False,
+        force=False,
+    )
 
 
 def test_sync_dry_run(
@@ -166,7 +175,7 @@ def test_sync_dry_run(
     # Assert
     output = out.getvalue()
     assert "Performing a dry run." in output
-    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=True)
+    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=True, force=False)
 
 
 def test_sync_no_token(mock_token_model, mock_auth_service):
