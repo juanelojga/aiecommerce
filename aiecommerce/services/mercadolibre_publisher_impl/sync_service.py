@@ -25,31 +25,34 @@ class MercadoLibreSyncService:
         new_price = calculated_price["final_price"] if calculated_price else listing.final_price
         new_quantity = self._stock_engine.get_available_quantity(listing.product_master)
 
-        update_price_payload: dict[str, Any] = {}
+        update_payload: dict[str, Any] = {}
+        update_fields: list[str] = []
         if new_price and new_price != listing.final_price:
-            update_price_payload["price"] = float(new_price)  # Convert Decimal to float
+            update_payload["price"] = float(new_price)  # Convert Decimal to float
+            listing.final_price = new_price
+            update_fields.append("final_price")
+            if calculated_price:
+                listing.net_price = calculated_price["net_price"]
+                listing.profit = calculated_price["profit"]
+                update_fields.extend(["net_price", "profit"])
 
-        update_quantity_payload: dict[str, int] = {}
         if new_quantity != listing.available_quantity:
-            update_quantity_payload["available_quantity"] = new_quantity
+            update_payload["available_quantity"] = new_quantity
+            listing.available_quantity = new_quantity
+            update_fields.append("available_quantity")
 
-        if not update_price_payload or not update_quantity_payload:
+        if not update_payload:
             logger.debug(f"No changes for listing {listing.ml_id}.")
             return False
 
-        logger.info(f"Listing {listing.ml_id} requires update. Payload: {update_price_payload} {update_quantity_payload}.")
+        logger.info(f"Listing {listing.ml_id} requires update. Payload: {update_payload}.")
 
         if not dry_run and listing.ml_id:
             try:
-                if force or "price" in update_price_payload and new_price and calculated_price:
-                    self._ml_client.put(f"items/{listing.ml_id}", json=update_price_payload)
-                    listing.final_price = new_price
-                    listing.net_price = calculated_price["net_price"]
-                    listing.profit = calculated_price["profit"]
-                if force or "available_quantity" in update_quantity_payload:
-                    self._ml_client.put(f"items/{listing.ml_id}", json=update_quantity_payload)
-                    listing.available_quantity = new_quantity
-                listing.save(update_fields=["final_price", "net_price", "profit", "available_quantity"])
+                if force or update_payload:
+                    self._ml_client.put(f"items/{listing.ml_id}", json=update_payload)
+                if update_fields:
+                    listing.save(update_fields=update_fields)
                 logger.info(f"Successfully updated listing {listing.ml_id} on Mercado Libre and database.")
             except Exception as e:
                 logger.error(f"Failed to update listing {listing.ml_id}: {e}")

@@ -1,5 +1,5 @@
 from decimal import Decimal
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -21,7 +21,14 @@ def sync_service(ml_client):
 @pytest.mark.django_db
 class TestMercadoLibreSyncService:
     def test_sync_listing_no_changes(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("100.00"))
+        product = ProductMasterFactory(
+            price=Decimal("100.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="SI",
+            stock_gye_norte="SI",
+            stock_gye_sur="SI",
+        )
         listing = MercadoLibreListingFactory(
             product_master=product,
             final_price=Decimal("180.52"),  # Matching default price engine calc for 100
@@ -40,7 +47,14 @@ class TestMercadoLibreSyncService:
             ml_client.put.assert_not_called()
 
     def test_sync_listing_price_update(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("110.00"))
+        product = ProductMasterFactory(
+            price=Decimal("110.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="SI",
+            stock_gye_norte="SI",
+            stock_gye_sur="SI",
+        )
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id="ML123")
 
         new_price = Decimal("195.00")
@@ -50,15 +64,24 @@ class TestMercadoLibreSyncService:
 
             result = sync_service.sync_listing(listing)
 
-            assert result is False
-            ml_client.put.assert_not_called()
+            assert result is True
+            ml_client.put.assert_called_once_with("items/ML123", json={"price": float(new_price)})
 
             listing.refresh_from_db()
-            assert listing.final_price == Decimal("180.52")
+            assert listing.final_price == new_price
             assert listing.available_quantity == 4
+            assert listing.net_price == Decimal("175.00")
+            assert listing.profit == Decimal("25.00")
 
     def test_sync_listing_quantity_update(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("100.00"))
+        product = ProductMasterFactory(
+            price=Decimal("100.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="NO",
+            stock_gye_norte="SI",
+            stock_gye_sur="NO",
+        )
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id="ML123")
 
         new_quantity = 2
@@ -68,14 +91,21 @@ class TestMercadoLibreSyncService:
 
             result = sync_service.sync_listing(listing)
 
-            assert result is False
-            ml_client.put.assert_not_called()
+            assert result is True
+            ml_client.put.assert_called_once_with("items/ML123", json={"available_quantity": new_quantity})
 
             listing.refresh_from_db()
-            assert listing.available_quantity == 4
+            assert listing.available_quantity == new_quantity
 
     def test_sync_listing_both_update(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("110.00"))
+        product = ProductMasterFactory(
+            price=Decimal("110.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="NO",
+            stock_gye_norte="SI",
+            stock_gye_sur="NO",
+        )
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id="ML123")
 
         new_price = Decimal("195.00")
@@ -87,13 +117,10 @@ class TestMercadoLibreSyncService:
             result = sync_service.sync_listing(listing)
 
             assert result is True
-            ml_client.put.assert_has_calls(
-                [
-                    call("items/ML123", json={"price": float(new_price)}),
-                    call("items/ML123", json={"available_quantity": new_quantity}),
-                ]
+            ml_client.put.assert_called_once_with(
+                "items/ML123",
+                json={"price": float(new_price), "available_quantity": new_quantity},
             )
-            assert ml_client.put.call_count == 2
 
             listing.refresh_from_db()
             assert listing.final_price == new_price
@@ -102,7 +129,14 @@ class TestMercadoLibreSyncService:
             assert listing.profit == Decimal("25.00")
 
     def test_sync_listing_missing_ml_id(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("110.00"))
+        product = ProductMasterFactory(
+            price=Decimal("110.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="NO",
+            stock_gye_norte="SI",
+            stock_gye_sur="NO",
+        )
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id=None)
 
         with patch.object(sync_service._price_engine, "calculate") as mock_calc, patch.object(sync_service._stock_engine, "get_available_quantity") as mock_stock:
@@ -118,7 +152,14 @@ class TestMercadoLibreSyncService:
             assert listing.final_price == Decimal("180.52")
 
     def test_sync_listing_dry_run(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("110.00"))
+        product = ProductMasterFactory(
+            price=Decimal("110.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="NO",
+            stock_gye_norte="SI",
+            stock_gye_sur="NO",
+        )
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id="ML123")
 
         new_price = Decimal("195.00")
@@ -136,7 +177,14 @@ class TestMercadoLibreSyncService:
             assert listing.available_quantity == 4
 
     def test_sync_listing_client_error(self, sync_service, ml_client):
-        product = ProductMasterFactory(price=Decimal("110.00"))
+        product = ProductMasterFactory(
+            price=Decimal("110.00"),
+            stock_principal="SI",
+            stock_colon="SI",
+            stock_sur="NO",
+            stock_gye_norte="SI",
+            stock_gye_sur="NO",
+        )
         listing = MercadoLibreListingFactory(product_master=product, final_price=Decimal("180.52"), available_quantity=4, ml_id="ML123")
 
         ml_client.put.side_effect = Exception("API Error")
