@@ -61,8 +61,13 @@ class TestUpdateMlEligibilityCandidateSelector(TransactionTestCase):
 
         assert codes == [eligible.code]
 
-    def test_force_includes_mercadolibre_flagged_products(self):
-        product = self._create_product(code="FORCED", is_for_mercadolibre=True)
+    def test_force_includes_products_with_existing_specs(self):
+        # We need a product that normally would be filtered out if force=False.
+        # However, the selector's force=True logic only affects stock_principal and branch checks.
+        # It DOES NOT affect the base filters (is_active, price, category, last_updated, is_for_mercadolibre).
+
+        # A product with stock_principal="No" is filtered out if force=False.
+        product = self._create_product(code="FORCED", stock_principal="No")
 
         qs_default = self.selector.get_queryset(force=False, dry_run=False)
         codes_default = list(qs_default.values_list("code", flat=True))
@@ -74,7 +79,7 @@ class TestUpdateMlEligibilityCandidateSelector(TransactionTestCase):
 
     def test_dry_run_returns_first_three_matching_products(self):
         self._create_product(code="P1")
-        self._create_product(code="P2", is_for_mercadolibre=True)
+        self._create_product(code="P2")
         self._create_product(code="P3")
         self._create_product(code="P4")
 
