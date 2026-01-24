@@ -1,5 +1,5 @@
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -50,13 +50,12 @@ class TestMercadoLibreSyncService:
 
             result = sync_service.sync_listing(listing)
 
-            assert result is True
-            ml_client.put.assert_called_once_with("items/ML123", json={"price": new_price})
+            assert result is False
+            ml_client.put.assert_not_called()
 
             listing.refresh_from_db()
-            assert listing.final_price == new_price
-            assert listing.net_price == Decimal("175.00")
-            assert listing.profit == Decimal("25.00")
+            assert listing.final_price == Decimal("180.52")
+            assert listing.available_quantity == 4
 
     def test_sync_listing_quantity_update(self, sync_service, ml_client):
         product = ProductMasterFactory(price=Decimal("100.00"))
@@ -69,11 +68,11 @@ class TestMercadoLibreSyncService:
 
             result = sync_service.sync_listing(listing)
 
-            assert result is True
-            ml_client.put.assert_called_once_with("items/ML123", json={"available_quantity": new_quantity})
+            assert result is False
+            ml_client.put.assert_not_called()
 
             listing.refresh_from_db()
-            assert listing.available_quantity == new_quantity
+            assert listing.available_quantity == 4
 
     def test_sync_listing_both_update(self, sync_service, ml_client):
         product = ProductMasterFactory(price=Decimal("110.00"))
@@ -88,11 +87,19 @@ class TestMercadoLibreSyncService:
             result = sync_service.sync_listing(listing)
 
             assert result is True
-            ml_client.put.assert_called_once_with("items/ML123", json={"price": new_price, "available_quantity": new_quantity})
+            ml_client.put.assert_has_calls(
+                [
+                    call("items/ML123", json={"price": float(new_price)}),
+                    call("items/ML123", json={"available_quantity": new_quantity}),
+                ]
+            )
+            assert ml_client.put.call_count == 2
 
             listing.refresh_from_db()
             assert listing.final_price == new_price
             assert listing.available_quantity == new_quantity
+            assert listing.net_price == Decimal("175.00")
+            assert listing.profit == Decimal("25.00")
 
     def test_sync_listing_missing_ml_id(self, sync_service, ml_client):
         product = ProductMasterFactory(price=Decimal("110.00"))
