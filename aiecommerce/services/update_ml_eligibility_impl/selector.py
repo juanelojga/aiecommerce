@@ -32,13 +32,7 @@ class UpdateMlEligibilityCandidateSelector:
         """
         freshness_limit = self._get_freshness_limit()
 
-        query = ProductMaster.objects.filter(
-            is_active=True,
-            price__isnull=False,
-            category__isnull=False,
-            last_updated__gte=freshness_limit,
-            is_for_mercadolibre=False,
-        )
+        query = ProductMaster.objects.filter(is_active=True, price__isnull=False, category__isnull=False, last_updated__gte=freshness_limit, is_for_mercadolibre=False)
 
         if dry_run:
             # For a dry run, we fetch a small, predictable sample.
