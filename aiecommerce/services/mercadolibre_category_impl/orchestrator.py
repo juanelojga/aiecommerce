@@ -35,12 +35,12 @@ class MercadolibreEnrichmentCategoryOrchestrator:
         self.attribute_fetcher = attribute_fetcher
         self.attribute_filler = attribute_filler
 
-    def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, int]:
+    def run(self, force: bool, dry_run: bool, delay: float = 0.5, category: str | None = None) -> dict[str, int]:
         """
         Executes the full enrichment flow (Scrape + AI) for all eligible products.
         Only performs steps if data is missing or if 'force' is True.
         """
-        queryset = self.selector.get_queryset(force, dry_run)
+        queryset = self.selector.get_queryset(force, dry_run, category)
 
         total = queryset.count()
         stats = {"total": total, "processed": 0}

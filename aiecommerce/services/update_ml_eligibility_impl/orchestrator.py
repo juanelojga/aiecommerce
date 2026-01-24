@@ -44,6 +44,7 @@ class UpdateMlEligibilityCandidateOrchestrator:
 
             product.is_for_mercadolibre = True
             product.save(update_fields=["is_for_mercadolibre"])
+            stats["processed"] += 1
 
             if delay > 0:
                 time.sleep(delay)

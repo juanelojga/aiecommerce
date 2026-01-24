@@ -65,7 +65,7 @@ class TestUpdateMlEligibilityCandidateOrchestrator:
         with patch("aiecommerce.services.update_ml_eligibility_impl.orchestrator.time.sleep") as mock_sleep:
             stats = orchestrator.run(force=True, dry_run=False, delay=0.1)
 
-        assert stats == {"total": 2, "processed": 0}
+        assert stats == {"total": 2, "processed": 2}
         p1.save.assert_called_once_with(update_fields=["is_for_mercadolibre"])
         p2.save.assert_called_once_with(update_fields=["is_for_mercadolibre"])
         assert p1.is_for_mercadolibre is True
@@ -84,6 +84,6 @@ class TestUpdateMlEligibilityCandidateOrchestrator:
         with patch("aiecommerce.services.update_ml_eligibility_impl.orchestrator.time.sleep") as mock_sleep:
             stats = orchestrator.run(force=False, dry_run=False, delay=0)
 
-        assert stats == {"total": 1, "processed": 0}
+        assert stats == {"total": 1, "processed": 1}
         p1.save.assert_called_once_with(update_fields=["is_for_mercadolibre"])
         mock_sleep.assert_not_called()

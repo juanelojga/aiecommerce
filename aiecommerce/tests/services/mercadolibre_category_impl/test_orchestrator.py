@@ -59,7 +59,7 @@ class TestMercadolibreEnrichmentCategoryOrchestrator:
         stats = orchestrator.run(force=False, dry_run=False, delay=0)
 
         assert stats == {"total": 0, "processed": 0}
-        mock_selector.get_queryset.assert_called_once_with(False, False)
+        mock_selector.get_queryset.assert_called_once_with(False, False, None)
 
     def test_run_success(
         self,
