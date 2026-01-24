@@ -34,6 +34,22 @@ class UpdateMlEligibilityCandidateSelector:
 
         query = ProductMaster.objects.filter(is_active=True, price__isnull=False, category__isnull=False, last_updated__gte=freshness_limit, is_for_mercadolibre=False)
 
+        # 2. Build Q object for publication rules
+        publication_rules_query = Q()
+        for category_key, rule_config in self.publication_rules.items():
+            if isinstance(rule_config, dict):
+                threshold = rule_config.get("price_threshold")
+            else:
+                threshold = rule_config
+
+            if threshold is not None:
+                # category__iexact handles case-insensitive matching.
+                # strip() is not easily done in pure Q without Trim function,
+                # but following the previous logic's intent of exact category match.
+                publication_rules_query |= Q(category__iexact=category_key.strip(), price__gte=threshold)
+
+        query = query.filter(publication_rules_query)
+
         if dry_run:
             # For a dry run, we fetch a small, predictable sample.
             return query.order_by("id")[:3]
@@ -50,21 +66,5 @@ class UpdateMlEligibilityCandidateSelector:
                 branch_query |= Q(**{field: "Si"})
 
             query = query.filter(branch_query)
-
-            # 2. Build Q object for publication rules
-            publication_rules_query = Q()
-            for category_key, rule_config in self.publication_rules.items():
-                if isinstance(rule_config, dict):
-                    threshold = rule_config.get("price_threshold")
-                else:
-                    threshold = rule_config
-
-                if threshold is not None:
-                    # category__iexact handles case-insensitive matching.
-                    # strip() is not easily done in pure Q without Trim function,
-                    # but following the previous logic's intent of exact category match.
-                    publication_rules_query |= Q(category__iexact=category_key.strip(), price__gte=threshold)
-
-            query = query.filter(publication_rules_query)
 
         return query.order_by("id")
