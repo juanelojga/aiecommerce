@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from typing import Any
 
 from aiecommerce.models.mercadolibre import MercadoLibreListing
@@ -15,35 +16,38 @@ class MercadoLibreSyncService:
         self._price_engine = MercadoLibrePriceEngine()
         self._stock_engine = MercadoLibreStockEngine()
 
-    def sync_listing(self, listing: MercadoLibreListing, dry_run: bool = False) -> bool:
+    def sync_listing(self, listing: MercadoLibreListing, dry_run: bool = False, force: bool = False) -> bool:
         """
         Synchronizes a single Mercado Libre listing.
         Returns True if the listing was updated, False otherwise.
         """
-        calculated_price = self._price_engine.calculate(listing.product_master.price) if listing.product_master.price else None
+        calculated_price = self._price_engine.calculate(listing.product_master.price if listing.product_master.price else Decimal(0))
         new_price = calculated_price["final_price"] if calculated_price else listing.final_price
         new_quantity = self._stock_engine.get_available_quantity(listing.product_master)
 
-        update_payload: dict[str, Any] = {}
+        update_price_payload: dict[str, Any] = {}
         if new_price and new_price != listing.final_price:
-            update_payload["price"] = float(new_price)  # Convert Decimal to float
-        if new_quantity != listing.available_quantity:
-            update_payload["available_quantity"] = new_quantity
+            update_price_payload["price"] = float(new_price)  # Convert Decimal to float
 
-        if not update_payload:
+        update_quantity_payload: dict[str, int] = {}
+        if new_quantity != listing.available_quantity:
+            update_quantity_payload["available_quantity"] = new_quantity
+
+        if not update_price_payload or not update_quantity_payload:
             logger.debug(f"No changes for listing {listing.ml_id}.")
             return False
 
-        logger.info(f"Listing {listing.ml_id} requires update. Payload: {update_payload}")
+        logger.info(f"Listing {listing.ml_id} requires update. Payload: {update_price_payload} {update_quantity_payload}.")
 
         if not dry_run and listing.ml_id:
             try:
-                self._ml_client.put(f"items/{listing.ml_id}", json=update_payload)
-                if "price" in update_payload and new_price and calculated_price:
+                if force or "price" in update_price_payload and new_price and calculated_price:
+                    self._ml_client.put(f"items/{listing.ml_id}", json=update_price_payload)
                     listing.final_price = new_price
                     listing.net_price = calculated_price["net_price"]
                     listing.profit = calculated_price["profit"]
-                if "available_quantity" in update_payload:
+                if force or "available_quantity" in update_quantity_payload:
+                    self._ml_client.put(f"items/{listing.ml_id}", json=update_quantity_payload)
                     listing.available_quantity = new_quantity
                 listing.save(update_fields=["final_price", "net_price", "profit", "available_quantity"])
                 logger.info(f"Successfully updated listing {listing.ml_id} on Mercado Libre and database.")
@@ -52,7 +56,7 @@ class MercadoLibreSyncService:
                 return False
         return True
 
-    def sync_all_listings(self, dry_run: bool = False) -> None:
+    def sync_all_listings(self, dry_run: bool = False, force: bool = False) -> None:
         """
         Synchronizes all active Mercado Libre listings with the local database.
         """
@@ -63,7 +67,7 @@ class MercadoLibreSyncService:
         active_listings = MercadoLibreListing.objects.filter(status=MercadoLibreListing.Status.ACTIVE).select_related("product_master")
 
         for listing in active_listings:
-            if self.sync_listing(listing, dry_run):
+            if self.sync_listing(listing, dry_run, force):
                 updated_count += 1
             else:
                 no_changes_count += 1

@@ -22,10 +22,16 @@ class Command(BaseCommand):
             type=str,
             help="The internal ID or Mercado Libre ID of a specific listing to sync.",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Perform a force update of the listing even if no changes were detected.",
+        )
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         listing_id = options["id"]
+        force = options["force"]
 
         self.stdout.write("Starting Mercado Libre listings synchronization...")
         if dry_run:
@@ -56,12 +62,12 @@ class Command(BaseCommand):
                     return
 
             self.stdout.write(f"Syncing listing: {listing.ml_id or listing.id}")
-            if sync_service.sync_listing(listing, dry_run=dry_run):
+            if sync_service.sync_listing(listing, dry_run=dry_run, force=force):
                 self.stdout.write(self.style.SUCCESS(f"Listing {listing.ml_id or listing.id} updated."))
             else:
                 self.stdout.write(self.style.NOTICE(f"No changes for listing {listing.ml_id or listing.id}."))
         else:
             self.stdout.write("Syncing all active listings.")
-            sync_service.sync_all_listings(dry_run=dry_run)
+            sync_service.sync_all_listings(dry_run=dry_run, force=force)
 
         self.stdout.write(self.style.SUCCESS("Synchronization finished."))
