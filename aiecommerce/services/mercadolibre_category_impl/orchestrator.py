@@ -81,6 +81,9 @@ class MercadolibreEnrichmentCategoryOrchestrator:
                     listing.category_id = category_id
                     listing.save()
                     logger.info(f"Category ID {category_id} and prices saved for product {product.code}")
+                else:
+                    # In dry run, we don't save the listing but we can refresh it from DB to ensure no changes
+                    pass
                 stats["processed"] += 1
             except Exception as e:
                 logger.error(f"Product {product.code}: AI enrichment crashed - {e}")
