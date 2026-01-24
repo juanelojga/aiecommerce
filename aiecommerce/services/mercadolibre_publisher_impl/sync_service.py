@@ -15,7 +15,7 @@ class MercadoLibreSyncService:
         self._price_engine = MercadoLibrePriceEngine()
         self._stock_engine = MercadoLibreStockEngine()
 
-    def sync_listing(self, listing: MercadoLibreListing, dry_run: bool = False) -> bool:
+    def sync_listing(self, listing: MercadoLibreListing, dry_run: bool = False, force: bool = False) -> bool:
         """
         Synchronizes a single Mercado Libre listing.
         Returns True if the listing was updated, False otherwise.
@@ -33,7 +33,7 @@ class MercadoLibreSyncService:
         if new_quantity != listing.available_quantity:
             update_payload["available_quantity"] = new_quantity
 
-        if not update_payload:
+        if not force or not update_payload:
             logger.debug(f"No changes for listing {listing.ml_id}.")
             return False
 
@@ -55,7 +55,7 @@ class MercadoLibreSyncService:
                 return False
         return True
 
-    def sync_all_listings(self, dry_run: bool = False) -> None:
+    def sync_all_listings(self, dry_run: bool = False, force: bool = False) -> None:
         """
         Synchronizes all active Mercado Libre listings with the local database.
         """
@@ -66,7 +66,7 @@ class MercadoLibreSyncService:
         active_listings = MercadoLibreListing.objects.filter(status=MercadoLibreListing.Status.ACTIVE).select_related("product_master")
 
         for listing in active_listings:
-            if self.sync_listing(listing, dry_run):
+            if self.sync_listing(listing, dry_run, force):
                 updated_count += 1
             else:
                 no_changes_count += 1
