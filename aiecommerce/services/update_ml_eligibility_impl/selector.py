@@ -37,40 +37,40 @@ class UpdateMlEligibilityCandidateSelector:
             price__isnull=False,
             category__isnull=False,
             last_updated__gte=freshness_limit,
-            stock_principal="Si",
+            is_for_mercadolibre=False,
         )
-
-        # Define the branch fields to check
-        branch_fields = ["stock_colon", "stock_sur", "stock_gye_norte", "stock_gye_sur"]
-
-        # Build an OR condition: (stock_colon='SI' OR stock_sur='SI' OR ...)
-        branch_query = Q()
-        for field in branch_fields:
-            branch_query |= Q(**{field: "Si"})
-
-        query = query.filter(branch_query)
-
-        # 2. Build Q object for publication rules
-        publication_rules_query = Q()
-        for category_key, rule_config in self.publication_rules.items():
-            if isinstance(rule_config, dict):
-                threshold = rule_config.get("price_threshold")
-            else:
-                threshold = rule_config
-
-            if threshold is not None:
-                # category__iexact handles case-insensitive matching.
-                # strip() is not easily done in pure Q without Trim function,
-                # but following the previous logic's intent of exact category match.
-                publication_rules_query |= Q(category__iexact=category_key.strip(), price__gte=threshold)
-
-        query = query.filter(publication_rules_query)
 
         if dry_run:
             # For a dry run, we fetch a small, predictable sample.
             return query.order_by("id")[:3]
 
         if not force:
-            query = query.filter(is_for_mercadolibre=False)
+            query = query.filter(stock_principal="Si")
+
+            # Define the branch fields to check
+            branch_fields = ["stock_colon", "stock_sur", "stock_gye_norte", "stock_gye_sur"]
+
+            # Build an OR condition: (stock_colon='SI' OR stock_sur='SI' OR ...)
+            branch_query = Q()
+            for field in branch_fields:
+                branch_query |= Q(**{field: "Si"})
+
+            query = query.filter(branch_query)
+
+            # 2. Build Q object for publication rules
+            publication_rules_query = Q()
+            for category_key, rule_config in self.publication_rules.items():
+                if isinstance(rule_config, dict):
+                    threshold = rule_config.get("price_threshold")
+                else:
+                    threshold = rule_config
+
+                if threshold is not None:
+                    # category__iexact handles case-insensitive matching.
+                    # strip() is not easily done in pure Q without Trim function,
+                    # but following the previous logic's intent of exact category match.
+                    publication_rules_query |= Q(category__iexact=category_key.strip(), price__gte=threshold)
+
+            query = query.filter(publication_rules_query)
 
         return query.order_by("id")
