@@ -22,7 +22,10 @@ class MercadoLibreSyncService:
         """
         calculated_price = self._price_engine.calculate(listing.product_master.price) if listing.product_master.price else None
         new_price = calculated_price["final_price"] if calculated_price else listing.final_price
-        new_quantity = self._stock_engine.get_available_quantity(listing.product_master)
+
+        new_quantity = 0
+        if listing.product_master.is_active:
+            new_quantity = self._stock_engine.get_available_quantity(listing.product_master)
 
         update_payload: dict[str, Any] = {}
         if new_price and new_price != listing.final_price:
