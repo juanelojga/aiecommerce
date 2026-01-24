@@ -6,7 +6,7 @@ from aiecommerce.models import MercadoLibreListing, ProductMaster
 class MercadolibreCategorySelector:
     """Encapsulates all filtering logic for product enrichment."""
 
-    def get_queryset(self, force: bool, dry_run: bool) -> QuerySet[ProductMaster]:
+    def get_queryset(self, force: bool, dry_run: bool, category: str | None = None) -> QuerySet[ProductMaster]:
         """
         Builds and returns the queryset of products to be enriched.
 
@@ -21,6 +21,9 @@ class MercadolibreCategorySelector:
             is_active=True,
             is_for_mercadolibre=True,
         )
+
+        if category:
+            query = query.filter(category=category)
 
         if dry_run:
             # For a dry run, we fetch a small, predictable sample.

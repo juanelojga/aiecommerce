@@ -23,11 +23,13 @@ class Command(BaseCommand):
         parser.add_argument("--force", action="store_true", help="Reprocess products that already have specs")
         parser.add_argument("--dry-run", action="store_true", help="Show which products would be processed, but do not enqueue any tasks.")
         parser.add_argument("--delay", type=float, default=0.5, help="Delay between products")
+        parser.add_argument("--category", type=str, help="Category name of products to process.")
 
     def handle(self, *args, **options):
         force = options["force"]
         dry_run = options["dry_run"]
         delay = options["delay"]
+        category = options["category"]
 
         site_id = "MEC"
 
@@ -72,7 +74,7 @@ class Command(BaseCommand):
         )
 
         # Run the enrichment batch
-        stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay)
+        stats = orchestrator.run(force=force, dry_run=dry_run, delay=delay, category=category)
 
         if stats["total"] == 0:
             self.stdout.write(self.style.WARNING("No products found without categories.."))

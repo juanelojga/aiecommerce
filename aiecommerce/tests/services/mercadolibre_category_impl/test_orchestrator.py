@@ -59,7 +59,7 @@ class TestMercadolibreEnrichmentCategoryOrchestrator:
         stats = orchestrator.run(force=False, dry_run=False, delay=0)
 
         assert stats == {"total": 0, "processed": 0}
-        mock_selector.get_queryset.assert_called_once_with(False, False)
+        mock_selector.get_queryset.assert_called_once_with(False, False, None)
 
     def test_run_success(
         self,
@@ -132,6 +132,7 @@ class TestMercadolibreEnrichmentCategoryOrchestrator:
 
         assert stats == {"total": 1, "processed": 0}
         assert f"Product {product.code} has no SEO title, skipping category prediction." in caplog.text
+        assert MercadoLibreListing.objects.filter(product_master=product).count() == 0
 
     def test_run_skips_price_calculation_no_price(self, orchestrator, mock_selector, mock_category_predictor, mock_price_engine, caplog):
         product = ProductMasterFactory(seo_title="Title", price=None)
@@ -164,6 +165,110 @@ class TestMercadolibreEnrichmentCategoryOrchestrator:
 
         assert stats == {"total": 2, "processed": 1}
         assert "AI enrichment crashed - Boom" in caplog.text
+
+    def test_run_category_none_skips_attribute_steps(
+        self,
+        orchestrator,
+        mock_selector,
+        mock_category_predictor,
+        mock_price_engine,
+        mock_stock_engine,
+        mock_attribute_fetcher,
+        mock_attribute_filler,
+    ):
+        product = ProductMasterFactory(seo_title="Title", price=Decimal("100.00"))
+        mock_selector.get_queryset.return_value.count.return_value = 1
+        mock_selector.get_queryset.return_value.iterator.return_value = [product]
+        mock_category_predictor.predict_category.return_value = None
+        mock_price_engine.calculate.return_value = {
+            "final_price": Decimal("150.00"),
+            "net_price": Decimal("130.00"),
+            "profit": Decimal("20.00"),
+        }
+        mock_stock_engine.get_available_quantity.return_value = 5
+
+        stats = orchestrator.run(force=False, dry_run=False, delay=0)
+
+        assert stats == {"total": 1, "processed": 1}
+        mock_attribute_fetcher.get_category_attributes.assert_not_called()
+        mock_attribute_filler.fill_and_validate.assert_not_called()
+
+        listing = MercadoLibreListing.objects.get(product_master=product)
+        assert listing.category_id is None
+        assert listing.final_price == Decimal("150.00")
+        assert listing.available_quantity == 5
+        assert listing.attributes is None
+
+    def test_run_updates_existing_listing(
+        self,
+        orchestrator,
+        mock_selector,
+        mock_category_predictor,
+        mock_price_engine,
+        mock_stock_engine,
+        mock_attribute_fetcher,
+        mock_attribute_filler,
+    ):
+        product = ProductMasterFactory(seo_title="Title", price=Decimal("100.00"))
+        existing_listing = MercadoLibreListing.objects.create(
+            product_master=product,
+            category_id="OLD",
+            final_price=Decimal("10.00"),
+            available_quantity=1,
+        )
+        mock_selector.get_queryset.return_value.count.return_value = 1
+        mock_selector.get_queryset.return_value.iterator.return_value = [product]
+        mock_category_predictor.predict_category.return_value = "ML123"
+        mock_price_engine.calculate.return_value = {
+            "final_price": Decimal("150.00"),
+            "net_price": Decimal("130.00"),
+            "profit": Decimal("20.00"),
+        }
+        mock_stock_engine.get_available_quantity.return_value = 10
+        mock_attribute_fetcher.get_category_attributes.return_value = [{"id": "ATTR1"}]
+        mock_attribute_filler.fill_and_validate.return_value = [{"id": "ATTR1", "value_name": "Val"}]
+
+        stats = orchestrator.run(force=False, dry_run=False, delay=0)
+
+        assert stats == {"total": 1, "processed": 1}
+        existing_listing.refresh_from_db()
+        assert existing_listing.category_id == "ML123"
+        assert existing_listing.final_price == Decimal("150.00")
+        assert existing_listing.available_quantity == 10
+        assert existing_listing.attributes == [{"id": "ATTR1", "value_name": "Val"}]
+
+    def test_run_dry_run_does_not_persist_updates(
+        self,
+        orchestrator,
+        mock_selector,
+        mock_category_predictor,
+        mock_price_engine,
+        mock_stock_engine,
+    ):
+        product = ProductMasterFactory(seo_title="Title", price=Decimal("100.00"))
+        listing = MercadoLibreListing.objects.create(
+            product_master=product,
+            category_id="OLD",
+            final_price=Decimal("10.00"),
+            available_quantity=1,
+        )
+        mock_selector.get_queryset.return_value.count.return_value = 1
+        mock_selector.get_queryset.return_value.iterator.return_value = [product]
+        mock_category_predictor.predict_category.return_value = "ML123"
+        mock_price_engine.calculate.return_value = {
+            "final_price": Decimal("150.00"),
+            "net_price": Decimal("130.00"),
+            "profit": Decimal("20.00"),
+        }
+        mock_stock_engine.get_available_quantity.return_value = 10
+
+        stats = orchestrator.run(force=False, dry_run=True, delay=0)
+
+        assert stats == {"total": 1, "processed": 1}
+        listing.refresh_from_db()
+        assert listing.category_id == "OLD"
+        assert listing.final_price == Decimal("10.00")
+        assert listing.available_quantity == 1
 
     @patch("time.sleep", return_value=None)
     def test_run_with_delay(self, mock_sleep, orchestrator, mock_selector, mock_category_predictor):
