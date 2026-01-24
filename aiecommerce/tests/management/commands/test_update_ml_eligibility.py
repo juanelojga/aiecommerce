@@ -37,7 +37,7 @@ def test_update_ml_eligibility_dry_run_no_products(mock_selector, mock_orchestra
 
     output = out.getvalue()
     assert "--- DRY RUN MODE ACTIVATED ---" in output
-    assert "No products found without images." in output
+    assert "No products found." in output
 
     mock_selector_class.assert_called_once_with()
     mock_orchestrator_class.assert_called_once_with(mock_selector_instance)
