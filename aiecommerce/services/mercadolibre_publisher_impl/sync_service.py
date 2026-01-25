@@ -16,10 +16,11 @@ class MercadoLibreSyncService:
         self._price_engine = MercadoLibrePriceEngine()
         self._stock_engine = MercadoLibreStockEngine()
 
-    def _normalize_price(self, value: Decimal | float | int | None) -> Decimal | None:
+    def _normalize_price(self, value: Decimal | float | int | None) -> float | None:
         if value is None:
             return None
-        return Decimal(str(value))
+        # Ensure price values are JSON-serializable for API requests.
+        return float(Decimal(str(value)))
 
     def sync_listing(self, listing: MercadoLibreListing, dry_run: bool = False, force: bool = False) -> bool:
         """
