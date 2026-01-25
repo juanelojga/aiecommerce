@@ -16,27 +16,31 @@ class MercadoLibreSyncService:
         self._price_engine = MercadoLibrePriceEngine()
         self._stock_engine = MercadoLibreStockEngine()
 
+    def _normalize_price(self, value: Decimal | float | int | None) -> Decimal | None:
+        if value is None:
+            return None
+        return Decimal(str(value))
+
     def sync_listing(self, listing: MercadoLibreListing, dry_run: bool = False, force: bool = False) -> bool:
         """
         Synchronizes a single Mercado Libre listing.
         Returns True if the listing was updated, False otherwise.
         """
-        calculated_price = self._price_engine.calculate(listing.product_master.price) if listing.product_master.price else None
-        new_price = calculated_price["final_price"] if calculated_price else listing.final_price
+        base_price = listing.product_master.price
+        calculated_price = self._price_engine.calculate(base_price) if base_price is not None else None
+        new_price = calculated_price["final_price"] if calculated_price is not None else listing.final_price
 
-        new_quantity = listing.available_quantity
-        if listing.product_master.is_active:
-            new_quantity = self._stock_engine.get_available_quantity(listing.product_master)
-        else:
-            new_quantity = 0
+        new_quantity = self._stock_engine.get_available_quantity(listing.product_master) if listing.product_master.is_active else 0
 
         update_payload: dict[str, Any] = {}
         if force:
-            update_payload["price"] = Decimal(new_price) if new_price else listing.final_price
+            normalized_price = self._normalize_price(new_price if new_price is not None else listing.final_price)
+            if normalized_price is not None:
+                update_payload["price"] = normalized_price
             update_payload["available_quantity"] = new_quantity
         else:
-            if new_price and new_price != listing.final_price:
-                update_payload["price"] = Decimal(new_price)  # Convert Decimal to float
+            if new_price is not None and new_price != listing.final_price:
+                update_payload["price"] = self._normalize_price(new_price)
             if new_quantity != listing.available_quantity:
                 update_payload["available_quantity"] = new_quantity
 
@@ -44,18 +48,26 @@ class MercadoLibreSyncService:
             logger.debug(f"No changes for listing {listing.ml_id}.")
             return False
 
+        if not listing.ml_id:
+            logger.warning(f"Listing {listing.pk} is missing ml_id; skipping remote update.")
+            return False
+
         logger.info(f"Listing {listing.ml_id} requires update. Payload: {update_payload}")
 
-        if not dry_run and listing.ml_id:
+        if not dry_run:
             try:
                 self._ml_client.put(f"items/{listing.ml_id}", json=update_payload)
-                if "price" in update_payload and new_price and calculated_price:
+                update_fields = []
+                if "price" in update_payload and new_price is not None and calculated_price is not None:
                     listing.final_price = new_price
                     listing.net_price = calculated_price["net_price"]
                     listing.profit = calculated_price["profit"]
+                    update_fields.extend(["final_price", "net_price", "profit"])
                 if "available_quantity" in update_payload:
                     listing.available_quantity = new_quantity
-                listing.save(update_fields=["final_price", "net_price", "profit", "available_quantity"])
+                    update_fields.append("available_quantity")
+                if update_fields:
+                    listing.save(update_fields=update_fields)
                 logger.info(f"Successfully updated listing {listing.ml_id} on Mercado Libre and database.")
             except Exception as e:
                 logger.error(f"Failed to update listing {listing.ml_id}: {e}")

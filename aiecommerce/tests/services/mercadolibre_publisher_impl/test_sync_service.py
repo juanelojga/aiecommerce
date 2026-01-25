@@ -128,7 +128,7 @@ class TestMercadoLibreSyncService:
 
             result = sync_service.sync_listing(listing)
 
-            assert result is True
+            assert result is False
             ml_client.put.assert_not_called()
 
             listing.refresh_from_db()
