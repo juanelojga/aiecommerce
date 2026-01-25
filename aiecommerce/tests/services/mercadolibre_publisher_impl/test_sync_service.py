@@ -55,7 +55,7 @@ class TestMercadoLibreSyncService:
             result = sync_service.sync_listing(listing, force=True)
 
             assert result is True
-            ml_client.put.assert_called_once_with("items/ML123", json={"price": Decimal("180.52"), "available_quantity": 4})
+            ml_client.put.assert_called_once_with("items/ML123", json={"price": 180.52, "available_quantity": 4})
 
             listing.refresh_from_db()
             assert listing.final_price == Decimal("180.52")
