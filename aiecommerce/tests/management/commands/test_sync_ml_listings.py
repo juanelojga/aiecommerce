@@ -81,7 +81,29 @@ def test_sync_all_listings_success(
 
     mock_token_model.objects.filter.assert_called_with(is_test_user=False)
     mock_auth_service.get_valid_token.assert_called_once_with(user_id="user_123")
-    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=False)
+    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=False, force=False)
+
+
+def test_sync_all_listings_with_force(
+    mock_token_model,
+    mock_auth_service,
+    mock_sync_service,
+    mock_client,
+):
+    mock_token = MagicMock()
+    mock_token.user_id = "user_123"
+    mock_token.access_token = "valid_token"
+
+    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_auth_service.get_valid_token.return_value = mock_token
+
+    out = io.StringIO()
+    call_command("sync_ml_listings", "--force", stdout=out)
+
+    output = out.getvalue()
+    assert "Syncing all active listings." in output
+
+    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=False, force=True)
 
 
 def test_sync_single_listing_by_id_success(
@@ -111,7 +133,32 @@ def test_sync_single_listing_by_id_success(
     assert "Syncing listing: MLC123" in output
     assert "Listing MLC123 updated." in output
     mock_listing_model.objects.get.assert_called_with(pk="1")
-    mock_sync_service.sync_listing.assert_called_once_with(mock_listing, dry_run=False)
+    mock_sync_service.sync_listing.assert_called_once_with(mock_listing, dry_run=False, force=False)
+
+
+def test_sync_single_listing_by_id_with_force(
+    mock_token_model,
+    mock_auth_service,
+    mock_listing_model,
+    mock_sync_service,
+    mock_client,
+):
+    mock_token = MagicMock()
+    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_auth_service.get_valid_token.return_value = mock_token
+
+    mock_listing = MagicMock()
+    mock_listing.id = 1
+    mock_listing.ml_id = "MLC123"
+    mock_listing_model.objects.get.side_effect = [mock_listing]
+    mock_sync_service.sync_listing.return_value = True
+
+    out = io.StringIO()
+    call_command("sync_ml_listings", "--id=1", "--force", stdout=out)
+
+    output = out.getvalue()
+    assert "Syncing listing: MLC123" in output
+    mock_sync_service.sync_listing.assert_called_once_with(mock_listing, dry_run=False, force=True)
 
 
 def test_sync_single_listing_by_ml_id_success(
@@ -150,6 +197,31 @@ def test_sync_single_listing_by_ml_id_success(
     mock_listing_model.objects.get.assert_any_call(ml_id="MLC123")
 
 
+def test_sync_listing_falls_back_to_ml_id_on_value_error(
+    mock_token_model,
+    mock_auth_service,
+    mock_listing_model,
+    mock_sync_service,
+    mock_client,
+):
+    mock_token = MagicMock()
+    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_auth_service.get_valid_token.return_value = mock_token
+
+    mock_listing = MagicMock()
+    mock_listing.id = 1
+    mock_listing.ml_id = "MLC123"
+    mock_listing_model.objects.get.side_effect = [ValueError("Invalid pk"), mock_listing]
+
+    out = io.StringIO()
+    call_command("sync_ml_listings", "--id=MLC123", stdout=out)
+
+    output = out.getvalue()
+    assert "Syncing listing: MLC123" in output
+    mock_listing_model.objects.get.assert_any_call(pk="MLC123")
+    mock_listing_model.objects.get.assert_any_call(ml_id="MLC123")
+
+
 def test_sync_dry_run(
     mock_token_model,
     mock_auth_service,
@@ -168,7 +240,7 @@ def test_sync_dry_run(
     # Assert
     output = out.getvalue()
     assert "Performing a dry run." in output
-    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=True)
+    mock_sync_service.sync_all_listings.assert_called_once_with(dry_run=True, force=False)
 
 
 def test_sync_no_token(mock_token_model, mock_auth_service):
