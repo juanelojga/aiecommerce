@@ -1,6 +1,7 @@
 from .connectivity import test_celery_worker
 from .images import process_product_image
 from .periodic import (
+    run_close_ml_listings,
     run_create_ml_test_user,
     run_enrich_mercadolibre_category,
     run_enrich_products_content,
@@ -38,4 +39,5 @@ __all__ = (
     "run_sync_ml_listings",
     "run_upscale_scraped_images",
     "process_highres_image_task",
+    "run_close_ml_listings",
 )
