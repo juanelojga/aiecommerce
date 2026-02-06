@@ -14,20 +14,23 @@ class ProductSpecificationsOrchestrator:
     """
 
     def __init__(self, service: ProductSpecificationsService):
+        """Initialize with a specifications service.
+
+        Args:
+            service: The service for enriching product specifications.
+        """
         self.service = service
 
     def process_product(self, product: ProductMaster, dry_run: bool) -> tuple[bool, Any | None]:
-        """
-        Processes a single product, including calling the enrichment service and saving the result.
+        """Process a single product for specification enrichment.
 
         Args:
             product: The ProductMaster instance to process.
             dry_run: If True, data is not saved to the database.
 
         Returns:
-            A tuple containing a boolean indicating success and the extracted specs (or None).
+            A tuple of (success boolean, extracted specs dict or None).
         """
-
         try:
             product_data = {
                 "code": product.code,

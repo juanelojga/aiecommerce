@@ -9,10 +9,19 @@ logger = logging.getLogger(__name__)
 
 class BatchPublisherOrchestrator:
     def __init__(self, publisher_orchestrator: PublisherOrchestrator):
+        """Initialize with a publisher orchestrator.
+
+        Args:
+            publisher_orchestrator: The orchestrator to handle individual publications.
+        """
         self.publisher_orchestrator = publisher_orchestrator
 
     def _get_pending_listings(self) -> List[MercadoLibreListing]:
-        """Fetches all listings with 'PENDING' status and available_quantity > 0 for Mercado Libre."""
+        """Fetch all listings with PENDING status and available stock.
+
+        Returns:
+            List of MercadoLibreListing objects ready for publication.
+        """
         logger.debug("Fetching pending listings for Mercado Libre.")
 
         # Add condition for available_quantity > 0

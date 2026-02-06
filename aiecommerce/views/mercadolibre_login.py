@@ -11,8 +11,12 @@ class MercadoLibreLoginView(RedirectView):
 
     permanent = False
 
-    def get_redirect_url(self, *args, **kwargs):
-        """Constructs the full authorization URL."""
+    def get_redirect_url(self, *args, **kwargs) -> str:
+        """Construct the full authorization URL for Mercado Libre OAuth.
+
+        Returns:
+            The complete authorization URL with query parameters.
+        """
         auth_url = f"{settings.MERCADOLIBRE_AUTH_URL}/authorization"
         params = {
             "response_type": "code",

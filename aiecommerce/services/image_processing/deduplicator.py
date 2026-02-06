@@ -12,6 +12,11 @@ class ImageDeduplicator:
     """Handles visual duplicate detection using perceptual hashing."""
 
     def __init__(self, threshold: int = 2):
+        """Initialize the deduplicator with a similarity threshold.
+
+        Args:
+            threshold: Maximum hash difference to consider images as duplicates.
+        """
         self.threshold = threshold
         self.seen_hashes: Set[imagehash.ImageHash] = set()
 

@@ -7,10 +7,21 @@ class ProductPreviewer:
     """Handles the previewing of scraped products during a dry run."""
 
     def __init__(self, command: BaseCommand):
+        """Initialize with a management command for output.
+
+        Args:
+            command: The BaseCommand instance for stdout writing.
+        """
         self.command = command
 
     def show_preview(self, category: str, items: Sequence[Any], limit: int = 5) -> None:
-        """Prints a detailed preview for a list of items."""
+        """Print a detailed preview for a list of items.
+
+        Args:
+            category: The category name being previewed.
+            items: The items to display in the preview.
+            limit: Maximum number of items to show.
+        """
         if not items:
             return
 

@@ -43,11 +43,10 @@ class TitleGeneratorService:
     """A service to generate SEO-friendly titles using an AI model."""
 
     def __init__(self, client: instructor.Instructor):
-        """
-        Initializes the service.
+        """Initialize the service with an AI client.
 
         Args:
-            client: A `instructor.Instructor` client.
+            client: An instructor.Instructor client for AI completions.
         """
         self.client = client
 

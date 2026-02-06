@@ -18,6 +18,11 @@ class ProductNormalizationService:
     """
 
     def __init__(self, matcher: Optional[FuzzyMatcher] = None):
+        """Initialize the service with an optional fuzzy matcher.
+
+        Args:
+            matcher: The fuzzy matcher for finding product matches.
+        """
         self.matcher = matcher or FuzzyMatcher()
 
     @transaction.atomic

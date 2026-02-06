@@ -9,7 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class UpscaleHighResOrchestrator:
+    """Orchestrates the high-resolution image upscaling process."""
+
     def __init__(self, selector: UpscaleHighResSelector):
+        """Initialize with a selector for candidate products.
+
+        Args:
+            selector: The selector to find products needing upscaling.
+        """
         self.selector = selector
 
     def run(
@@ -18,7 +25,16 @@ class UpscaleHighResOrchestrator:
         dry_run: bool = False,
         delay: float = 0.5,
     ) -> Dict[str, int]:
-        logger.info(f"Starting upscale high-res orchestrator with product_code={product_code}, dry_run={dry_run}, delay={delay}")
+        """Run the upscaling orchestration process.
+
+        Args:
+            product_code: Optional specific product code to process.
+            dry_run: If True, simulate without triggering tasks.
+            delay: Seconds to wait between processing each product.
+
+        Returns:
+            Dictionary with total and processed product counts.
+        """
         candidates = self.selector.get_candidates(product_code=product_code)
         total_products = len(candidates)
         processed_products = 0

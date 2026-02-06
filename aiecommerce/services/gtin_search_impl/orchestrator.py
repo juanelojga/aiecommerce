@@ -13,19 +13,26 @@ class GTINDiscoveryOrchestrator:
     """Orchestrates the discovery of GTIN codes for products."""
 
     def __init__(self, selector: GTINSearchSelector, google_strategy: GoogleGTINStrategy):
+        """Initialize with selector and Google search strategy.
+
+        Args:
+            selector: Selector to find products needing GTIN discovery.
+            google_strategy: Strategy for Google Search GTIN lookup.
+        """
         self.selector = selector
         self.google_strategy = google_strategy
 
     def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, Any]:
+        """Discover GTINs for products using Google Search strategy.
+
+        Args:
+            force: Whether to process all products or only those without GTIN.
+            dry_run: If True, simulate without saving changes.
+            delay: Seconds to wait between processing each product.
+
+        Returns:
+            Dictionary with total and processed product counts.
         """
-        Attempts to discover a GTIN for a given product using a tiered search strategy.
-
-        Google Search Strategy
-        - Fallback that executes a series of predefined Google searches.
-
-        Returns: A dictionary with 'gtin' and 'source' if found, otherwise None.
-        """
-
         queryset = self.selector.get_queryset(force, dry_run)
 
         total = queryset.count()

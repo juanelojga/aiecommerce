@@ -11,6 +11,14 @@ class ImageTransformer:
     """Handles image transformations like background removal and resizing."""
 
     def __init__(self, canvas_size: tuple[int, int] = (800, 800), padding: int = 20, jpeg_quality: int = 95, dilation_filter_size: int = 3):
+        """Initialize the transformer with canvas and quality settings.
+
+        Args:
+            canvas_size: Output image dimensions (width, height).
+            padding: Padding around the product in pixels.
+            jpeg_quality: JPEG compression quality (1-100).
+            dilation_filter_size: Size of the dilation filter for edge smoothing.
+        """
         self.canvas_size = canvas_size
         self.padding = padding
         self.jpeg_quality = jpeg_quality
@@ -19,13 +27,21 @@ class ImageTransformer:
 
     @property
     def rembg_session(self):
+        """Lazy-load the background removal session."""
         if self._rembg_session is None:
             self._rembg_session = new_session()
         return self._rembg_session
 
     def transform(self, image_bytes: bytes, with_background_removal: bool = False, background_analyzer=None) -> bytes | None:
-        """
-        Transforms the image: removes background if requested, crops, and centers on a white canvas.
+        """Transform the image: remove background, crop, and center on white canvas.
+
+        Args:
+            image_bytes: The input image as bytes.
+            with_background_removal: Whether to remove the background.
+            background_analyzer: Optional analyzer to skip dark backgrounds.
+
+        Returns:
+            The transformed image bytes, or None if transformation fails.
         """
         try:
             with Image.open(BytesIO(image_bytes)) as img:

@@ -13,6 +13,12 @@ class MercadolibreCategoryPredictorService:
     """
 
     def __init__(self, client: MercadoLibreClient, site_id: str):
+        """Initialize the predictor with a client and site ID.
+
+        Args:
+            client: The Mercado Libre API client.
+            site_id: The site identifier (e.g., 'MLA', 'MLB').
+        """
         self.client = client
         self.site_id = site_id
 

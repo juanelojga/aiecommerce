@@ -24,7 +24,15 @@ class MercadoLibrePublisherService:
         self.attribute_fixer = attribute_fixer
 
     def build_payload(self, product: ProductMaster, test: bool = False) -> Dict[str, Any]:
-        """Constructs the JSON payload for the POST /items endpoint."""
+        """Construct the JSON payload for the POST /items endpoint.
+
+        Args:
+            product: The master product to publish.
+            test: Whether to create a test listing.
+
+        Returns:
+            Dictionary containing the payload for the Mercado Libre API.
+        """
         listing = product.mercadolibre_listing
 
         # Build pictures list (ML requires public URLs)
@@ -49,13 +57,30 @@ class MercadoLibrePublisherService:
         }
 
     def _extract_error_body(self, error_str: str) -> Optional[str]:
-        """Extracts the JSON body from the 'HTTP Error 400: {...}' string."""
+        """Extract the JSON body from an HTTP Error 400 response.
+
+        Args:
+            error_str: The error string containing the HTTP error.
+
+        Returns:
+            The JSON body if found, None otherwise.
+        """
         match = re.search(r"HTTP Error 400: (\{.*\})", error_str)
         return match.group(1) if match else None
 
-    def publish_product(self, product: ProductMaster, dry_run: bool = False, test: bool = False):
-        """
-        Executes publication with a self-healing retry for validation errors.
+    def publish_product(self, product: ProductMaster, dry_run: bool = False, test: bool = False) -> Optional[Dict[str, Any]]:
+        """Publish a product to Mercado Libre with retry logic for validation errors.
+
+        Args:
+            product: The master product to publish.
+            dry_run: If True, only log the payload without making API calls.
+            test: Whether to create a test listing.
+
+        Returns:
+            The API response if successful, None if dry_run.
+
+        Raises:
+            MLAPIError: If publication fails after all retries.
         """
         attempts = 0
         max_attempts = 2  # Original try + 1 retry
@@ -66,7 +91,7 @@ class MercadoLibrePublisherService:
 
             if dry_run:
                 logger.info(f"[Dry-Run] Payload generated: {payload}")
-                return
+                return None
 
             try:
                 # Step 1: Create the Listing
@@ -118,4 +143,4 @@ class MercadoLibrePublisherService:
                 listing.sync_error = error_str
                 listing.save()
                 raise
-        return
+        return None

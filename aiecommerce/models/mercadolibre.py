@@ -102,9 +102,10 @@ class MercadoLibreListing(models.Model):
             models.Index(fields=["status", "last_synced"]),
         ]
 
-    def __str__(self):
-        """
-        String representation used in tests:
-        "Master: {code} - {description} (ml_id)".
+    def __str__(self) -> str:
+        """Return string representation of the listing.
+
+        Returns:
+            String with product code, description, and Mercado Libre ID.
         """
         return f"Master: {self.product_master.code} - {self.product_master.description or 'No description'} ({self.ml_id or 'N/A'})"

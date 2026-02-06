@@ -22,6 +22,12 @@ class MercadoLibreAuthService:
     """Orchestrates the Mercado Libre OAuth2 token lifecycle."""
 
     def __init__(self, client: Optional[MercadoLibreClient] = None, clock=timezone):
+        """Initialize with optional client and clock for testing.
+
+        Args:
+            client: Optional MercadoLibreClient instance.
+            clock: Time provider, defaults to Django timezone.
+        """
         self.client = client or MercadoLibreClient()
         self.clock = clock
 
@@ -52,8 +58,16 @@ class MercadoLibreAuthService:
             return token_record
 
     def _is_token_expired(self, token_record: MercadoLibreToken) -> bool:
-        """Checks if the token is expired or close to expiring (buffer of 5 minutes)."""
-        # We use the injected clock instead of hard dependency on timezone.now()
+        """Check if the token is expired or close to expiring.
+
+        Uses a 5-minute buffer to prevent edge cases.
+
+        Args:
+            token_record: The token record to check.
+
+        Returns:
+            True if the token is expired or will expire within 5 minutes.
+        """
         return self.clock.now() >= (token_record.expires_at - timedelta(minutes=5))
 
     def refresh_token_for_user(self, token_record: MercadoLibreToken) -> MercadoLibreToken:
