@@ -1,40 +1,41 @@
-class MLAPIError(Exception):
-    """Base exception for all Mercado Libre API-related errors."""
+"""Mercado Libre API exceptions.
 
-    pass
+This module provides Mercado Libre specific exceptions that inherit
+from the standardized exception hierarchy.
 
+Note:
+    All exceptions in this module are deprecated aliases for the standardized
+    exceptions. New code should import directly from aiecommerce.services.exceptions.
+"""
 
-class MLRateLimitError(MLAPIError):
-    """Raised when the API rate limit is exceeded (HTTP 429)."""
+from aiecommerce.services.exceptions import (
+    APIError as MLAPIError,
+)
+from aiecommerce.services.exceptions import (
+    APIRateLimitError as MLRateLimitError,
+)
+from aiecommerce.services.exceptions import (
+    APITokenError as MLTokenError,
+)
+from aiecommerce.services.exceptions import (
+    APITokenExchangeError as MLTokenExchangeError,
+)
+from aiecommerce.services.exceptions import (
+    APITokenExpiredError as MLTokenExpiredError,
+)
+from aiecommerce.services.exceptions import (
+    APITokenRefreshError as MLTokenRefreshError,
+)
+from aiecommerce.services.exceptions import (
+    APITokenValidationError as MLTokenValidationError,
+)
 
-    pass
-
-
-class MLTokenExpiredError(MLAPIError):
-    """Raised when the access token is expired (HTTP 401)."""
-
-    pass
-
-
-class MLTokenError(MLAPIError):
-    """Custom exception for token-related errors during OAuth flows."""
-
-    pass
-
-
-class MLTokenExchangeError(MLTokenError):
-    """Raised when the initial code exchange fails."""
-
-    pass
-
-
-class MLTokenRefreshError(MLTokenError):
-    """Raised when the token refresh fails."""
-
-    pass
-
-
-class MLTokenValidationError(MLTokenError):
-    """Raised when the token response from ML is invalid or incomplete."""
-
-    pass
+__all__ = [
+    "MLAPIError",
+    "MLRateLimitError",
+    "MLTokenError",
+    "MLTokenExchangeError",
+    "MLTokenExpiredError",
+    "MLTokenRefreshError",
+    "MLTokenValidationError",
+]

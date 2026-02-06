@@ -1,14 +1,28 @@
-class IngestionError(Exception):
-    pass
+"""Price list ingestion exceptions.
 
+This module provides price list specific exceptions that inherit
+from the standardized exception hierarchy.
 
-class UrlResolutionError(IngestionError):
-    pass
+Note:
+    All exceptions in this module are deprecated aliases for the standardized
+    exceptions. New code should import directly from aiecommerce.services.exceptions.
+"""
 
+from aiecommerce.services.exceptions import (
+    DownloadError,
+    IngestionError,
+    UrlResolutionError,
+)
+from aiecommerce.services.exceptions import (
+    ParsingError as IngestionParsingError,
+)
 
-class DownloadError(IngestionError):
-    pass
+# Keep alias for backward compatibility
+ParsingError = IngestionParsingError
 
-
-class ParsingError(IngestionError):
-    pass
+__all__ = [
+    "IngestionError",
+    "UrlResolutionError",
+    "DownloadError",
+    "ParsingError",
+]
