@@ -92,3 +92,9 @@ def run_upscale_scraped_images():
 def run_pause_ml_listings():
     """Run the pause_ml_listings management command."""
     call_command("pause_ml_listings")
+
+
+@shared_task
+def run_close_ml_listings():
+    """Run the close_ml_listings management command."""
+    call_command("close_ml_listings")
