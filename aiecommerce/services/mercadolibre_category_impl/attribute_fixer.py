@@ -1,5 +1,3 @@
-# aiecommerce/services/mercadolibre_category_impl/attribute_fixer.py
-
 from typing import Any, Dict, List
 
 import instructor

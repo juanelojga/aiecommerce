@@ -19,14 +19,27 @@ class TecnomegaDetailOrchestrator:
     """
 
     def __init__(self, selector: TecnomegaDetailSelector, fetcher: TecnomegaDetailFetcher, parser: TecnomegaDetailParser):
+        """Initialize with selector, fetcher, and parser components.
+
+        Args:
+            selector: Selector to find products needing detail enrichment.
+            fetcher: Fetcher to retrieve product HTML from Tecnomega.
+            parser: Parser to extract product data from HTML.
+        """
         self.selector = selector
         self.fetcher = fetcher
         self.parser = parser
 
     def run(self, force: bool, dry_run: bool, delay: float = 0.5) -> dict[str, int]:
-        """
-        Executes the full enrichment flow (Scrape + AI) for all eligible products.
-        Only performs steps if data is missing or if 'force' is True.
+        """Execute the full enrichment flow for all eligible products.
+
+        Args:
+            force: Whether to re-process products that already have details.
+            dry_run: If True, simulate without saving changes.
+            delay: Seconds to wait between processing each product.
+
+        Returns:
+            Dictionary with total and processed product counts.
         """
         queryset = self.selector.get_queryset(force, dry_run)
 

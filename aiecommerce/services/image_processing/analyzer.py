@@ -9,12 +9,21 @@ class BackgroundAnalyzer:
     """Analyzes image background characteristics."""
 
     def __init__(self, dark_threshold: int = 45):
+        """Initialize the analyzer with a luminance threshold.
+
+        Args:
+            dark_threshold: Luminance value below which background is considered dark.
+        """
         self.dark_threshold = dark_threshold
 
     def is_dark_background(self, img: Image.Image) -> bool:
-        """
-        Detects if the image background is black or dark by sampling the edges.
-        Luminance threshold: 0 (black) to 255 (white).
+        """Detect if the image background is dark by sampling edge luminance.
+
+        Args:
+            img: The PIL Image to analyze.
+
+        Returns:
+            True if the background is dark, False otherwise.
         """
         # If image has an alpha channel, it might be transparent, which we don't consider "dark"
         if img.mode == "RGBA":

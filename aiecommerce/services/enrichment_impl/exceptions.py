@@ -1,10 +1,16 @@
-class ConfigurationError(Exception):
-    """Custom exception for missing service configuration."""
+"""Product enrichment exceptions.
 
-    pass
+This module provides enrichment specific exceptions that inherit
+from the standardized exception hierarchy.
 
+Note:
+    All exceptions in this module are deprecated aliases for the standardized
+    exceptions. New code should import directly from aiecommerce.services.exceptions.
+"""
 
-class EnrichmentError(Exception):
-    """Domain error raised for enrichment failures."""
+from aiecommerce.services.exceptions import ConfigurationError, EnrichmentError
 
-    pass
+__all__ = [
+    "ConfigurationError",
+    "EnrichmentError",
+]

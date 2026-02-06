@@ -5,7 +5,6 @@ from aiecommerce.tasks.periodic import (
     run_enrich_mercadolibre_category,
     run_enrich_products_content,
     run_enrich_products_details,
-    run_enrich_products_gtin,
     run_enrich_products_images,
     run_enrich_products_specs,
     run_normalize_products,
@@ -44,13 +43,6 @@ def test_run_enrich_products_details(mock_call_command):
     """Verify that the run_enrich_products_details task calls the correct management command."""
     run_enrich_products_details()
     mock_call_command.assert_called_once_with("enrich_products_details")
-
-
-@patch("aiecommerce.tasks.periodic.call_command")
-def test_run_enrich_products_gtin(mock_call_command):
-    """Verify that the run_enrich_products_gtin task calls the correct management command."""
-    run_enrich_products_gtin()
-    mock_call_command.assert_called_once_with("enrich_products_gtin")
 
 
 @patch("aiecommerce.tasks.periodic.call_command")

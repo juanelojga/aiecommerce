@@ -1,10 +1,21 @@
-class ScrapeConfigurationError(Exception):
-    """Custom exception for configuration-related errors."""
+"""Tecnomega scraping exceptions.
 
-    pass
+This module provides Tecnomega scraping specific exceptions that inherit
+from the standardized exception hierarchy.
 
+Note:
+    All exceptions in this module are deprecated aliases for the standardized
+    exceptions. New code should import directly from aiecommerce.services.exceptions.
+"""
 
-class ScrapeError(Exception):
-    """Generic exception for errors during the scraping process."""
+from aiecommerce.services.exceptions import (
+    ScrapeConfigurationError,
+)
+from aiecommerce.services.exceptions import (
+    ScrapingError as ScrapeError,
+)
 
-    pass
+__all__ = [
+    "ScrapeConfigurationError",
+    "ScrapeError",
+]

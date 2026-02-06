@@ -29,12 +29,6 @@ def run_enrich_products_details():
 
 
 @shared_task
-def run_enrich_products_gtin():
-    """Run the enrich_products_gtin management command."""
-    call_command("enrich_products_gtin")
-
-
-@shared_task
 def run_enrich_products_images():
     """Run the enrich_products_images management command."""
     call_command("enrich_products_images")

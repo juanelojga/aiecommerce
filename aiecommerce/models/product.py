@@ -9,7 +9,8 @@ class ProductRawPDF(models.Model):
     category_header = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the PDF product."""
         return f"PDF Row ({self.id}) - {self.raw_description or 'No description'}"
 
 
@@ -37,7 +38,8 @@ class ProductRawWeb(models.Model):
     search_term = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the web scraped product."""
         return f"Web Scrape ({self.id}) - SKU: {self.distributor_code or 'N/A'}"
 
 
@@ -70,7 +72,8 @@ class ProductMaster(models.Model):
     normalized_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Standardized name: [Brand] [Line] [Model] [Specs]")
     model_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="The specific model identifier (e.g., ProBook 440 G10).")
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the master product."""
         has_images = self.images.exists()
         return f"Master: {self.code} - {self.description or 'No description'} (Images: {'Yes' if has_images else 'No'})"
 
@@ -86,7 +89,8 @@ class ProductImage(models.Model):
     class Meta:
         ordering = ["order"]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the product image."""
         return f"Image for {self.product.code} ({self.order}) - {self.url}"
 
 
@@ -112,5 +116,6 @@ class ProductDetailScrape(models.Model):
     scrape_session_id = models.CharField(max_length=100, db_index=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return string representation of the product detail scrape."""
         return f"Detail Scrape for {self.product.code} at {self.created_at}"

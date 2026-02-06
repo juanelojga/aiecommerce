@@ -16,6 +16,14 @@ class MercadoLibreCallbackView(View):
     """
 
     def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        """Handle the GET request from Mercado Libre OAuth callback.
+
+        Args:
+            request: The HTTP request object containing the authorization code.
+
+        Returns:
+            JSON response indicating success or failure of token exchange.
+        """
         code = request.GET.get("code")
         if not code:
             logger.warning("Mercado Libre callback requested without a code.")
