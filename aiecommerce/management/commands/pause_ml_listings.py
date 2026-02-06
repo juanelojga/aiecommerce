@@ -5,11 +5,11 @@ from aiecommerce.models.mercadolibre import MercadoLibreListing
 from aiecommerce.services.mercadolibre_impl.auth_service import MercadoLibreAuthService
 from aiecommerce.services.mercadolibre_impl.client import MercadoLibreClient
 from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
-from aiecommerce.services.mercadolibre_publisher_impl.close_publication_service import MercadoLibreClosePublicationService
+from aiecommerce.services.mercadolibre_publisher_impl.pause_publication_service import MercadoLibrePausePublicationService
 
 
 class Command(BaseCommand):
-    help = "Closes listings without stock on Mercado Libre."
+    help = "Pauses listings without stock on Mercado Libre."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -20,14 +20,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--id",
             type=str,
-            help="The internal ID or Mercado Libre ID of a specific listing to close.",
+            help="The internal ID or Mercado Libre ID of a specific listing to pause.",
         )
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         listing_id = options["id"]
 
-        self.stdout.write("Starting Mercado Libre listings closure...")
+        self.stdout.write("Starting Mercado Libre listings pause operation...")
         if dry_run:
             self.stdout.write(self.style.WARNING("Performing a dry run."))
 
@@ -43,7 +43,7 @@ class Command(BaseCommand):
             raise CommandError(f"Error retrieving valid token for site MEC: {e}")
 
         client = MercadoLibreClient(access_token=token_instance.access_token)
-        close_service = MercadoLibreClosePublicationService(ml_client=client)
+        pause_service = MercadoLibrePausePublicationService(ml_client=client)
 
         if listing_id:
             listing = MercadoLibreListing.objects.filter(pk=listing_id).first() or MercadoLibreListing.objects.filter(ml_id=listing_id).first()
@@ -51,13 +51,13 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"Listing with id {listing_id} not found."))
                 return
 
-            self.stdout.write(f"Closing listing: {listing.ml_id or listing.id}")
-            if close_service.remove_listing(listing, dry_run=dry_run):
-                self.stdout.write(self.style.SUCCESS(f"Listing {listing.ml_id or listing.id} closed successfully."))
+            self.stdout.write(f"Pausing listing: {listing.ml_id or listing.id}")
+            if pause_service.pause_listing(listing, dry_run=dry_run):
+                self.stdout.write(self.style.SUCCESS(f"Listing {listing.ml_id or listing.id} paused successfully."))
             else:
                 self.stdout.write(self.style.WARNING(f"No changes for listing {listing.ml_id or listing.id}."))
         else:
-            self.stdout.write("Closing all active listings without stock.")
-            close_service.remove_all_listings(dry_run=dry_run)
+            self.stdout.write("Pausing all active listings without stock.")
+            pause_service.pause_all_listings(dry_run=dry_run)
 
-        self.stdout.write(self.style.SUCCESS("Listing closure finished."))
+        self.stdout.write(self.style.SUCCESS("Listing pause operation finished."))

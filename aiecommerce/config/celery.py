@@ -30,8 +30,8 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_prune_scrapes",
         "schedule": crontab(minute=0, hour=0),
     },
-    "close-ml-listings-daily": {
-        "task": "aiecommerce.tasks.periodic.run_close_ml_listings",
+    "pause-ml-listings-daily": {
+        "task": "aiecommerce.tasks.periodic.run_pause_ml_listings",
         "schedule": crontab(minute=0, hour=1),
     },
     "normalize-hourly-mon-sat": {
