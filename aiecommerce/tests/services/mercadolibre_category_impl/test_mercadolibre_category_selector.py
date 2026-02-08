@@ -12,20 +12,20 @@ class TestMercadolibreCategorySelector:
 
         # Create some products
         # 1. Active, ML, No listing
-        self.p1 = ProductMaster.objects.create(code="P1", is_active=True, is_for_mercadolibre=True, category="cat-a")
+        self.p1 = ProductMaster.objects.create(code="P1", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567890")
         # 2. Active, ML, No listing
-        self.p2 = ProductMaster.objects.create(code="P2", is_active=True, is_for_mercadolibre=True, category="cat-a")
+        self.p2 = ProductMaster.objects.create(code="P2", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567891")
         # 3. Active, ML, No listing
-        self.p3 = ProductMaster.objects.create(code="P3", is_active=True, is_for_mercadolibre=True, category="cat-b")
+        self.p3 = ProductMaster.objects.create(code="P3", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567892")
         # 4. Active, ML, With listing
-        self.p4 = ProductMaster.objects.create(code="P4", is_active=True, is_for_mercadolibre=True, category="cat-a")
+        self.p4 = ProductMaster.objects.create(code="P4", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567893")
         MercadoLibreListing.objects.create(product_master=self.p4, ml_id="ML4", status=MercadoLibreListing.Status.ACTIVE)
 
         # 5. Inactive, ML, No listing
-        self.p5 = ProductMaster.objects.create(code="P5", is_active=False, is_for_mercadolibre=True, category="cat-a")
+        self.p5 = ProductMaster.objects.create(code="P5", is_active=False, is_for_mercadolibre=True, category="cat-a", gtin="7501234567894")
 
         # 6. Active, Not ML, No listing
-        self.p6 = ProductMaster.objects.create(code="P6", is_active=True, is_for_mercadolibre=False, category="cat-a")
+        self.p6 = ProductMaster.objects.create(code="P6", is_active=True, is_for_mercadolibre=False, category="cat-a", gtin="7501234567895")
 
     def test_get_queryset_dry_run(self):
         # Should return max 3 items, ordered by ID, only active and ML
@@ -46,11 +46,11 @@ class TestMercadolibreCategorySelector:
         # Expected: p1, p2, p3, p7, p8
 
         # 7. Active, ML, With PENDING listing
-        self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a")
+        self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567896")
         MercadoLibreListing.objects.create(product_master=self.p7, ml_id="ML7", status=MercadoLibreListing.Status.PENDING)
 
         # 8. Active, ML, With ERROR listing
-        self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b")
+        self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567897")
         MercadoLibreListing.objects.create(product_master=self.p8, ml_id="ML8", status=MercadoLibreListing.Status.ERROR)
 
         qs = self.selector.get_queryset(force=False, dry_run=False)
@@ -70,14 +70,14 @@ class TestMercadolibreCategorySelector:
         # Should return all active, ML, even with listing
         # Expected: p1, p2, p3, p4, p7, p8
         # 7. Active, ML, With PENDING listing
-        self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a")
+        self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567896")
         MercadoLibreListing.objects.create(product_master=self.p7, ml_id="ML7", status=MercadoLibreListing.Status.PENDING)
 
         # 8. Active, ML, With ERROR listing
-        self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b")
+        self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567897")
         MercadoLibreListing.objects.create(product_master=self.p8, ml_id="ML8", status=MercadoLibreListing.Status.ERROR)
 
-        qs = self.selector.get_queryset(force=True, dry_run=False)
+        qs = self.selector.get_queryset(force=True, dry_run=False, batch_size=10)
         assert qs.count() == 6
         ids = list(qs.values_list("id", flat=True))
         assert self.p1.id in ids
@@ -92,10 +92,10 @@ class TestMercadolibreCategorySelector:
     def test_get_queryset_category_filter(self):
         # Should return only active ML products for the requested category.
         # Expected for cat-a: p1, p2, p7
-        self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a")
+        self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567896")
         MercadoLibreListing.objects.create(product_master=self.p7, ml_id="ML7", status=MercadoLibreListing.Status.PENDING)
 
-        self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b")
+        self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567897")
         MercadoLibreListing.objects.create(product_master=self.p8, ml_id="ML8", status=MercadoLibreListing.Status.ERROR)
 
         qs = self.selector.get_queryset(force=False, dry_run=False, category="cat-a")

@@ -66,4 +66,8 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_specs",
         "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
     },
+    "enrich-mercadolibre-category-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_mercadolibre_category",
+        "schedule": crontab(minute=50, hour="8-18/2", day_of_week="mon-sat"),
+    },
 }
