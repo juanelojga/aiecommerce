@@ -47,7 +47,7 @@ def test_publish_ml_product_batch_success_production(mock_token_model, mock_auth
     mock_token.user_id = "user_123"
     mock_token.access_token = "valid_token"
 
-    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
 
     # Run
@@ -70,7 +70,7 @@ def test_publish_ml_product_batch_success_sandbox(mock_token_model, mock_auth_se
     mock_token.user_id = "user_test_123"
     mock_token.access_token = "sandbox_token"
 
-    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
 
     # Run
@@ -89,7 +89,7 @@ def test_publish_ml_product_batch_success_sandbox(mock_token_model, mock_auth_se
 def test_publish_ml_product_batch_dry_run(mock_token_model, mock_auth_service, mock_batch_orchestrator, mock_dependencies):
     # Setup
     mock_token = MagicMock()
-    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
 
     # Run
@@ -104,9 +104,7 @@ def test_publish_ml_product_batch_dry_run(mock_token_model, mock_auth_service, m
 
 def test_publish_ml_product_batch_no_token(mock_token_model, mock_auth_service):
     # Setup
-    from aiecommerce.models import MercadoLibreToken
-
-    mock_token_model.objects.filter.return_value.latest.side_effect = MercadoLibreToken.DoesNotExist
+    mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = None
 
     # Run & Assert
     with pytest.raises(CommandError) as excinfo:
@@ -119,7 +117,7 @@ def test_publish_ml_product_batch_token_error(mock_token_model, mock_auth_servic
     # Setup
     mock_token = MagicMock()
     mock_token.user_id = "user_123"
-    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.side_effect = MLTokenError("Invalid token")
 
     # Run & Assert
@@ -132,15 +130,13 @@ def test_publish_ml_product_batch_token_error(mock_token_model, mock_auth_servic
 def test_publish_ml_product_batch_unexpected_error(mock_token_model, mock_auth_service, mock_batch_orchestrator, mock_dependencies):
     # Setup
     mock_token = MagicMock()
-    mock_token_model.objects.filter.return_value.latest.return_value = mock_token
+    mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
 
     mock_batch_orchestrator.run.side_effect = Exception("Something went wrong")
 
-    # Run
-    out = io.StringIO()
-    call_command("publish_ml_product_batch", stdout=out)
+    # Run & Assert
+    with pytest.raises(Exception) as excinfo:
+        call_command("publish_ml_product_batch")
 
-    # Assert
-    output = out.getvalue()
-    assert "An unexpected error occurred: Something went wrong" in output
+    assert "Something went wrong" in str(excinfo.value)
