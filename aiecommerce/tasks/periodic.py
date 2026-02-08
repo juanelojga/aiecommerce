@@ -59,6 +59,12 @@ def run_publish_ml_product():
 
 
 @shared_task
+def run_publish_ml_product_batch():
+    """Run the publish_ml_product management command."""
+    call_command("publish_ml_product_batch")
+
+
+@shared_task
 def run_scrape_tecnomega():
     """Run the scrape_tecnomega management command."""
     call_command("scrape_tecnomega")
