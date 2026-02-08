@@ -42,7 +42,7 @@ class BatchPublisherOrchestrator:
         logger.info(f"Found {count} pending listings for Mercado Libre.")
         return queryset
 
-    def run(self, dry_run: bool, sandbox: bool, max_batch_size: int = 100) -> dict:
+    def run(self, dry_run: bool, sandbox: bool, max_batch_size: int = 100) -> dict[str, int | list[str]]:
         """
         Processes all pending Mercado Libre listings.
 
@@ -52,10 +52,10 @@ class BatchPublisherOrchestrator:
             max_batch_size: Maximum number of listings to process in one run.
 
         Returns:
-            dict: Statistics with 'success', 'errors', 'skipped' counts.
+            dict: Statistics with 'success', 'errors', 'skipped' counts, and 'published_ids' list.
         """
         pending_listings = self._get_pending_listings(max_count=max_batch_size)
-        stats = {"success": 0, "errors": 0, "skipped": 0}
+        stats: dict[str, int | list[str]] = {"success": 0, "errors": 0, "skipped": 0, "published_ids": []}
 
         if not pending_listings:
             logger.info("No pending listings to publish.")
@@ -67,7 +67,7 @@ class BatchPublisherOrchestrator:
         for listing in pending_listings:
             if not listing.product_master:
                 logger.warning(f"Skipping listing {listing.id} because it has no associated product or product master.")
-                stats["skipped"] += 1
+                stats["skipped"] = stats["skipped"] + 1  # type: ignore[assignment,operator]
                 continue
 
             product_code = listing.product_master.code
@@ -82,10 +82,18 @@ class BatchPublisherOrchestrator:
                             sandbox=sandbox,
                         )
                     logger.info(f"--- Successfully processed product: {product_code} ---")
-                    stats["success"] += 1
+                    stats["success"] = stats["success"] + 1  # type: ignore[assignment,operator]
+
+                    # Collect ML ID after successful publication
+                    listing.refresh_from_db()
+                    if listing.ml_id:
+                        published_ids = stats["published_ids"]
+                        assert isinstance(published_ids, list)
+                        published_ids.append(listing.ml_id)
+
                 except Exception as e:
                     logger.error(f"Failed to process product {product_code}: {e}", exc_info=True)
-                    stats["errors"] += 1
+                    stats["errors"] = stats["errors"] + 1  # type: ignore[assignment,operator]
                     continue
 
         logger.info(f"--- Batch publication finished: {stats['success']} succeeded, {stats['errors']} failed, {stats['skipped']} skipped ---")

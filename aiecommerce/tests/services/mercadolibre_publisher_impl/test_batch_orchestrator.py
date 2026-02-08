@@ -42,7 +42,7 @@ class TestBatchPublisherOrchestrator:
         with patch.object(BatchPublisherOrchestrator, "_get_pending_listings", return_value=MercadoLibreListing.objects.none()):
             stats = batch_orchestrator.run(dry_run=False, sandbox=True)
 
-            assert stats == {"success": 0, "errors": 0, "skipped": 0}
+            assert stats == {"success": 0, "errors": 0, "skipped": 0, "published_ids": []}
             mock_publisher_orchestrator.run.assert_not_called()
 
     def test_run_with_pending_listings_success(self, batch_orchestrator, mock_publisher_orchestrator):

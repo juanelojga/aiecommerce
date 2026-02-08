@@ -15,6 +15,8 @@ from aiecommerce.services.mercadolibre_impl.exceptions import MLTokenError
 from aiecommerce.services.mercadolibre_publisher_impl import BatchPublisherOrchestrator
 from aiecommerce.services.mercadolibre_publisher_impl.orchestrator import PublisherOrchestrator
 from aiecommerce.services.mercadolibre_publisher_impl.publisher import MercadoLibrePublisherService
+from aiecommerce.services.telegram_impl.formatters import format_batch_publish_stats
+from aiecommerce.tasks.notifications import send_telegram_notification
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,8 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run is enabled. No data will be sent to Mercado Libre."))
 
+        stats: dict[str, int | list[str]] = {"success": 0, "errors": 0, "skipped": 0, "published_ids": []}
+
         try:
             # Initialize services
             client = MercadoLibreClient(access_token=token_instance.access_token)
@@ -71,6 +75,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"An unexpected error occurred: {e}"))
             logger.exception("Failed to publish batch of products")
             raise
+        finally:
+            # Send Telegram notification regardless of success/failure
+            self._send_notification(stats, mode, dry_run)
 
     def _get_valid_token(self, sandbox: bool) -> MercadoLibreToken:
         """Retrieve and validate MercadoLibre token for the specified environment."""
@@ -86,3 +93,23 @@ class Command(BaseCommand):
             return auth_service.get_valid_token(user_id=token_instance.user_id)
         except MLTokenError as e:
             raise CommandError(f"Error retrieving valid token: {e}")
+
+    def _send_notification(self, stats: dict[str, Any], mode: str, dry_run: bool) -> None:
+        """Send Telegram notification with batch publication results."""
+        try:
+            # Format the message
+            message = format_batch_publish_stats(
+                stats=stats,
+                mode=mode,
+                dry_run=dry_run,
+                product_ids=stats.get("published_ids", []),
+            )
+
+            # Queue the notification task (non-blocking)
+            send_telegram_notification.apply_async(args=(message,))
+            logger.info("Telegram notification task queued successfully")
+
+        except Exception as e:
+            # Don't let notification errors break the command
+            logger.error(f"Failed to queue Telegram notification: {e}")
+            self.stdout.write(self.style.WARNING("Failed to send Telegram notification"))
