@@ -1,5 +1,6 @@
 import logging
-from typing import List
+
+from django.db import transaction
 
 from aiecommerce.models import MercadoLibreListing
 from aiecommerce.services.mercadolibre_publisher_impl.orchestrator import PublisherOrchestrator
@@ -16,43 +17,57 @@ class BatchPublisherOrchestrator:
         """
         self.publisher_orchestrator = publisher_orchestrator
 
-    def _get_pending_listings(self) -> List[MercadoLibreListing]:
+    def _get_pending_listings(self, max_count: int | None = None):
         """Fetch all listings with PENDING status and available stock.
 
+        Args:
+            max_count: Maximum number of listings to fetch (optional).
+
         Returns:
-            List of MercadoLibreListing objects ready for publication.
+            QuerySet of MercadoLibreListing objects ready for publication.
         """
         logger.debug("Fetching pending listings for Mercado Libre.")
 
-        # Add condition for available_quantity > 0
-        listings = list(
+        queryset = (
             MercadoLibreListing.objects.filter(
                 status=MercadoLibreListing.Status.PENDING,
                 available_quantity__gt=0,  # Ensures only listings with stock > 0
-            )
+            ).select_related("product_master")  # Prevent N+1 queries
         )
-        logger.info(f"Found {len(listings)} pending listings for Mercado Libre.")
-        return listings
 
-    def run(self, dry_run: bool, sandbox: bool) -> None:
+        if max_count:
+            queryset = queryset[:max_count]
+
+        count = queryset.count()
+        logger.info(f"Found {count} pending listings for Mercado Libre.")
+        return queryset
+
+    def run(self, dry_run: bool, sandbox: bool, max_batch_size: int = 100) -> dict:
         """
         Processes all pending Mercado Libre listings.
 
         Args:
             dry_run: If True, prepares and logs the payload without sending.
             sandbox: If True, uses the sandbox environment.
+            max_batch_size: Maximum number of listings to process in one run.
+
+        Returns:
+            dict: Statistics with 'success', 'errors', 'skipped' counts.
         """
-        pending_listings = self._get_pending_listings()
+        pending_listings = self._get_pending_listings(max_count=max_batch_size)
+        stats = {"success": 0, "errors": 0, "skipped": 0}
 
         if not pending_listings:
             logger.info("No pending listings to publish.")
-            return
+            return stats
 
-        logger.info(f"Starting batch publication of {len(pending_listings)} listings.")
+        count = pending_listings.count()
+        logger.info(f"Starting batch publication of {count} listings.")
 
         for listing in pending_listings:
             if not listing.product_master:
                 logger.warning(f"Skipping listing {listing.id} because it has no associated product or product master.")
+                stats["skipped"] += 1
                 continue
 
             product_code = listing.product_master.code
@@ -60,13 +75,18 @@ class BatchPublisherOrchestrator:
             if product_code:
                 logger.info(f"--- Processing product: {product_code} (Listing ID: {listing.id}) ---")
                 try:
-                    self.publisher_orchestrator.run(
-                        product_code=product_code,
-                        dry_run=dry_run,
-                        sandbox=sandbox,
-                    )
+                    with transaction.atomic():
+                        self.publisher_orchestrator.run(
+                            product_code=product_code,
+                            dry_run=dry_run,
+                            sandbox=sandbox,
+                        )
                     logger.info(f"--- Successfully processed product: {product_code} ---")
+                    stats["success"] += 1
                 except Exception as e:
                     logger.error(f"Failed to process product {product_code}: {e}", exc_info=True)
+                    stats["errors"] += 1
                     continue
-        logger.info("--- Batch publication process finished ---")
+
+        logger.info(f"--- Batch publication finished: {stats['success']} succeeded, {stats['errors']} failed, {stats['skipped']} skipped ---")
+        return stats

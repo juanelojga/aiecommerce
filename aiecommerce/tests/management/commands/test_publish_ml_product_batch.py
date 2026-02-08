@@ -49,6 +49,7 @@ def test_publish_ml_product_batch_success_production(mock_token_model, mock_auth
 
     mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
+    mock_batch_orchestrator.run.return_value = {"success": 5, "errors": 0, "skipped": 0}
 
     # Run
     out = io.StringIO()
@@ -57,7 +58,9 @@ def test_publish_ml_product_batch_success_production(mock_token_model, mock_auth
     # Assert
     output = out.getvalue()
     assert "--- Starting batch product publication in PRODUCTION mode ---" in output
-    assert "--- Batch publication process finished ---" in output
+    assert "5 succeeded" in output
+    assert "0 failed" in output
+    assert "0 skipped" in output
 
     mock_token_model.objects.filter.assert_called_with(is_test_user=False)
     mock_auth_service.get_valid_token.assert_called_once_with(user_id="user_123")
@@ -72,6 +75,7 @@ def test_publish_ml_product_batch_success_sandbox(mock_token_model, mock_auth_se
 
     mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
+    mock_batch_orchestrator.run.return_value = {"success": 3, "errors": 1, "skipped": 0}
 
     # Run
     out = io.StringIO()
@@ -80,7 +84,8 @@ def test_publish_ml_product_batch_success_sandbox(mock_token_model, mock_auth_se
     # Assert
     output = out.getvalue()
     assert "--- Starting batch product publication in SANDBOX mode ---" in output
-    assert "--- Batch publication process finished ---" in output
+    assert "3 succeeded" in output
+    assert "1 failed" in output
 
     mock_token_model.objects.filter.assert_called_with(is_test_user=True)
     mock_batch_orchestrator.run.assert_called_once_with(dry_run=False, sandbox=True)
@@ -91,6 +96,7 @@ def test_publish_ml_product_batch_dry_run(mock_token_model, mock_auth_service, m
     mock_token = MagicMock()
     mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
+    mock_batch_orchestrator.run.return_value = {"success": 0, "errors": 0, "skipped": 2}
 
     # Run
     out = io.StringIO()
@@ -99,6 +105,7 @@ def test_publish_ml_product_batch_dry_run(mock_token_model, mock_auth_service, m
     # Assert
     output = out.getvalue()
     assert "Dry run is enabled" in output
+    assert "2 skipped" in output
     mock_batch_orchestrator.run.assert_called_once_with(dry_run=True, sandbox=False)
 
 

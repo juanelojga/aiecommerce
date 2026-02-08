@@ -61,9 +61,9 @@ class Command(BaseCommand):
 
             # Execute batch publication
             batch_orchestrator = BatchPublisherOrchestrator(publisher_orchestrator=publisher_orchestrator)
-            batch_orchestrator.run(dry_run=dry_run, sandbox=sandbox)
+            stats = batch_orchestrator.run(dry_run=dry_run, sandbox=sandbox)
 
-            self.stdout.write(self.style.SUCCESS("--- Batch publication process finished ---"))
+            self.stdout.write(self.style.SUCCESS(f"--- Batch publication finished: {stats['success']} succeeded, {stats['errors']} failed, {stats['skipped']} skipped ---"))
 
         except (MLTokenError, MercadoLibreToken.DoesNotExist) as e:
             raise CommandError(f"Token error: {e}")
