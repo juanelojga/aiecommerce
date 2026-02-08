@@ -1,5 +1,6 @@
 from .connectivity import test_celery_worker
 from .images import process_product_image
+from .notifications import send_telegram_notification
 from .periodic import (
     run_close_ml_listings,
     run_create_ml_test_user,
@@ -24,6 +25,7 @@ from .upscale_images import process_highres_image_task
 __all__ = (
     "test_celery_worker",
     "process_product_image",
+    "send_telegram_notification",
     "run_create_ml_test_user",
     "run_enrich_mercadolibre_category",
     "run_enrich_products_content",
