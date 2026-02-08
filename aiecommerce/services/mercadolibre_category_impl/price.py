@@ -81,7 +81,7 @@ class MercadoLibrePriceEngine:
                 if max_value is None:
                     # This is the final tier (no upper limit)
                     return rate
-                elif base_cost < Decimal(str(max_value)):
+                elif base_cost <= Decimal(str(max_value)):
                     return rate
 
             # If we reach here, use the last tier's rate (shouldn't happen with valid config)

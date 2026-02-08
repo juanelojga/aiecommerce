@@ -217,11 +217,11 @@ class TestMercadoLibrePriceEngineTieredCommission(SimpleTestCase):
         MERCADOLIBRE_COMMISSION_TIERS=VALID_TIERS_CONFIG,
     )
     def test_commission_boundary_exact_100(self):
-        """Test that $100.00 exactly uses tier 2 rate (15%), not tier 1."""
+        """Test that $100.00 exactly uses tier 1 rate (18%)."""
         base_cost = Decimal("100.00")
         commission_rate = self.price_engine._get_commission_rate(base_cost)
-        # Boundary is exclusive: base_cost < 100, so 100.00 falls into tier 2
-        assert commission_rate == Decimal("0.15")
+        # Boundary is inclusive: base_cost <= 100, so 100.00 uses tier 1
+        assert commission_rate == Decimal("0.18")
 
     @override_settings(
         MERCADOLIBRE_OPERATIONAL_COST="10.00",
@@ -245,11 +245,26 @@ class TestMercadoLibrePriceEngineTieredCommission(SimpleTestCase):
         MERCADOLIBRE_IVA_RATE="0.12",
         MERCADOLIBRE_COMMISSION_TIERS=VALID_TIERS_CONFIG,
     )
+    def test_commission_boundary_just_above_100(self):
+        """Test that $100.01 uses tier 2 rate (15%)."""
+        base_cost = Decimal("100.01")
+        commission_rate = self.price_engine._get_commission_rate(base_cost)
+        assert commission_rate == Decimal("0.15")
+
+    @override_settings(
+        MERCADOLIBRE_OPERATIONAL_COST="10.00",
+        MERCADOLIBRE_TARGET_MARGIN="0.20",
+        MERCADOLIBRE_SHIPPING_FEE="5.00",
+        MERCADOLIBRE_COMMISSION_RATE="0.15",
+        MERCADOLIBRE_IVA_RATE="0.12",
+        MERCADOLIBRE_COMMISSION_TIERS=VALID_TIERS_CONFIG,
+    )
     def test_commission_boundary_exact_500(self):
-        """Test that $500.00 exactly uses tier 3 rate (12%)."""
+        """Test that $500.00 exactly uses tier 2 rate (15%)."""
         base_cost = Decimal("500.00")
         commission_rate = self.price_engine._get_commission_rate(base_cost)
-        assert commission_rate == Decimal("0.12")
+        # Boundary is inclusive: base_cost <= 500, so 500.00 uses tier 2
+        assert commission_rate == Decimal("0.15")
 
     @override_settings(
         MERCADOLIBRE_OPERATIONAL_COST="10.00",
@@ -260,10 +275,11 @@ class TestMercadoLibrePriceEngineTieredCommission(SimpleTestCase):
         MERCADOLIBRE_COMMISSION_TIERS=VALID_TIERS_CONFIG,
     )
     def test_commission_boundary_exact_2000(self):
-        """Test that $2000.00 exactly uses tier 4 rate (10%)."""
+        """Test that $2000.00 exactly uses tier 3 rate (12%)."""
         base_cost = Decimal("2000.00")
         commission_rate = self.price_engine._get_commission_rate(base_cost)
-        assert commission_rate == Decimal("0.10")
+        # Boundary is inclusive: base_cost <= 2000, so 2000.00 uses tier 3
+        assert commission_rate == Decimal("0.12")
 
     # --- Edge Cases ---
 
