@@ -12,6 +12,7 @@ from .periodic import (
     run_pause_ml_listings,
     run_prune_scrapes,
     run_publish_ml_product,
+    run_publish_ml_product_batch,
     run_scrape_tecnomega,
     run_sync_ml_listings,
     run_sync_price_list,
@@ -40,4 +41,5 @@ __all__ = (
     "process_highres_image_task",
     "run_pause_ml_listings",
     "run_close_ml_listings",
+    "run_publish_ml_product_batch",
 )

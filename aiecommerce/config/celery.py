@@ -64,10 +64,14 @@ app.conf.beat_schedule = {
     },
     "enrich-products-specs-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_specs",
-        "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=35, hour="8-18/2", day_of_week="mon-sat"),
     },
     "enrich-mercadolibre-category-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_mercadolibre_category",
-        "schedule": crontab(minute=50, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
+    },
+    "publish-ml-product-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_publish_ml_product",
+        "schedule": crontab(minute=45, hour="8-18/2", day_of_week="mon-sat"),
     },
 }
