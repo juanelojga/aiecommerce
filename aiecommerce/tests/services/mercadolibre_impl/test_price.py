@@ -18,6 +18,7 @@ class TestMercadoLibrePriceEngine(SimpleTestCase):
         MERCADOLIBRE_SHIPPING_FEE="5.00",
         MERCADOLIBRE_COMMISSION_RATE="0.15",
         MERCADOLIBRE_IVA_RATE="0.12",
+        MERCADOLIBRE_COMMISSION_TIERS=None,
     )
     def test_calculate_success(self):
         """
@@ -56,6 +57,7 @@ class TestMercadoLibrePriceEngine(SimpleTestCase):
         MERCADOLIBRE_SHIPPING_FEE="5.00",
         MERCADOLIBRE_COMMISSION_RATE="0.15",
         MERCADOLIBRE_IVA_RATE="0.12",
+        MERCADOLIBRE_COMMISSION_TIERS=None,
     )
     def test_calculate_zero_cost(self):
         """
@@ -94,6 +96,7 @@ class TestMercadoLibrePriceEngine(SimpleTestCase):
         MERCADOLIBRE_SHIPPING_FEE="5.00",
         MERCADOLIBRE_COMMISSION_RATE="0.15",
         MERCADOLIBRE_IVA_RATE="0.12",
+        MERCADOLIBRE_COMMISSION_TIERS=None,
     )
     def test_calculate_rounding(self):
         """
