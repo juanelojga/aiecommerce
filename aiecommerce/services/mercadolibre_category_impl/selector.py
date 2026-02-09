@@ -34,13 +34,30 @@ class MercadolibreCategorySelector:
             A QuerySet of ProductMaster instances ordered by ID, ready for enrichment.
 
         Notes:
-            Uses select_related to optimize listing status checks and avoid N+1 queries.
+            - Filters products with available stock: stock_principal='Si' AND
+              at least one branch has stock='Si' (stock_colon, stock_sur,
+              stock_gye_norte, or stock_gye_sur).
+            - Uses select_related to optimize listing status checks and avoid N+1 queries.
         """
         query = ProductMaster.objects.filter(
             is_active=True,
             is_for_mercadolibre=True,
             gtin__isnull=False,
         ).select_related("mercadolibre_listing")
+
+        # Filter by stock availability: must have principal stock
+        query = query.filter(stock_principal="Si")
+
+        # Define the branch fields to check (must match MercadoLibreStockEngine.BRANCH_FIELDS)
+        branch_fields = ["stock_colon", "stock_sur", "stock_gye_norte", "stock_gye_sur"]
+
+        # Build an OR condition: (stock_colon='Si' OR stock_sur='Si' OR ...)
+        # This ensures products have inventory in at least one branch
+        branch_query = Q()
+        for field in branch_fields:
+            branch_query |= Q(**{field: "Si"})
+
+        query = query.filter(branch_query)
 
         if category:
             query = query.filter(category=category)
