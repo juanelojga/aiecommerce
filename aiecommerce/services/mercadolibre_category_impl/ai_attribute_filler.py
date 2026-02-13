@@ -54,6 +54,7 @@ class MercadolibreAIAttributeFiller:
         response = self.client.chat.completions.create(
             model=settings.OPENROUTER_MERCADOLIBRE_ATTRIBUTE_FILLER_MODEL,
             response_model=MercadolibreAttributeResponse,
+            parallel_tool_calls=False,
             messages=[
                 {
                     "role": "system",
