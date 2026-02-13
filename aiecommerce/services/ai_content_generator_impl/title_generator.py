@@ -74,6 +74,7 @@ class TitleGeneratorService:
             response = self.client.chat.completions.create(
                 model=settings.OPENROUTER_TITLE_GENERATION_MODEL,
                 response_model=AITitle,
+                parallel_tool_calls=False,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
             )

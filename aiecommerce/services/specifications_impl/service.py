@@ -63,6 +63,7 @@ class ProductSpecificationsService:
             extracted_data: ProductSpecUnion | None = self.client.chat.completions.create(
                 model=self.model_name,
                 response_model=ProductSpecUnion,
+                parallel_tool_calls=False,
                 messages=[
                     {
                         "role": "system",
