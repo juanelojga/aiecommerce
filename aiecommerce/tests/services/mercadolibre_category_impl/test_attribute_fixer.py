@@ -52,13 +52,15 @@ class TestMercadolibreAttributeFixer:
 
         messages = kwargs["messages"]
         assert messages[0]["role"] == "system"
-        assert "expert at fixing Mercado Libre validation errors" in messages[0]["content"]
+        assert "specialized agent for fixing Mercado Libre API 400 Validation Errors" in messages[0]["content"]
 
         user_content = messages[1]["content"]
         assert f"Error Message: {error_message}" in user_content
         assert f"Current Attributes: {current_attributes}" in user_content
         assert "Test Smartphone" in user_content
         assert "Color: Blue, RAM: 8GB, Storage: 128GB" in user_content
+        # Verify gtin is included in product context
+        assert "'gtin':" in user_content
 
     def test_fix_attributes_with_none_values(self, fixer, mock_instructor_client):
         # Setup

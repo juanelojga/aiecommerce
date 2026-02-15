@@ -61,11 +61,13 @@ class MercadolibreAIAttributeFiller:
                     "content": (
                         "You are an expert at mapping product data to Mercado Libre's technical attributes.\n"
                         "CRITICAL RULES:\n"
-                        "1. ALL returned values (value_name) MUST BE IN SPANISH.\n"
-                        "2. Use the provided Product Data to fill the Attribute Definitions.\n"
-                        "3. If an attribute has a 'values' list, you MUST use the exact 'id' and 'name' from that list if it matches.\n"
-                        "4. The GTIN is already validated; ensure it is mapped to the correct GTIN attribute ID if required.\n"
-                        "5. If a value is not found in the source data, do not invent it; simply omit the attribute."
+                        "1. ALL returned 'value_name' MUST BE IN SPANISH.\n"
+                        "2. MAP SPECIFIC FIELDS: Use 'gtin' for GTIN/EAN/UPC attributes, 'brand' for BRAND/MARCA, and 'model_name' for MODEL/MODELO.\n"
+                        "3. UNIT FORMATTING: For numeric attributes like 'DISPLAY_SIZE', 'SCREEN_SIZE', or 'MEM_CAPACITY', extract the number and use the standard symbol.\n"
+                        "   - For inches, ALWAYS use the double quote symbol (e.g., '65\"') instead of 'inch', 'pulgadas', or 'in'.\n"
+                        "4. VALUES LIST: If an attribute definition contains a 'values' list, you MUST select the exact 'id' and 'name' from that list if a match exists.\n"
+                        "5. DATA INTEGRITY: The GTIN is already validated; ensure it is mapped to the correct GTIN attribute ID if required. "
+                        "Do not invent data; if a value is truly missing from all source data (specs, name, model), omit the attribute."
                     ),
                 },
                 {"role": "user", "content": f"Product Data: {product_context}\n\nAttribute Definitions: {relevant_defs}"},

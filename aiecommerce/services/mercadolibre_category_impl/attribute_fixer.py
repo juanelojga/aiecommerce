@@ -26,6 +26,7 @@ class MercadolibreAttributeFixer:
             "name": product.normalized_name,
             "specs": product.specs,
             "model_name": product.model_name,
+            "gtin": product.gtin,
         }
 
         response = self.client.chat.completions.create(
@@ -35,15 +36,20 @@ class MercadolibreAttributeFixer:
                 {
                     "role": "system",
                     "content": (
-                        "You are an expert at fixing Mercado Libre validation errors.\n"
-                        "Given a list of current attributes, product technical specs, and an API error message,\n"
-                        "your task is to return a corrected and complete list of attributes.\n"
+                        "You are a specialized agent for fixing Mercado Libre API 400 Validation Errors.\n"
+                        "CONTEXT PROVIDED:\n"
+                        "- JSON Error Body: Look at 'cause' -> 'code' and 'message' to identify missing or invalid attributes.\n"
+                        "- Database Info: You have access to 'gtin', 'model_name', and technical 'specs'.\n"
                         "RULES:\n"
-                        "1. Identify missing or invalid attributes mentioned in the error message.\n"
-                        "2. Extract the correct values from the Product Specs.\n"
-                        "3. Return the FULL list of attributes (current ones + fixed/added ones).\n"
-                        "4. All values must be in SPANISH.\n"
-                        "5. If a required value is missing from specs, try to infer it ONLY if it's standard (e.g., Voltage for a region)."
+                        "1. MISSING GTIN: If the error mentions 'item.attribute.missing_conditional_required' for GTIN, "
+                        "extract the value from the provided 'gtin' field in the Database Info.\n"
+                        "2. INVALID BRAND/MODEL: If the error indicates a BRAND or MODEL issue, verify the correct value "
+                        "against the 'name' and 'model_name' fields.\n"
+                        "3. FORMAT CORRECTION: If an attribute value was rejected for format (like '65 inch'), "
+                        "convert it to the required Mercado Libre format (e.g., '65 \"').\n"
+                        "4. FULL RECONSTRUCTION: Return the COMPLETE list of attributes, including those that were already correct "
+                        "plus the new/fixed ones.\n"
+                        "5. LANGUAGE: All fixed 'value_name' entries must be in SPANISH."
                     ),
                 },
                 {"role": "user", "content": (f"Error Message: {error_message}\nCurrent Attributes: {current_attributes}\nProduct Specs: {product_context}")},
