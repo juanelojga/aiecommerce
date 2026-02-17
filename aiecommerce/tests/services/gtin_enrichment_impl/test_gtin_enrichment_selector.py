@@ -16,22 +16,26 @@ class TestGTINEnrichmentCandidateSelector:
         # Base timestamp for ordering tests
         base_time = timezone.now()
 
-        # Product 1: Should be included (active, for ML, no GTIN, no gtin_source)
+        # Product 1: Should be included (active, for ML, no GTIN, no gtin_source, has strategy data)
         self.p1 = ProductMaster.objects.create(
             code="P1",
             is_active=True,
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU-P1",
+            normalized_name="Product P1",
         )
 
-        # Product 2: Should be included (active, for ML, no GTIN, gtin_source is empty string)
+        # Product 2: Should be included (active, for ML, no GTIN, gtin_source is empty string, has strategy data)
         self.p2 = ProductMaster.objects.create(
             code="P2",
             is_active=True,
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="",
+            sku="SKU-P2",
+            normalized_name="Product P2",
         )
 
         # Product 3: Should be EXCLUDED (gtin_source is NOT_FOUND)
@@ -41,6 +45,8 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="NOT_FOUND",
+            sku="SKU-P3",
+            normalized_name="Product P3",
         )
 
         # Product 4: Should be EXCLUDED (already has GTIN)
@@ -50,6 +56,8 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=True,
             gtin="1234567890123",
             gtin_source="sku_normalized_name",
+            sku="SKU-P4",
+            normalized_name="Product P4",
         )
 
         # Product 5: Should be EXCLUDED (not active)
@@ -59,6 +67,8 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU-P5",
+            normalized_name="Product P5",
         )
 
         # Product 6: Should be EXCLUDED (not for MercadoLibre)
@@ -68,15 +78,19 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=False,
             gtin=None,
             gtin_source=None,
+            sku="SKU-P6",
+            normalized_name="Product P6",
         )
 
-        # Product 7: Should be included (active, for ML, no GTIN, different gtin_source)
+        # Product 7: Should be included (active, for ML, no GTIN, different gtin_source, has strategy data)
         self.p7 = ProductMaster.objects.create(
             code="P7",
             is_active=True,
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="model_brand",  # Has source but no GTIN (edge case)
+            sku="SKU-P7",
+            normalized_name="Product P7",
         )
 
         # Update timestamps using QuerySet.update() to bypass auto_now
@@ -143,6 +157,8 @@ class TestGTINEnrichmentCandidateSelector:
                 is_for_mercadolibre=True,
                 gtin=None,
                 gtin_source=None,
+                sku=f"SKU-EXTRA{i}",
+                normalized_name=f"Product EXTRA{i}",
             )
 
         # Update their timestamps to be older
@@ -168,6 +184,8 @@ class TestGTINEnrichmentCandidateSelector:
                 is_for_mercadolibre=True,
                 gtin=None,
                 gtin_source=None,
+                sku=f"SKU-TEST{i}",
+                normalized_name=f"Product TEST{i}",
             )
 
         # Update their timestamps
@@ -204,6 +222,8 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="sku_normalized_name",
+            sku="SKU-SOURCE1",
+            normalized_name="Product SOURCE1",
         )
 
         ProductMaster.objects.create(
@@ -212,6 +232,8 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="model_brand",
+            sku="SKU-SOURCE2",
+            normalized_name="Product SOURCE2",
         )
 
         ProductMaster.objects.create(
@@ -220,6 +242,8 @@ class TestGTINEnrichmentCandidateSelector:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="raw_description",
+            sku="SKU-SOURCE3",
+            normalized_name="Product SOURCE3",
         )
 
         # Update timestamps

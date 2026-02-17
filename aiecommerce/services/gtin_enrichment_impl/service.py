@@ -44,8 +44,7 @@ class GTINSearchService:
         # Initialize OpenAI client pointing to OpenRouter
         base_client = OpenAI(base_url=base_url, api_key=api_key)
         # Wrap with Instructor for structured output
-        # MD_JSON mode works better with small models like Llama 3.2 1B
-        self.client: Any = instructor.from_openai(base_client, mode=instructor.Mode.MD_JSON)
+        self.client: Any = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
 
     def search_gtin(self, product: ProductMaster) -> tuple[str | None, str]:
         """

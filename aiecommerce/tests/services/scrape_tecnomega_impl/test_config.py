@@ -1,6 +1,7 @@
 import pytest
 
 from aiecommerce.services.scrape_tecnomega_impl.config import (
+    DEFAULT_BASE_URL,
     DEFAULT_CATEGORIES,
     ScrapeConfig,
     _parse_categories,
@@ -27,7 +28,9 @@ class TestScrapeConfig:
     def test_defaults_without_settings(self, settings):
         # Do not override project settings; verify that defaults reflect current settings
         cfg = ScrapeConfig()
-        expected_base = getattr(settings, "TECNOMEGA_STOCK_LIST_BASE_URL", "https://www.tecnomega.com/buscar")
+        # If setting is empty or not set, should use DEFAULT_BASE_URL
+        setting_base_url = getattr(settings, "TECNOMEGA_STOCK_LIST_BASE_URL", "")
+        expected_base = setting_base_url if setting_base_url else DEFAULT_BASE_URL
         expected_categories = _parse_categories(getattr(settings, "TECNOMEGA_SCRAPE_CATEGORIES", ""))
 
         assert cfg.base_url == expected_base
