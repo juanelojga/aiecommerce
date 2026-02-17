@@ -200,10 +200,6 @@ class GTINSearchService:
                         "content": f"Find the GTIN/EAN/UPC code for this product:\n{query}",
                     },
                 ],
-                extra_headers={
-                    "HTTP-Referer": "https://localhost:8000",
-                    "X-Title": "AI Ecommerce GTIN Search",
-                },
             )
 
             # Validate the GTIN format

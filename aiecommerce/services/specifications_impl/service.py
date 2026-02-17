@@ -81,10 +81,6 @@ class ProductSpecificationsService:
                     },
                     {"role": "user", "content": text_to_analyze},
                 ],
-                extra_headers={
-                    "HTTP-Referer": "https://localhost:8000",
-                    "X-Title": "AI Ecommerce Enrichment",
-                },
             )
             return extracted_data  # Return the Pydantic model directly
 

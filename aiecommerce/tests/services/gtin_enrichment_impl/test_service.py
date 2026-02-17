@@ -708,33 +708,6 @@ class TestLLMPrompts:
         assert "confidence" in system_message["content"]
         assert "source URL" in system_message["content"]
 
-    @pytest.mark.django_db
-    def test_extra_headers_present(self, service):
-        """Test that extra headers are included in LLM requests."""
-        from model_bakery import baker
-
-        svc, mock_client = service
-
-        product = baker.make(
-            "aiecommerce.ProductMaster",
-            code="PROD001",
-            sku="SKU123",
-            normalized_name="Test Product",
-        )
-
-        mock_response = GTINSearchResult(gtin="1234567890123", confidence="high", source="https://example.com")
-        mock_client.chat.completions.create.return_value = mock_response
-
-        svc.search_gtin(product)
-
-        _, kwargs = mock_client.chat.completions.create.call_args
-
-        # Verify extra headers
-        assert "extra_headers" in kwargs
-        assert "HTTP-Referer" in kwargs["extra_headers"]
-        assert "X-Title" in kwargs["extra_headers"]
-        assert "AI Ecommerce GTIN Search" in kwargs["extra_headers"]["X-Title"]
-
 
 class TestGTINSearchIntegrationScenarios:
     """
