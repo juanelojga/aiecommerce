@@ -9,7 +9,7 @@ from aiecommerce.models import ProductMaster
 from aiecommerce.services.gtin_enrichment_impl import GTINSearchService
 
 
-def example_search_gtin():
+def example_search_gtin() -> None:
     """Example of searching for GTIN code."""
     # Initialize the service
     service = GTINSearchService()
