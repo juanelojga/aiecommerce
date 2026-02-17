@@ -1,4 +1,4 @@
-from django.db.models import Q, QuerySet
+from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 
 from aiecommerce.models import MercadoLibreListing, ProductMaster
 
@@ -8,7 +8,7 @@ class MercadolibreCategorySelector:
 
     # Configuration constants
     DRY_RUN_LIMIT = 3
-    DEFAULT_BATCH_SIZE = 3
+    DEFAULT_BATCH_SIZE = 10  # Increased from 3 for better throughput
 
     def get_queryset(
         self,
@@ -75,6 +75,16 @@ class MercadolibreCategorySelector:
             )
             query = query.filter(needs_enrichment)
 
+        # Prioritize products without listings over those with PENDING/ERROR status
+        # This ensures new products are always processed before re-processing existing listings
+        query = query.annotate(
+            priority=Case(
+                When(mercadolibre_listing__isnull=True, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+
         # Apply batch size limit
         limit = batch_size if batch_size is not None else self.DEFAULT_BATCH_SIZE
-        return query.order_by("id")[:limit]
+        return query.order_by("priority", "id")[:limit]

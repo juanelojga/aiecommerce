@@ -184,3 +184,58 @@ class TestMercadolibreCategorySelector:
         assert p_colon.id in ids
         assert p_sur.id in ids
         assert p_multiple.id in ids
+
+    def test_get_queryset_prioritizes_products_without_listings(self):
+        """
+        Test that products without listings are prioritized over products with PENDING/ERROR status.
+        This ensures new products are always enriched before re-processing existing listings.
+        """
+        # First, create products WITH listings (PENDING status)
+        # These should have lower priority (priority=1)
+        pending_products = []
+        for i in range(3):
+            p = ProductMaster.objects.create(
+                code=f"PENDING_{i}",
+                is_active=True,
+                is_for_mercadolibre=True,
+                category="test-priority",
+                gtin=f"750123456790{i}",
+                stock_principal="Si",
+                stock_colon="Si",
+            )
+            MercadoLibreListing.objects.create(product_master=p, status=MercadoLibreListing.Status.PENDING)
+            pending_products.append(p)
+
+        # Now create products WITHOUT listings (created after pending, so higher IDs)
+        # These should have higher priority (priority=0)
+        new_products = []
+        for i in range(3):
+            p = ProductMaster.objects.create(
+                code=f"NEW_{i}",
+                is_active=True,
+                is_for_mercadolibre=True,
+                category="test-priority",
+                gtin=f"750123456791{i}",
+                stock_principal="Si",
+                stock_sur="Si",
+            )
+            new_products.append(p)
+
+        # Request batch using the test category filter to isolate our test data
+        qs = self.selector.get_queryset(force=False, dry_run=False, category="test-priority", batch_size=3)
+        result_products = list(qs)
+
+        assert len(result_products) == 3
+
+        # All 3 selected products should be NEW products (without listings)
+        # even though PENDING products have lower IDs
+        new_product_ids = [p.id for p in new_products]
+        pending_product_ids = [p.id for p in pending_products]
+
+        for product in result_products:
+            assert product.id in new_product_ids, f"Product {product.code} (ID {product.id}) should be a NEW product without listing"
+            assert product.id not in pending_product_ids, f"Product {product.code} (ID {product.id}) should NOT be a PENDING product"
+
+        # Verify all new products were selected
+        result_ids = [p.id for p in result_products]
+        assert set(result_ids) == set(new_product_ids), "All NEW products should be selected before PENDING products"
