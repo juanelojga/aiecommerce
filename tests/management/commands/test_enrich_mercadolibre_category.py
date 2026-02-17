@@ -1,6 +1,7 @@
 import io
 from unittest.mock import MagicMock
 
+import instructor
 import pytest
 from django.core.management import CommandError, call_command
 
@@ -49,14 +50,14 @@ def mock_dependencies(monkeypatch):
     for name, mock in mocks.items():
         monkeypatch.setattr(f"aiecommerce.management.commands.enrich_mercadolibre_category.{name}", mock)
 
-    mock_instructor = MagicMock()
-    mock_instructor.from_openai.return_value = MagicMock()
-    monkeypatch.setattr("aiecommerce.management.commands.enrich_mercadolibre_category.instructor", mock_instructor)
+    # Patch from_openai method instead of the entire instructor module
+    mock_from_openai = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr("aiecommerce.management.commands.enrich_mercadolibre_category.instructor.from_openai", mock_from_openai)
 
     mock_openai = MagicMock(return_value=MagicMock())
     monkeypatch.setattr("aiecommerce.management.commands.enrich_mercadolibre_category.OpenAI", mock_openai)
 
-    mocks.update({"instructor": mock_instructor, "openai": mock_openai})
+    mocks.update({"from_openai": mock_from_openai, "openai": mock_openai})
     return mocks
 
 
@@ -103,7 +104,10 @@ def test_enrich_mercadolibre_category_success(mock_token_model, mock_auth_servic
 
     # Verify OpenAI initialization
     mock_dependencies["openai"].assert_called_once_with(api_key="test-key", base_url="https://openrouter.test")
-    mock_dependencies["instructor"].from_openai.assert_called_once()
+    
+    # Verify instructor initialization with JSON mode
+    call_args = mock_dependencies["from_openai"].call_args
+    assert call_args[1]["mode"] == instructor.Mode.JSON
 
     # Verify logging
     mock_logger.info.assert_any_call("Starting MercadoLibre category enrichment: force=False, dry_run=False, delay=0.5, category=None, site_id=MEC")

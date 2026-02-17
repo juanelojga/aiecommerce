@@ -136,7 +136,10 @@ class Command(BaseCommand):
         if not api_key or not base_url:
             raise CommandError("OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be configured in settings")
 
-        openai_client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url))
+        openai_client = instructor.from_openai(
+            OpenAI(api_key=api_key, base_url=base_url),
+            mode=instructor.Mode.JSON
+        )
         attribute_filler = MercadolibreAIAttributeFiller(client=openai_client)
 
         return MercadolibreEnrichmentCategoryOrchestrator(
