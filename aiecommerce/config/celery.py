@@ -50,6 +50,10 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_update_ml_eligibility",
         "schedule": crontab(minute=15, hour="8-18/2", day_of_week="mon-sat"),
     },
+    "enrich-products-gtin-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_gtin",
+        "schedule": crontab(minute=17, hour="8-18/2", day_of_week="mon-sat"),
+    },
     "run_upscale_scraped-images-hourly": {
         "task": "aiecommerce.tasks.periodic.run_upscale_scraped_images",
         "schedule": crontab(minute=20, hour="8-18/2", day_of_week="mon-sat"),
