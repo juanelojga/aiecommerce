@@ -86,14 +86,14 @@ class TestGTINSearchServiceInitialization:
 
     @patch("aiecommerce.services.gtin_enrichment_impl.service.OpenAI")
     @patch("aiecommerce.services.gtin_enrichment_impl.service.instructor.from_openai")
-    def test_instructor_client_uses_md_json_mode(self, mock_instructor, mock_openai, mock_settings):
-        """Test that instructor client is initialized with MD_JSON mode for Llama 3.2 1B compatibility."""
+    def test_instructor_client_uses_json_mode(self, mock_instructor, mock_openai, mock_settings):
+        """Test that instructor client is initialized with JSON mode for structured output."""
         GTINSearchService()
 
-        # Verify instructor.from_openai was called with MD_JSON mode
+        # Verify instructor.from_openai was called with JSON mode
         mock_instructor.assert_called_once()
         call_args = mock_instructor.call_args
-        assert call_args[1]["mode"] == instructor.Mode.MD_JSON
+        assert call_args[1]["mode"] == instructor.Mode.JSON
 
 
 class TestGTINValidation:
