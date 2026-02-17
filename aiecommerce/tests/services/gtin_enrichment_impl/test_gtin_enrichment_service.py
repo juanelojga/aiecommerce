@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import instructor
 import pytest
 from django.conf import settings
 from openai import APIError
@@ -83,6 +84,17 @@ class TestGTINSearchServiceInitialization:
                 GTINSearchService()
             assert "The following settings are required" in str(excinfo.value)
 
+    @patch("aiecommerce.services.gtin_enrichment_impl.service.OpenAI")
+    @patch("aiecommerce.services.gtin_enrichment_impl.service.instructor.from_openai")
+    def test_instructor_client_uses_md_json_mode(self, mock_instructor, mock_openai, mock_settings):
+        """Test that instructor client is initialized with MD_JSON mode for Llama 3.2 1B compatibility."""
+        GTINSearchService()
+        
+        # Verify instructor.from_openai was called with MD_JSON mode
+        mock_instructor.assert_called_once()
+        call_args = mock_instructor.call_args
+        assert call_args[1]["mode"] == instructor.Mode.MD_JSON
+
 
 class TestGTINValidation:
     """Tests for GTIN validation."""
@@ -131,6 +143,73 @@ class TestGTINValidation:
         """Test validation rejects None."""
         svc, _ = service
         assert svc._validate_gtin(None) is False
+
+
+class TestGTINSearchResultValidator:
+    """Tests for GTINSearchResult field validators."""
+
+    def test_source_field_accepts_plain_string(self):
+        """Test source field accepts plain string values."""
+        result = GTINSearchResult(
+            gtin="1234567890123",
+            confidence="high",
+            source="https://example.com/product"
+        )
+        assert result.source == "https://example.com/product"
+
+    def test_source_field_extracts_value_from_nested_dict(self):
+        """Test source field extracts value from nested dict (Llama 3.2 1B format)."""
+        # Simulate Llama 3.2 1B returning {"type": "string", "value": "url"}
+        result = GTINSearchResult(
+            gtin="1234567890123",
+            confidence="high",
+            source={"type": "string", "value": "https://example.com/product"}
+        )
+        assert result.source == "https://example.com/product"
+
+    def test_source_field_handles_none(self):
+        """Test source field handles None values correctly."""
+        result = GTINSearchResult(
+            gtin="1234567890123",
+            confidence="medium",
+            source=None
+        )
+        assert result.source is None
+
+    def test_source_field_rejects_dict_without_value_key(self):
+        """Test source field rejects malformed dict (dict without 'value' key)."""
+        # Edge case: dict without "value" key should fail validation
+        # because source expects str | None, not arbitrary dicts
+        test_dict = {"url": "https://example.com"}
+        with pytest.raises(ValidationError) as excinfo:
+            GTINSearchResult(
+                gtin="1234567890123",
+                confidence="low",
+                source=test_dict
+            )
+        assert "source" in str(excinfo.value)
+        assert "string" in str(excinfo.value).lower()
+
+    def test_gtin_field_not_affected_by_validator(self):
+        """Test that validator only applies to source field, not gtin."""
+        # Ensure gtin field works normally (no validator interference)
+        result = GTINSearchResult(
+            gtin="9876543210987",
+            confidence="high",
+            source="https://example.com"
+        )
+        assert result.gtin == "9876543210987"
+        assert isinstance(result.gtin, str)
+
+    def test_confidence_field_not_affected_by_validator(self):
+        """Test that validator only applies to source field, not confidence."""
+        result = GTINSearchResult(
+            gtin="1234567890123",
+            confidence="medium",
+            source={"type": "string", "value": "https://test.com"}
+        )
+        assert result.confidence == "medium"
+        assert isinstance(result.confidence, str)
 
 
 class TestSearchWithSKUAndName:

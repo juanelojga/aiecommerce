@@ -44,7 +44,8 @@ class GTINSearchService:
         # Initialize OpenAI client pointing to OpenRouter
         base_client = OpenAI(base_url=base_url, api_key=api_key)
         # Wrap with Instructor for structured output
-        self.client: Any = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
+        # MD_JSON mode works better with small models like Llama 3.2 1B
+        self.client: Any = instructor.from_openai(base_client, mode=instructor.Mode.MD_JSON)
 
     def search_gtin(self, product: ProductMaster) -> tuple[str | None, str]:
         """
@@ -192,7 +193,14 @@ class GTINSearchService:
                             "4. Set confidence to 'high' only if you found the GTIN on the manufacturer's official site or verified database.\n"
                             "5. Set confidence to 'medium' if found on a major e-commerce site.\n"
                             "6. Set confidence to 'low' if found on user-generated content or unverified sources.\n"
-                            "7. Include the source URL where you found the GTIN."
+                            "7. Include the source URL where you found the GTIN.\n\n"
+                            "EXAMPLE RESPONSE FORMAT:\n"
+                            "{\n"
+                            '  "gtin": "0123456789012",\n'
+                            '  "confidence": "high",\n'
+                            '  "source": "https://www.example.com/product"\n'
+                            "}\n\n"
+                            "CRITICAL: Return string values directly. DO NOT use nested objects like {\"type\": \"string\", \"value\": \"...\"}."
                         ),
                     },
                     {
