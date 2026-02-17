@@ -52,6 +52,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU001",
+            normalized_name="Test Product 001",
         )
 
         product2 = ProductMaster.objects.create(
@@ -60,6 +62,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU002",
+            normalized_name="Test Product 002",
         )
 
         # Mock the GTINSearchService
@@ -112,6 +116,8 @@ class TestEnrichProductsGTINCommand:
                 is_for_mercadolibre=True,
                 gtin=None,
                 gtin_source=None,
+                sku=f"SKU{i:03d}",
+                normalized_name=f"Test Product {i:03d}",
             )
 
         mock_service = MagicMock()
@@ -144,6 +150,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU_ERROR",
+            normalized_name="Error Test Product",
         )
 
         # Mock service to raise an exception
@@ -174,6 +182,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source="NOT_FOUND",
+            sku="SKU_SEARCHED",
+            normalized_name="Already Searched Product",
         )
 
         # Create product that should be processed
@@ -183,6 +193,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU_NEW",
+            normalized_name="New Product",
         )
 
         mock_service = MagicMock()
@@ -213,6 +225,8 @@ class TestEnrichProductsGTINCommand:
                 is_for_mercadolibre=True,
                 gtin=None,
                 gtin_source=None,
+                sku=f"SKU_PROD{i}",
+                normalized_name=f"Product {i}",
             )
 
         mock_service = MagicMock()
@@ -254,6 +268,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin="1234567890123",
             gtin_source="sku_normalized_name",
+            sku="SKU_HAS",
+            normalized_name="Has GTIN Product",
         )
 
         # Create product without GTIN
@@ -263,6 +279,8 @@ class TestEnrichProductsGTINCommand:
             is_for_mercadolibre=True,
             gtin=None,
             gtin_source=None,
+            sku="SKU_NO",
+            normalized_name="No GTIN Product",
         )
 
         mock_service = MagicMock()

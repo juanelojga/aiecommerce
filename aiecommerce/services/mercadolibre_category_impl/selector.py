@@ -8,7 +8,7 @@ class MercadolibreCategorySelector:
 
     # Configuration constants
     DRY_RUN_LIMIT = 3
-    DEFAULT_BATCH_SIZE = 1
+    DEFAULT_BATCH_SIZE = 3
 
     def get_queryset(
         self,

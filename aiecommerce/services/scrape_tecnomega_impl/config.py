@@ -6,6 +6,16 @@ from django.conf import settings
 from .exceptions import ScrapeConfigurationError
 
 DEFAULT_CATEGORIES = ["notebook"]
+DEFAULT_BASE_URL = "https://www.tecnomega.com/buscar"
+
+
+def _get_base_url() -> str:
+    """
+    Gets the base URL from settings, using a default fallback.
+    Returns the default if the setting is empty or not configured.
+    """
+    url = getattr(settings, "TECNOMEGA_STOCK_LIST_BASE_URL", "")
+    return url if url else DEFAULT_BASE_URL
 
 
 def _parse_categories(value: str) -> List[str]:
@@ -25,7 +35,7 @@ def _parse_categories(value: str) -> List[str]:
 class ScrapeConfig:
     """Encapsulates all configuration for a scraping run."""
 
-    base_url: str = getattr(settings, "TECNOMEGA_STOCK_LIST_BASE_URL", "https://www.tecnomega.com/buscar")
+    base_url: str = field(default_factory=_get_base_url)
 
     categories: List[str] = field(default_factory=lambda: _parse_categories(getattr(settings, "TECNOMEGA_SCRAPE_CATEGORIES", "")))
 

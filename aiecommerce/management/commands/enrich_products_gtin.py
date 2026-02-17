@@ -18,8 +18,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--limit",
             type=int,
-            default=1,
-            help="Number of products to process (default: 1)",
+            default=3,
+            help="Number of products to process (default: 3)",
         )
 
     def handle(self, *args, **options):
