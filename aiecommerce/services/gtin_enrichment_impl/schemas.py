@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator, field_validator
 
 class GTINSearchResult(BaseModel):
     """Schema for GTIN search response from LLM.
-    
+
     Note: Includes field_validator for 'source' field to handle responses from
     small language models (e.g., Llama 3.2 1B) that may return nested dict
     structures like {"type": "string", "value": "..."} instead of plain strings.
@@ -30,14 +30,14 @@ class GTINSearchResult(BaseModel):
     @classmethod
     def extract_source_value(cls, v: Any) -> str | None:
         """Extract source value from nested dict if present.
-        
+
         Small language models like Llama 3.2 1B sometimes return schema-like
         structures: {"type": "string", "value": "https://..."} instead of
         plain strings. This validator extracts the actual value.
-        
+
         Args:
             v: The source field value (could be str, dict, or None)
-            
+
         Returns:
             The extracted string value, or the original value if not a nested dict
         """

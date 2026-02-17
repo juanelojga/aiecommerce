@@ -104,7 +104,7 @@ def test_enrich_mercadolibre_category_success(mock_token_model, mock_auth_servic
 
     # Verify OpenAI initialization
     mock_dependencies["openai"].assert_called_once_with(api_key="test-key", base_url="https://openrouter.test")
-    
+
     # Verify instructor initialization with JSON mode
     call_args = mock_dependencies["from_openai"].call_args
     assert call_args[1]["mode"] == instructor.Mode.JSON

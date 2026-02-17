@@ -200,7 +200,7 @@ class GTINSearchService:
                             '  "confidence": "high",\n'
                             '  "source": "https://www.example.com/product"\n'
                             "}\n\n"
-                            "CRITICAL: Return string values directly. DO NOT use nested objects like {\"type\": \"string\", \"value\": \"...\"}."
+                            'CRITICAL: Return string values directly. DO NOT use nested objects like {"type": "string", "value": "..."}.'
                         ),
                     },
                     {
