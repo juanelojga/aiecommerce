@@ -50,10 +50,6 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_update_ml_eligibility",
         "schedule": crontab(minute=15, hour="8-18/2", day_of_week="mon-sat"),
     },
-    "enrich-products-gtin-hourly": {
-        "task": "aiecommerce.tasks.periodic.run_enrich_products_gtin",
-        "schedule": crontab(minute=17, hour="8-18/2", day_of_week="mon-sat"),
-    },
     "run_upscale_scraped-images-hourly": {
         "task": "aiecommerce.tasks.periodic.run_upscale_scraped_images",
         "schedule": crontab(minute=20, hour="8-18/2", day_of_week="mon-sat"),
@@ -70,12 +66,16 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_enrich_products_specs",
         "schedule": crontab(minute=35, hour="8-18/2", day_of_week="mon-sat"),
     },
+    "enrich-products-gtin-hourly": {
+        "task": "aiecommerce.tasks.periodic.run_enrich_products_gtin",
+        "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
+    },
     "enrich-mercadolibre-category-hourly": {
         "task": "aiecommerce.tasks.periodic.run_enrich_mercadolibre_category",
-        "schedule": crontab(minute=40, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=45, hour="8-18/2", day_of_week="mon-sat"),
     },
     "publish-ml-product-hourly-batch": {
         "task": "aiecommerce.tasks.periodic.run_publish_ml_product_batch",
-        "schedule": crontab(minute=45, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=50, hour="8-18/2", day_of_week="mon-sat"),
     },
 }
