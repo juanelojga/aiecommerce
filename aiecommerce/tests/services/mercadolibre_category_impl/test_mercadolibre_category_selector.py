@@ -53,7 +53,7 @@ class TestMercadolibreCategorySelector:
         self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567897", stock_principal="Si", stock_sur="Si")
         MercadoLibreListing.objects.create(product_master=self.p8, ml_id="ML8", status=MercadoLibreListing.Status.ERROR)
 
-        qs = self.selector.get_queryset(force=False, dry_run=False)
+        qs = self.selector.get_queryset(force=False, dry_run=False, batch_size=10)
         ids = list(qs.values_list("id", flat=True))
 
         assert qs.count() == 5
@@ -98,7 +98,7 @@ class TestMercadolibreCategorySelector:
         self.p8 = ProductMaster.objects.create(code="P8", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567897", stock_principal="Si", stock_sur="Si")
         MercadoLibreListing.objects.create(product_master=self.p8, ml_id="ML8", status=MercadoLibreListing.Status.ERROR)
 
-        qs = self.selector.get_queryset(force=False, dry_run=False, category="cat-a")
+        qs = self.selector.get_queryset(force=False, dry_run=False, category="cat-a", batch_size=10)
         ids = list(qs.values_list("id", flat=True))
 
         assert qs.count() == 3
