@@ -34,7 +34,7 @@ class TestEnrichProductsGTINCommand:
             return_value=mock_service,
         ):
             # Run command
-            cmd.handle(limit=15)
+            cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
 
@@ -77,7 +77,7 @@ class TestEnrichProductsGTINCommand:
             "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
             return_value=mock_service,
         ):
-            cmd.handle(limit=15)
+            cmd.handle(limit=2)
 
         output = cmd.stdout.getvalue()
 
@@ -156,7 +156,7 @@ class TestEnrichProductsGTINCommand:
             "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
             return_value=mock_service,
         ):
-            cmd.handle(limit=15)
+            cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
 
@@ -194,7 +194,7 @@ class TestEnrichProductsGTINCommand:
             "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
             return_value=mock_service,
         ):
-            cmd.handle(limit=15)
+            cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
 
@@ -229,7 +229,7 @@ class TestEnrichProductsGTINCommand:
             "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
             return_value=mock_service,
         ):
-            cmd.handle(limit=15)
+            cmd.handle(limit=3)
 
         output = cmd.stdout.getvalue()
 
@@ -274,7 +274,7 @@ class TestEnrichProductsGTINCommand:
             "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
             return_value=mock_service,
         ):
-            cmd.handle(limit=15)
+            cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
 
