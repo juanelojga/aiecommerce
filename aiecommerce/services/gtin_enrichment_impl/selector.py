@@ -30,19 +30,20 @@ class GTINEnrichmentCandidateSelector:
         """
         # Strategy requirements:
         # 1. sku_normalized_name: needs both sku and normalized_name
-        strategy1_filter = Q(
-            sku__isnull=False,
-            normalized_name__isnull=False,
-        ) & ~Q(sku="") & ~Q(normalized_name="")
+        strategy1_filter = (
+            Q(
+                sku__isnull=False,
+                normalized_name__isnull=False,
+            )
+            & ~Q(sku="")
+            & ~Q(normalized_name="")
+        )
 
         # 2. model_brand: needs model_name and brand in specs (Brand, brand, or Marca)
-        strategy2_filter = (
-            Q(
-                model_name__isnull=False,
-                specs__has_any_keys=["Brand", "brand", "Marca"],
-            )
-            & ~Q(model_name="")
-        )
+        strategy2_filter = Q(
+            model_name__isnull=False,
+            specs__has_any_keys=["Brand", "brand", "Marca"],
+        ) & ~Q(model_name="")
 
         # 3. raw_description: needs at least one ProductDetailScrape
         strategy3_filter = Q(detail_scrapes__isnull=False)
