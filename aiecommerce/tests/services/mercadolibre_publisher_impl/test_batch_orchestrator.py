@@ -80,18 +80,8 @@ class TestBatchPublisherOrchestrator:
     def test_run_continues_on_exception(self, batch_orchestrator, mock_publisher_orchestrator):
         product1 = ProductMasterFactory(code="PROD1")
         product2 = ProductMasterFactory(code="PROD2")
-        listing1 = MercadoLibreListingFactory(
-            product_master=product1,
-            status=MercadoLibreListing.Status.PENDING,
-            available_quantity=10,
-            sync_error=None
-        )
-        listing2 = MercadoLibreListingFactory(
-            product_master=product2,
-            status=MercadoLibreListing.Status.PENDING,
-            available_quantity=5,
-            sync_error=None
-        )
+        listing1 = MercadoLibreListingFactory(product_master=product1, status=MercadoLibreListing.Status.PENDING, available_quantity=10, sync_error=None)
+        listing2 = MercadoLibreListingFactory(product_master=product2, status=MercadoLibreListing.Status.PENDING, available_quantity=5, sync_error=None)
 
         # First call fails, second should still happen
         error_message = "AI fixer validation error"
@@ -131,12 +121,7 @@ class TestBatchPublisherOrchestrator:
     def test_run_marks_failed_listing_as_error(self, batch_orchestrator, mock_publisher_orchestrator):
         """Test that when publication fails, listing is marked ERROR with sync_error populated."""
         product = ProductMasterFactory(code="PROD1")
-        listing = MercadoLibreListingFactory(
-            product_master=product,
-            status=MercadoLibreListing.Status.PENDING,
-            available_quantity=10,
-            sync_error=None
-        )
+        listing = MercadoLibreListingFactory(product_master=product, status=MercadoLibreListing.Status.PENDING, available_quantity=10, sync_error=None)
 
         # Simulate AI fixer failure
         error_message = "HTTP Error 400: Invalid attributes after AI fixer attempt"
@@ -155,13 +140,7 @@ class TestBatchPublisherOrchestrator:
     def test_run_persists_error_status_after_transaction_rollback(self, batch_orchestrator, mock_publisher_orchestrator):
         """Test that ERROR status persists even after transaction rollback."""
         product = ProductMasterFactory(code="PROD1")
-        listing = MercadoLibreListingFactory(
-            product_master=product,
-            status=MercadoLibreListing.Status.PENDING,
-            available_quantity=10,
-            ml_id=None,
-            sync_error=None
-        )
+        listing = MercadoLibreListingFactory(product_master=product, status=MercadoLibreListing.Status.PENDING, available_quantity=10, ml_id=None, sync_error=None)
 
         # Simulate failure that would trigger transaction rollback
         error_message = "MLAPIError: AI attribute fixer failed for product PROD1"
@@ -187,14 +166,9 @@ class TestBatchPublisherOrchestrator:
             product_master=product1,
             status=MercadoLibreListing.Status.PENDING,
             available_quantity=10,
-            ml_id="MLB123456789"  # Simulating successful publication
+            ml_id="MLB123456789",  # Simulating successful publication
         )
-        MercadoLibreListingFactory(
-            product_master=product2,
-            status=MercadoLibreListing.Status.PENDING,
-            available_quantity=5,
-            ml_id="MLB987654321"
-        )
+        MercadoLibreListingFactory(product_master=product2, status=MercadoLibreListing.Status.PENDING, available_quantity=5, ml_id="MLB987654321")
 
         stats = batch_orchestrator.run(dry_run=False, sandbox=True)
 
@@ -206,15 +180,7 @@ class TestBatchPublisherOrchestrator:
     def test_run_handles_multiple_failures_correctly(self, batch_orchestrator, mock_publisher_orchestrator):
         """Test that multiple failures are handled correctly, each marked as ERROR."""
         products = [ProductMasterFactory(code=f"PROD{i}") for i in range(3)]
-        listings = [
-            MercadoLibreListingFactory(
-                product_master=products[i],
-                status=MercadoLibreListing.Status.PENDING,
-                available_quantity=10,
-                sync_error=None
-            )
-            for i in range(3)
-        ]
+        listings = [MercadoLibreListingFactory(product_master=products[i], status=MercadoLibreListing.Status.PENDING, available_quantity=10, sync_error=None) for i in range(3)]
 
         # All three publications fail with different errors
         mock_publisher_orchestrator.run.side_effect = [
