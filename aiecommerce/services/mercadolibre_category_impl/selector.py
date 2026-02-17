@@ -67,12 +67,7 @@ class MercadolibreCategorySelector:
             return query.order_by("id")[: self.DRY_RUN_LIMIT]
 
         if not force:
-            needs_enrichment = Q(mercadolibre_listing__isnull=True) | Q(
-                mercadolibre_listing__status__in=[
-                    MercadoLibreListing.Status.PENDING,
-                    MercadoLibreListing.Status.ERROR,
-                ]
-            )
+            needs_enrichment = Q(mercadolibre_listing__isnull=True)
             query = query.filter(needs_enrichment)
 
         # Apply batch size limit
