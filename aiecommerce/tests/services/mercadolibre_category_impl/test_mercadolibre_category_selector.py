@@ -7,27 +7,27 @@ from aiecommerce.services.mercadolibre_category_impl.selector import Mercadolibr
 @pytest.mark.django_db
 class TestMercadolibreCategorySelector:
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self) -> None:
         self.selector = MercadolibreCategorySelector()
 
         # Create some products
         # 1. Active, ML, No listing, WITH STOCK
-        self.p1 = ProductMaster.objects.create(code="P1", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567890", stock_principal="Si", stock_colon="Si")
+        self.p1: ProductMaster = ProductMaster.objects.create(code="P1", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567890", stock_principal="Si", stock_colon="Si")
         # 2. Active, ML, No listing, WITH STOCK
-        self.p2 = ProductMaster.objects.create(code="P2", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567891", stock_principal="Si", stock_sur="Si")
+        self.p2: ProductMaster = ProductMaster.objects.create(code="P2", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567891", stock_principal="Si", stock_sur="Si")
         # 3. Active, ML, No listing, WITH STOCK
-        self.p3 = ProductMaster.objects.create(code="P3", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567892", stock_principal="Si", stock_gye_norte="Si")
+        self.p3: ProductMaster = ProductMaster.objects.create(code="P3", is_active=True, is_for_mercadolibre=True, category="cat-b", gtin="7501234567892", stock_principal="Si", stock_gye_norte="Si")
         # 4. Active, ML, With listing, WITH STOCK
-        self.p4 = ProductMaster.objects.create(code="P4", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567893", stock_principal="Si", stock_gye_sur="Si")
+        self.p4: ProductMaster = ProductMaster.objects.create(code="P4", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567893", stock_principal="Si", stock_gye_sur="Si")
         MercadoLibreListing.objects.create(product_master=self.p4, ml_id="ML4", status=MercadoLibreListing.Status.ACTIVE)
 
         # 5. Inactive, ML, No listing (stock values don't matter, will be filtered by is_active)
-        self.p5 = ProductMaster.objects.create(code="P5", is_active=False, is_for_mercadolibre=True, category="cat-a", gtin="7501234567894", stock_principal="Si", stock_colon="Si")
+        self.p5: ProductMaster = ProductMaster.objects.create(code="P5", is_active=False, is_for_mercadolibre=True, category="cat-a", gtin="7501234567894", stock_principal="Si", stock_colon="Si")
 
         # 6. Active, Not ML, No listing (stock values don't matter, will be filtered by is_for_mercadolibre)
-        self.p6 = ProductMaster.objects.create(code="P6", is_active=True, is_for_mercadolibre=False, category="cat-a", gtin="7501234567895", stock_principal="Si", stock_colon="Si")
+        self.p6: ProductMaster = ProductMaster.objects.create(code="P6", is_active=True, is_for_mercadolibre=False, category="cat-a", gtin="7501234567895", stock_principal="Si", stock_colon="Si")
 
-    def test_get_queryset_dry_run(self):
+    def test_get_queryset_dry_run(self) -> None:
         # Should return max 3 items, ordered by ID, only active and ML
         # Expected: p1, p2, p3 (p4 is also active/ML but dry_run limits to 3)
         qs = self.selector.get_queryset(force=False, dry_run=True)
@@ -41,9 +41,9 @@ class TestMercadolibreCategorySelector:
         assert self.p5.id not in ids
         assert self.p6.id not in ids
 
-    def test_get_queryset_force_false(self):
-        # Should return active, ML, without listing OR with listing in PENDING or ERROR status
-        # Expected: p1, p2, p3, p7, p8
+    def test_get_queryset_force_false(self) -> None:
+        # Should return active, ML, without listing only (force=False excludes products with listings)
+        # Expected: p1, p2, p3 (products WITHOUT listings)
 
         # 7. Active, ML, With PENDING listing, WITH STOCK
         self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567896", stock_principal="Si", stock_colon="Si")
@@ -56,17 +56,17 @@ class TestMercadolibreCategorySelector:
         qs = self.selector.get_queryset(force=False, dry_run=False, batch_size=10)
         ids = list(qs.values_list("id", flat=True))
 
-        assert qs.count() == 5
+        assert qs.count() == 3
         assert self.p1.id in ids
         assert self.p2.id in ids
         assert self.p3.id in ids
         assert self.p4.id not in ids
         assert self.p5.id not in ids
         assert self.p6.id not in ids
-        assert self.p7.id in ids
-        assert self.p8.id in ids
+        assert self.p7.id not in ids
+        assert self.p8.id not in ids
 
-    def test_get_queryset_force_true(self):
+    def test_get_queryset_force_true(self) -> None:
         # Should return all active, ML, even with listing
         # Expected: p1, p2, p3, p4, p7, p8
         # 7. Active, ML, With PENDING listing, WITH STOCK
@@ -89,9 +89,9 @@ class TestMercadolibreCategorySelector:
         assert self.p5.id not in ids
         assert self.p6.id not in ids
 
-    def test_get_queryset_category_filter(self):
-        # Should return only active ML products for the requested category.
-        # Expected for cat-a: p1, p2, p7
+    def test_get_queryset_category_filter(self) -> None:
+        # Should return only active ML products for the requested category WITHOUT listings (force=False).
+        # Expected for cat-a: p1, p2 (p7 has a listing so it's excluded)
         self.p7 = ProductMaster.objects.create(code="P7", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567896", stock_principal="Si", stock_colon="Si")
         MercadoLibreListing.objects.create(product_master=self.p7, ml_id="ML7", status=MercadoLibreListing.Status.PENDING)
 
@@ -101,20 +101,20 @@ class TestMercadolibreCategorySelector:
         qs = self.selector.get_queryset(force=False, dry_run=False, category="cat-a", batch_size=10)
         ids = list(qs.values_list("id", flat=True))
 
-        assert qs.count() == 3
+        assert qs.count() == 2
         assert self.p1.id in ids
         assert self.p2.id in ids
-        assert self.p7.id in ids
+        assert self.p7.id not in ids
         assert self.p3.id not in ids
         assert self.p4.id not in ids
         assert self.p5.id not in ids
         assert self.p6.id not in ids
         assert self.p8.id not in ids
 
-    def test_get_queryset_filters_by_stock_principal(self):
+    def test_get_queryset_filters_by_stock_principal(self) -> None:
         # Products without stock_principal="Si" should be excluded
         # Create product with no principal stock
-        no_stock = ProductMaster.objects.create(code="NO_STOCK", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567898", stock_principal="No", stock_colon="Si")
+        no_stock: ProductMaster = ProductMaster.objects.create(code="NO_STOCK", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567898", stock_principal="No", stock_colon="Si")
 
         qs = self.selector.get_queryset(force=False, dry_run=False, batch_size=10)
         ids = list(qs.values_list("id", flat=True))
@@ -126,10 +126,10 @@ class TestMercadolibreCategorySelector:
         assert self.p2.id in ids
         assert self.p3.id in ids
 
-    def test_get_queryset_filters_by_branch_availability(self):
+    def test_get_queryset_filters_by_branch_availability(self) -> None:
         # Products must have at least one branch with stock="Si"
         # Create product with principal stock but no branch stock
-        no_branch_stock = ProductMaster.objects.create(
+        no_branch_stock: ProductMaster = ProductMaster.objects.create(
             code="NO_BRANCH", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567899", stock_principal="Si", stock_colon="No", stock_sur="No", stock_gye_norte="No", stock_gye_sur="No"
         )
 
@@ -141,18 +141,18 @@ class TestMercadolibreCategorySelector:
         # Products with at least one branch stock should be included
         assert self.p1.id in ids
 
-    def test_get_queryset_excludes_products_without_stock(self):
+    def test_get_queryset_excludes_products_without_stock(self) -> None:
         # Create products with various stock issues
         # 1. No principal stock (None)
-        p_no_principal = ProductMaster.objects.create(code="NO_PRIN", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567900", stock_principal=None, stock_colon="Si")
+        p_no_principal: ProductMaster = ProductMaster.objects.create(code="NO_PRIN", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567900", stock_principal=None, stock_colon="Si")
 
         # 2. Principal stock but all branches None
-        p_no_branches = ProductMaster.objects.create(
+        p_no_branches: ProductMaster = ProductMaster.objects.create(
             code="NO_BRANCH", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567901", stock_principal="Si", stock_colon=None, stock_sur=None, stock_gye_norte=None, stock_gye_sur=None
         )
 
         # 3. Both None
-        p_all_none = ProductMaster.objects.create(code="ALL_NONE", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567902", stock_principal=None, stock_colon=None)
+        p_all_none: ProductMaster = ProductMaster.objects.create(code="ALL_NONE", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567902", stock_principal=None, stock_colon=None)
 
         qs = self.selector.get_queryset(force=False, dry_run=False, batch_size=20)
         ids = list(qs.values_list("id", flat=True))
@@ -166,14 +166,14 @@ class TestMercadolibreCategorySelector:
         assert self.p1.id in ids
         assert self.p2.id in ids
 
-    def test_get_queryset_accepts_multiple_branch_combinations(self):
+    def test_get_queryset_accepts_multiple_branch_combinations(self) -> None:
         # Test that different branch combinations work
         # Create products with different branch stock patterns
-        p_colon = ProductMaster.objects.create(code="COLON_ONLY", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567903", stock_principal="Si", stock_colon="Si", stock_sur="No")
+        p_colon: ProductMaster = ProductMaster.objects.create(code="COLON_ONLY", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567903", stock_principal="Si", stock_colon="Si", stock_sur="No")
 
-        p_sur = ProductMaster.objects.create(code="SUR_ONLY", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567904", stock_principal="Si", stock_colon="No", stock_sur="Si")
+        p_sur: ProductMaster = ProductMaster.objects.create(code="SUR_ONLY", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567904", stock_principal="Si", stock_colon="No", stock_sur="Si")
 
-        p_multiple = ProductMaster.objects.create(
+        p_multiple: ProductMaster = ProductMaster.objects.create(
             code="MULTIPLE", is_active=True, is_for_mercadolibre=True, category="cat-a", gtin="7501234567905", stock_principal="Si", stock_colon="Si", stock_sur="Si", stock_gye_norte="Si"
         )
 
@@ -185,13 +185,13 @@ class TestMercadolibreCategorySelector:
         assert p_sur.id in ids
         assert p_multiple.id in ids
 
-    def test_get_queryset_case_insensitive_stock_filtering(self):
+    def test_get_queryset_case_insensitive_stock_filtering(self) -> None:
         """
         Test that stock filtering is case-insensitive to align with stock engine logic.
         The selector should accept "Si", "SI", "si", " Si " (with whitespace), etc.
         """
         # Create products with different case variations in stock fields
-        p_uppercase = ProductMaster.objects.create(
+        p_uppercase: ProductMaster = ProductMaster.objects.create(
             code="UPPER",
             is_active=True,
             is_for_mercadolibre=True,
@@ -201,7 +201,7 @@ class TestMercadolibreCategorySelector:
             stock_colon="SI",
         )
 
-        p_lowercase = ProductMaster.objects.create(
+        p_lowercase: ProductMaster = ProductMaster.objects.create(
             code="LOWER",
             is_active=True,
             is_for_mercadolibre=True,
@@ -211,7 +211,7 @@ class TestMercadolibreCategorySelector:
             stock_sur="si",
         )
 
-        p_mixed = ProductMaster.objects.create(
+        p_mixed: ProductMaster = ProductMaster.objects.create(
             code="MIXED",
             is_active=True,
             is_for_mercadolibre=True,
@@ -222,7 +222,7 @@ class TestMercadolibreCategorySelector:
         )
 
         # Create product with "NO" in different cases - should be excluded
-        p_no_uppercase = ProductMaster.objects.create(
+        p_no_uppercase: ProductMaster = ProductMaster.objects.create(
             code="NO_UPPER",
             is_active=True,
             is_for_mercadolibre=True,
@@ -232,7 +232,7 @@ class TestMercadolibreCategorySelector:
             stock_colon="SI",
         )
 
-        p_no_lowercase = ProductMaster.objects.create(
+        p_no_lowercase: ProductMaster = ProductMaster.objects.create(
             code="NO_LOWER",
             is_active=True,
             is_for_mercadolibre=True,
@@ -254,7 +254,7 @@ class TestMercadolibreCategorySelector:
         assert p_no_uppercase.id not in ids, "Uppercase 'NO' should be excluded"
         assert p_no_lowercase.id not in ids, "Lowercase 'no' should be excluded"
 
-    def test_get_queryset_handles_whitespace_in_stock_values(self):
+    def test_get_queryset_handles_whitespace_in_stock_values(self) -> None:
         """
         Test that stock filtering handles whitespace correctly.
         Django's __iexact doesn't automatically strip whitespace, but the data
@@ -281,16 +281,16 @@ class TestMercadolibreCategorySelector:
         # For now, we just verify the query executes without error
         assert qs.count() >= 0  # Query should execute successfully
 
-    def test_get_queryset_prioritizes_products_without_listings(self):
+    def test_get_queryset_prioritizes_products_without_listings(self) -> None:
         """
         Test that products without listings are prioritized over products with PENDING/ERROR status.
         This ensures new products are always enriched before re-processing existing listings.
         """
         # First, create products WITH listings (PENDING status)
         # These should have lower priority (priority=1)
-        pending_products = []
+        pending_products: list[ProductMaster] = []
         for i in range(3):
-            p = ProductMaster.objects.create(
+            p: ProductMaster = ProductMaster.objects.create(
                 code=f"PENDING_{i}",
                 is_active=True,
                 is_for_mercadolibre=True,
@@ -304,7 +304,7 @@ class TestMercadolibreCategorySelector:
 
         # Now create products WITHOUT listings (created after pending, so higher IDs)
         # These should have higher priority (priority=0)
-        new_products = []
+        new_products: list[ProductMaster] = []
         for i in range(3):
             p = ProductMaster.objects.create(
                 code=f"NEW_{i}",
