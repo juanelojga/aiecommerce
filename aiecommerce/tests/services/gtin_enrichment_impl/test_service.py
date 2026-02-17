@@ -734,3 +734,324 @@ class TestLLMPrompts:
         assert "HTTP-Referer" in kwargs["extra_headers"]
         assert "X-Title" in kwargs["extra_headers"]
         assert "AI Ecommerce GTIN Search" in kwargs["extra_headers"]["X-Title"]
+
+
+class TestGTINSearchIntegrationScenarios:
+    """
+    Integration tests demonstrating key GTIN search scenarios.
+
+    These tests use unittest.mock to mock LLM online search responses
+    and demonstrate the complete workflow for different scenarios.
+    """
+
+    @pytest.mark.django_db
+    def test_successful_gtin_find_using_first_strategy(self, service):
+        """
+        Test successful GTIN discovery using the first strategy (SKU + normalized name).
+
+        This test demonstrates:
+        - Product has SKU and normalized_name
+        - LLM returns valid GTIN on first attempt
+        - Service returns GTIN with correct strategy name
+        """
+        from model_bakery import baker
+
+        svc, mock_client = service
+
+        # Create a product with data for first strategy
+        product = baker.make(
+            "aiecommerce.ProductMaster",
+            code="LAPTOP001",
+            sku="MFR-12345",
+            normalized_name="Dell Latitude 5430 Intel Core i5 16GB RAM",
+            model_name=None,  # Not needed for first strategy
+            specs=None,
+        )
+
+        # Mock LLM response with valid 13-digit GTIN (EAN)
+        mock_response = GTINSearchResult(gtin="5901234567890", confidence="high", source="https://www.dell.com/product/12345")
+        mock_client.chat.completions.create.return_value = mock_response
+
+        # Execute search
+        gtin_code, strategy_name = svc.search_gtin(product)
+
+        # Verify results
+        assert gtin_code == "5901234567890"
+        assert strategy_name == STRATEGY_SKU_NAME
+
+        # Verify LLM was called exactly once (first strategy succeeded)
+        assert mock_client.chat.completions.create.call_count == 1
+
+        # Verify the query content
+        _, kwargs = mock_client.chat.completions.create.call_args
+        user_message = next(m for m in kwargs["messages"] if m["role"] == "user")
+        assert "MFR-12345" in user_message["content"]
+        assert "Dell Latitude 5430" in user_message["content"]
+
+    @pytest.mark.django_db
+    def test_fallback_success_first_fails_second_succeeds(self, service):
+        """
+        Test fallback scenario where first strategy fails but second succeeds.
+
+        This test demonstrates:
+        - First strategy (SKU + name) returns null/invalid GTIN
+        - Service automatically tries second strategy (model + brand)
+        - Second strategy returns valid GTIN
+        - Service returns GTIN with second strategy name
+        """
+        from model_bakery import baker
+
+        svc, mock_client = service
+
+        # Create product with data for both strategies
+        product = baker.make(
+            "aiecommerce.ProductMaster",
+            code="MONITOR001",
+            sku="MON-99999",
+            normalized_name="Professional Monitor 27 inch",
+            model_name="U2722DE",
+            specs={"Brand": "Dell"},
+        )
+
+        # Mock responses: first returns None, second returns valid GTIN
+        mock_response_1 = GTINSearchResult(
+            gtin=None,  # First strategy finds nothing
+            confidence="low",
+            source=None,
+        )
+        mock_response_2 = GTINSearchResult(
+            gtin="4719331985721",  # Second strategy finds valid 13-digit GTIN
+            confidence="high",
+            source="https://www.dell.com/monitors/u2722de",
+        )
+
+        mock_client.chat.completions.create.side_effect = [
+            mock_response_1,  # First call (strategy 1)
+            mock_response_2,  # Second call (strategy 2)
+        ]
+
+        # Execute search
+        gtin_code, strategy_name = svc.search_gtin(product)
+
+        # Verify results from second strategy
+        assert gtin_code == "4719331985721"
+        assert strategy_name == STRATEGY_MODEL_BRAND
+
+        # Verify LLM was called twice (first failed, second succeeded)
+        assert mock_client.chat.completions.create.call_count == 2
+
+        # Verify second call contained model and brand
+        _, kwargs = mock_client.chat.completions.create.call_args  # Gets last call
+        user_message = next(m for m in kwargs["messages"] if m["role"] == "user")
+        assert "Dell" in user_message["content"]
+        assert "U2722DE" in user_message["content"]
+
+    @pytest.mark.django_db
+    def test_total_failure_all_strategies_return_not_found(self, service):
+        """
+        Test complete failure scenario where all three strategies fail.
+
+        This test demonstrates:
+        - All three strategies are attempted sequentially
+        - Each strategy returns None or invalid GTIN
+        - Service returns (None, "NOT_FOUND")
+        - LLM is called for each available strategy
+        """
+        from model_bakery import baker
+
+        svc, mock_client = service
+
+        # Create product with data for all three strategies
+        product = baker.make(
+            "aiecommerce.ProductMaster",
+            code="OBSCURE001",
+            sku="OBS-12345",
+            normalized_name="Obscure Product Name",
+            model_name="XYZ-999",
+            specs={"Brand": "UnknownBrand"},
+        )
+
+        # Create ProductDetailScrape for third strategy
+        baker.make(
+            "aiecommerce.ProductDetailScrape",
+            product=product,
+            name="Obscure Product Full Name",
+            attributes={"Marca": "UnknownBrand", "Modelo": "XYZ-999"},
+        )
+
+        # Mock all three strategies to return no GTIN
+        mock_response_none = GTINSearchResult(gtin=None, confidence="low", source=None)
+
+        # All three calls return None
+        mock_client.chat.completions.create.side_effect = [
+            mock_response_none,  # Strategy 1: SKU + name
+            mock_response_none,  # Strategy 2: model + brand
+            mock_response_none,  # Strategy 3: raw description
+        ]
+
+        # Execute search
+        gtin_code, strategy_name = svc.search_gtin(product)
+
+        # Verify complete failure
+        assert gtin_code is None
+        assert strategy_name == STRATEGY_NOT_FOUND
+
+        # Verify all three strategies were attempted
+        assert mock_client.chat.completions.create.call_count == 3
+
+    @pytest.mark.django_db
+    def test_gtin_format_validation_rejects_invalid_formats(self, service):
+        """
+        Test that invalid GTIN formats are rejected throughout the search process.
+
+        This test demonstrates:
+        - LLM returns various invalid GTIN formats
+        - Service validates and rejects non-numeric GTINs
+        - Service validates and rejects GTINs with wrong length
+        - Service continues to next strategy after rejection
+        - Eventually returns NOT_FOUND if all are invalid
+        """
+        from model_bakery import baker
+
+        svc, mock_client = service
+
+        # Create product with data for multiple strategies
+        product = baker.make(
+            "aiecommerce.ProductMaster",
+            code="TEST001",
+            sku="TST-111",
+            normalized_name="Test Product",
+            model_name="TEST-MODEL",
+            specs={"Brand": "TestBrand"},
+        )
+
+        # Create ProductDetailScrape for third strategy
+        baker.make(
+            "aiecommerce.ProductDetailScrape",
+            product=product,
+            name="Test Product Full Name",
+            attributes={"Marca": "TestBrand", "Modelo": "TEST-MODEL"},
+        )
+
+        # Mock responses with various invalid GTIN formats
+        invalid_response_1 = GTINSearchResult(
+            gtin="ABC123XYZ",  # Invalid: contains letters
+            confidence="high",
+            source="https://example.com",
+        )
+        invalid_response_2 = GTINSearchResult(
+            gtin="12345",  # Invalid: too short (< 8 digits)
+            confidence="medium",
+            source="https://example.com",
+        )
+        invalid_response_3 = GTINSearchResult(
+            gtin="123456789012345678",  # Invalid: too long (> 14 digits)
+            confidence="high",
+            source="https://example.com",
+        )
+
+        mock_client.chat.completions.create.side_effect = [
+            invalid_response_1,  # Strategy 1: invalid format
+            invalid_response_2,  # Strategy 2: invalid format
+            invalid_response_3,  # Strategy 3: invalid format
+        ]
+
+        # Execute search
+        gtin_code, strategy_name = svc.search_gtin(product)
+
+        # Verify all invalid GTINs were rejected
+        assert gtin_code is None
+        assert strategy_name == STRATEGY_NOT_FOUND
+
+        # Verify all strategies were attempted (none returned valid GTIN)
+        assert mock_client.chat.completions.create.call_count == 3
+
+    @pytest.mark.django_db
+    def test_gtin_format_validation_accepts_valid_lengths(self, service):
+        """
+        Test that valid GTIN formats (8, 12, 13, 14 digits) are accepted.
+
+        This test demonstrates:
+        - Service accepts 8-digit GTINs (GTIN-8)
+        - Service accepts 12-digit GTINs (UPC)
+        - Service accepts 13-digit GTINs (EAN)
+        - Service accepts 14-digit GTINs (GTIN-14)
+        - All must be numeric only
+        """
+        from model_bakery import baker
+
+        svc, mock_client = service
+
+        # Test various valid GTIN lengths
+        valid_gtins = [
+            ("12345678", "8-digit GTIN-8"),
+            ("123456789012", "12-digit UPC"),
+            ("1234567890123", "13-digit EAN"),
+            ("12345678901234", "14-digit GTIN-14"),
+        ]
+
+        for gtin_value, description in valid_gtins:
+            # Create a fresh product for each test
+            product = baker.make(
+                "aiecommerce.ProductMaster",
+                code=f"TEST_{gtin_value}",
+                sku=f"SKU-{gtin_value}",
+                normalized_name=f"Product for {description}",
+            )
+
+            # Mock LLM response with valid GTIN
+            mock_response = GTINSearchResult(gtin=gtin_value, confidence="high", source="https://example.com")
+            mock_client.chat.completions.create.return_value = mock_response
+
+            # Execute search
+            gtin_code, strategy_name = svc.search_gtin(product)
+
+            # Verify the valid GTIN was accepted
+            assert gtin_code == gtin_value, f"Failed to accept {description}"
+            assert strategy_name == STRATEGY_SKU_NAME
+
+            # Reset mock for next iteration
+            mock_client.reset_mock()
+
+    @pytest.mark.django_db
+    def test_api_error_recovery_with_fallback(self, service):
+        """
+        Test that API errors in one strategy don't prevent fallback to next strategy.
+
+        This test demonstrates:
+        - First strategy encounters API error
+        - Service gracefully handles error and continues
+        - Second strategy succeeds
+        - Final result comes from successful strategy
+        """
+        from model_bakery import baker
+
+        svc, mock_client = service
+
+        # Create product with data for multiple strategies
+        product = baker.make(
+            "aiecommerce.ProductMaster",
+            code="ERROR_TEST",
+            sku="ERR-123",
+            normalized_name="Error Recovery Test",
+            model_name="ER-MODEL",
+            specs={"Brand": "TestBrand"},
+        )
+
+        # First call raises API error, second succeeds
+        mock_success_response = GTINSearchResult(gtin="9876543210123", confidence="high", source="https://example.com")
+
+        mock_client.chat.completions.create.side_effect = [
+            APIError("API temporarily unavailable", request=MagicMock(), body=None),
+            mock_success_response,
+        ]
+
+        # Execute search
+        gtin_code, strategy_name = svc.search_gtin(product)
+
+        # Verify recovery and success with second strategy
+        assert gtin_code == "9876543210123"
+        assert strategy_name == STRATEGY_MODEL_BRAND
+
+        # Verify both attempts were made
+        assert mock_client.chat.completions.create.call_count == 2
