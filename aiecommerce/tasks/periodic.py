@@ -104,3 +104,9 @@ def run_pause_ml_listings():
 def run_close_ml_listings():
     """Run the close_ml_listings management command."""
     call_command("close_ml_listings")
+
+
+@shared_task
+def run_enrich_products_gtin():
+    """Run the enrich_products_gtin management command."""
+    call_command("enrich_products_gtin")
