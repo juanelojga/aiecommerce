@@ -1,6 +1,7 @@
 from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 
 from aiecommerce.models import MercadoLibreListing, ProductMaster
+from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
 
 
 class MercadolibreCategorySelector:
@@ -34,8 +35,8 @@ class MercadolibreCategorySelector:
             A QuerySet of ProductMaster instances ordered by ID, ready for enrichment.
 
         Notes:
-            - Filters products with available stock: stock_principal='Si' AND
-              at least one branch has stock='Si' (stock_colon, stock_sur,
+            - Filters products with available stock: stock_principal='si' (case-insensitive) AND
+              at least one branch has stock='si' (case-insensitive: stock_colon, stock_sur,
               stock_gye_norte, or stock_gye_sur).
             - Uses select_related to optimize listing status checks and avoid N+1 queries.
         """
@@ -45,17 +46,18 @@ class MercadolibreCategorySelector:
             gtin__isnull=False,
         ).select_related("mercadolibre_listing")
 
-        # Filter by stock availability: must have principal stock
-        query = query.filter(stock_principal="Si")
+        # Filter by stock availability: must have principal stock (case-insensitive, non-NULL)
+        query = query.exclude(stock_principal__isnull=True)
+        query = query.filter(stock_principal__iexact="si")
 
-        # Define the branch fields to check (must match MercadoLibreStockEngine.BRANCH_FIELDS)
-        branch_fields = ["stock_colon", "stock_sur", "stock_gye_norte", "stock_gye_sur"]
+        # Use the same branch fields as the stock engine to ensure consistency
+        branch_fields = MercadoLibreStockEngine.BRANCH_FIELDS
 
-        # Build an OR condition: (stock_colon='Si' OR stock_sur='Si' OR ...)
+        # Build an OR condition: (stock_colon='si' OR stock_sur='si' OR ...) - case-insensitive
         # This ensures products have inventory in at least one branch
         branch_query = Q()
         for field in branch_fields:
-            branch_query |= Q(**{field: "Si"})
+            branch_query |= Q(**{f"{field}__iexact": "si"})
 
         query = query.filter(branch_query)
 

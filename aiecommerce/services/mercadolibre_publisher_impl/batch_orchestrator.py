@@ -93,6 +93,13 @@ class BatchPublisherOrchestrator:
 
                 except Exception as e:
                     logger.error(f"Failed to process product {product_code}: {e}", exc_info=True)
+
+                    # Mark listing as ERROR outside transaction so it persists after rollback
+                    listing.refresh_from_db()
+                    listing.status = MercadoLibreListing.Status.ERROR
+                    listing.sync_error = str(e)
+                    listing.save()
+
                     stats["errors"] = stats["errors"] + 1  # type: ignore[assignment,operator]
                     continue
 
