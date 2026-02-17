@@ -76,6 +76,6 @@ app.conf.beat_schedule = {
     },
     "publish-ml-product-hourly-batch": {
         "task": "aiecommerce.tasks.periodic.run_publish_ml_product_batch",
-        "schedule": crontab(minute=50, hour="8-18/2", day_of_week="mon-sat"),
+        "schedule": crontab(minute=55, hour="8-18/2", day_of_week="mon-sat"),
     },
 }
