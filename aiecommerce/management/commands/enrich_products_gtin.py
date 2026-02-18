@@ -1,6 +1,9 @@
 """Django management command to enrich products with GTIN codes."""
 
-from django.core.management.base import BaseCommand
+import instructor
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+from openai import OpenAI
 
 from aiecommerce.services.gtin_enrichment_impl import (
     GTINEnrichmentCandidateSelector,
@@ -30,7 +33,17 @@ class Command(BaseCommand):
 
         # Initialize services
         selector = GTINEnrichmentCandidateSelector()
-        gtin_service = GTINSearchService()
+
+        # AI attribute filler
+        api_key = settings.OPENROUTER_API_KEY
+        base_url = settings.OPENROUTER_BASE_URL
+
+        if not api_key or not base_url:
+            raise CommandError("OPENROUTER_API_KEY and OPENROUTER_BASE_URL must be configured in settings")
+
+        openai_client = instructor.from_openai(OpenAI(api_key=api_key, base_url=base_url), mode=instructor.Mode.JSON)
+
+        gtin_service = GTINSearchService(client=openai_client)
 
         # Fetch products that need GTIN enrichment
         products = selector.get_batch(limit=limit)

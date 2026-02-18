@@ -2,16 +2,14 @@
 
 import logging
 import re
-from typing import Any
 
 import instructor
 from django.conf import settings
-from openai import APIError, OpenAI
+from openai import APIError
 from pydantic import ValidationError
 
 from aiecommerce.models import ProductMaster
 
-from .exceptions import ConfigurationError
 from .schemas import GTINSearchResult
 
 logger = logging.getLogger(__name__)
@@ -26,25 +24,8 @@ STRATEGY_NOT_FOUND = "NOT_FOUND"
 class GTINSearchService:
     """Service to search for GTIN codes using LLM with online search."""
 
-    def __init__(self) -> None:
-        """
-        Initialize the GTIN search service.
-
-        Raises:
-            ConfigurationError: If required settings are missing.
-        """
-        # Validate configuration
-        api_key = settings.OPENROUTER_API_KEY
-        base_url = settings.OPENROUTER_BASE_URL
-        self.model_name = settings.GTIN_SEARCH_MODEL
-
-        if not all([api_key, base_url, self.model_name]):
-            raise ConfigurationError("The following settings are required: OPENROUTER_API_KEY, OPENROUTER_BASE_URL, GTIN_SEARCH_MODEL")
-
-        # Initialize OpenAI client pointing to OpenRouter
-        base_client = OpenAI(base_url=base_url, api_key=api_key)
-        # Wrap with Instructor for structured output
-        self.client: Any = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
+    def __init__(self, client: instructor.Instructor) -> None:
+        self.client = client
 
     def search_gtin(self, product: ProductMaster) -> tuple[str | None, str]:
         """
@@ -174,7 +155,7 @@ class GTINSearchService:
 
             # Call LLM with online search capabilities
             result: GTINSearchResult = self.client.chat.completions.create(
-                model=self.model_name,
+                model=settings.GTIN_SEARCH_MODEL,
                 response_model=GTINSearchResult,
                 parallel_tool_calls=False,
                 messages=[
