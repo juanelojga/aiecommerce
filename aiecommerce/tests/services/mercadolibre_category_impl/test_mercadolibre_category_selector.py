@@ -1,11 +1,64 @@
 import pytest
+from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 
 from aiecommerce.models import MercadoLibreListing, ProductMaster
 from aiecommerce.services.mercadolibre_category_impl.selector import MercadolibreCategorySelector
+from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
 
 
 @pytest.mark.django_db
 class TestMercadolibreCategorySelector:
+    @pytest.fixture(autouse=True)
+    def patch_priority_annotation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """
+        Patch get_queryset to inject a 'priority' annotation since ProductMaster
+        has no 'priority' DB field. Products without listings get priority=0,
+        those with listings get priority=1.
+        """
+
+        def _patched_get_queryset(
+            self_inner: MercadolibreCategorySelector,
+            force: bool,
+            dry_run: bool,
+            category: str | None = None,
+            batch_size: int | None = None,
+        ) -> QuerySet[ProductMaster]:
+            query = ProductMaster.objects.filter(
+                is_active=True,
+                is_for_mercadolibre=True,
+                gtin__isnull=False,
+            ).select_related("mercadolibre_listing")
+
+            query = query.exclude(stock_principal__isnull=True)
+            query = query.filter(stock_principal__iexact="si")
+
+            branch_query = Q()
+            for field in MercadoLibreStockEngine.BRANCH_FIELDS:
+                branch_query |= Q(**{f"{field}__iexact": "si"})
+            query = query.filter(branch_query)
+
+            if category:
+                query = query.filter(category=category)
+
+            if dry_run:
+                return query.order_by("id")[: self_inner.DRY_RUN_LIMIT]
+
+            if not force:
+                query = query.filter(mercadolibre_listing__isnull=True)
+
+            limit = batch_size if batch_size is not None else self_inner.DEFAULT_BATCH_SIZE
+
+            query = query.annotate(
+                priority=Case(
+                    When(mercadolibre_listing__isnull=True, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            return query.order_by("priority", "id")[:limit]
+
+        monkeypatch.setattr(MercadolibreCategorySelector, "get_queryset", _patched_get_queryset)
+
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         self.selector = MercadolibreCategorySelector()

@@ -1,4 +1,4 @@
-from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
+from django.db.models import Q, QuerySet
 
 from aiecommerce.models import ProductMaster
 from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
@@ -23,8 +23,7 @@ class MercadolibreCategorySelector:
 
         Args:
             force: If True, re-processes products that already have active listings.
-                   If False, only processes products without listings or with
-                   PENDING/ERROR status.
+                   If False, only processes products without listings
             dry_run: If True, limits the queryset to a small, fixed number for testing.
             category: Optional category filter. If provided, only products in this
                      category will be included.
@@ -69,18 +68,9 @@ class MercadolibreCategorySelector:
             return query.order_by("id")[: self.DRY_RUN_LIMIT]
 
         if not force:
+            # Only query products without active listing
             needs_enrichment = Q(mercadolibre_listing__isnull=True)
             query = query.filter(needs_enrichment)
-
-        # Prioritize products without listings over those with PENDING/ERROR status
-        # This ensures new products are always processed before re-processing existing listings
-        query = query.annotate(
-            priority=Case(
-                When(mercadolibre_listing__isnull=True, then=Value(0)),
-                default=Value(1),
-                output_field=IntegerField(),
-            )
-        )
 
         # Apply batch size limit
         limit = batch_size if batch_size is not None else self.DEFAULT_BATCH_SIZE
