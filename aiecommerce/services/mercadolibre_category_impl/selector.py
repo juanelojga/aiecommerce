@@ -1,6 +1,6 @@
 from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
 
-from aiecommerce.models import MercadoLibreListing, ProductMaster
+from aiecommerce.models import ProductMaster
 from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
 
 
@@ -69,12 +69,7 @@ class MercadolibreCategorySelector:
             return query.order_by("id")[: self.DRY_RUN_LIMIT]
 
         if not force:
-            needs_enrichment = Q(mercadolibre_listing__isnull=True) | Q(
-                mercadolibre_listing__status__in=[
-                    MercadoLibreListing.Status.PENDING,
-                    MercadoLibreListing.Status.ERROR,
-                ]
-            )
+            needs_enrichment = Q(mercadolibre_listing__isnull=True)
             query = query.filter(needs_enrichment)
 
         # Prioritize products without listings over those with PENDING/ERROR status
