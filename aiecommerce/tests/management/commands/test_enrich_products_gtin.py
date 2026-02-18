@@ -1,10 +1,12 @@
 """Tests for the enrich_products_gtin management command."""
 
 import io
+from contextlib import ExitStack
 from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.conf import settings
 
 from aiecommerce.management.commands.enrich_products_gtin import Command as GTINCommand
 from aiecommerce.models import ProductMaster
@@ -18,6 +20,15 @@ def _make_command() -> Any:
     return cmd
 
 
+def _mock_settings_and_instructor(stack: ExitStack):
+    """Apply mocks for Django settings and instructor client creation to the given ExitStack."""
+    stack.enter_context(patch.object(settings, "OPENROUTER_API_KEY", "test-api-key"))
+    stack.enter_context(patch.object(settings, "OPENROUTER_BASE_URL", "https://test-openrouter.ai/api/v1"))
+    stack.enter_context(patch.object(settings, "GTIN_SEARCH_MODEL", "test-model"))
+    stack.enter_context(patch("aiecommerce.management.commands.enrich_products_gtin.OpenAI"))
+    stack.enter_context(patch("aiecommerce.management.commands.enrich_products_gtin.instructor.from_openai"))
+
+
 @pytest.mark.django_db
 class TestEnrichProductsGTINCommand:
     """Test suite for enrich_products_gtin management command."""
@@ -29,10 +40,15 @@ class TestEnrichProductsGTINCommand:
 
         cmd = _make_command()
 
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             # Run command
             cmd.handle(limit=1)
 
@@ -77,10 +93,15 @@ class TestEnrichProductsGTINCommand:
         cmd = _make_command()
 
         # Patch GTINSearchService in the command module
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             cmd.handle(limit=2)
 
         output = cmd.stdout.getvalue()
@@ -126,10 +147,15 @@ class TestEnrichProductsGTINCommand:
         cmd = _make_command()
 
         # Run with limit of 3
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             cmd.handle(limit=3)
 
         output = cmd.stdout.getvalue()
@@ -160,10 +186,15 @@ class TestEnrichProductsGTINCommand:
 
         cmd = _make_command()
 
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
@@ -202,10 +233,15 @@ class TestEnrichProductsGTINCommand:
 
         cmd = _make_command()
 
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
@@ -239,10 +275,15 @@ class TestEnrichProductsGTINCommand:
 
         cmd = _make_command()
 
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             cmd.handle(limit=3)
 
         output = cmd.stdout.getvalue()
@@ -288,10 +329,15 @@ class TestEnrichProductsGTINCommand:
 
         cmd = _make_command()
 
-        with patch(
-            "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
-            return_value=mock_service,
-        ):
+        with ExitStack() as stack:
+            _mock_settings_and_instructor(stack)
+            stack.enter_context(
+                patch(
+                    "aiecommerce.management.commands.enrich_products_gtin.GTINSearchService",
+                    return_value=mock_service,
+                )
+            )
+
             cmd.handle(limit=1)
 
         output = cmd.stdout.getvalue()
