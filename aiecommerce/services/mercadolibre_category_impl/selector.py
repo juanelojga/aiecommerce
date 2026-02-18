@@ -1,4 +1,4 @@
-from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
+from django.db.models import Q, QuerySet
 
 from aiecommerce.models import ProductMaster
 from aiecommerce.services.mercadolibre_category_impl.stock import MercadoLibreStockEngine
