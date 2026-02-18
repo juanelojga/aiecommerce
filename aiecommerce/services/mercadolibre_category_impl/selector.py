@@ -74,4 +74,4 @@ class MercadolibreCategorySelector:
 
         # Apply batch size limit
         limit = batch_size if batch_size is not None else self.DEFAULT_BATCH_SIZE
-        return query.order_by("priority", "id")[:limit]
+        return query.order_by("id")[:limit]
