@@ -1,14 +1,11 @@
 """Tests for GTINSearchService."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import instructor
 import pytest
-from django.conf import settings
 from openai import APIError
 from pydantic import ValidationError
 
-from aiecommerce.services.gtin_enrichment_impl.exceptions import ConfigurationError
 from aiecommerce.services.gtin_enrichment_impl.schemas import GTINSearchResult
 from aiecommerce.services.gtin_enrichment_impl.service import (
     STRATEGY_MODEL_BRAND,
