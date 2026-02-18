@@ -1,14 +1,11 @@
 """Tests for GTINSearchService."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import instructor
 import pytest
-from django.conf import settings
 from openai import APIError
 from pydantic import ValidationError
 
-from aiecommerce.services.gtin_enrichment_impl.exceptions import ConfigurationError
 from aiecommerce.services.gtin_enrichment_impl.schemas import GTINSearchResult
 from aiecommerce.services.gtin_enrichment_impl.service import (
     STRATEGY_MODEL_BRAND,
@@ -20,80 +17,14 @@ from aiecommerce.services.gtin_enrichment_impl.service import (
 
 
 @pytest.fixture
-def mock_settings():
-    """Mock Django settings for tests."""
-    with (
-        patch.object(settings, "OPENROUTER_API_KEY", "test-key"),
-        patch.object(settings, "OPENROUTER_BASE_URL", "https://test.url"),
-        patch.object(settings, "GTIN_SEARCH_MODEL", "test-model"),
-    ):
-        yield settings
-
-
-@pytest.fixture
-def service(mock_settings):
+def service():
     """Create a GTINSearchService instance with mocked client."""
-    with (
-        patch("aiecommerce.services.gtin_enrichment_impl.service.OpenAI"),
-        patch("aiecommerce.services.gtin_enrichment_impl.service.instructor.from_openai") as mock_instructor,
-    ):
-        mock_client = MagicMock()
-        mock_instructor.return_value = mock_client
-        svc = GTINSearchService()
-        yield svc, mock_client
+    mock_client = MagicMock()
+    svc = GTINSearchService(client=mock_client)
+    yield svc, mock_client
 
 
-class TestGTINSearchServiceInitialization:
-    """Tests for service initialization."""
-
-    @patch("aiecommerce.services.gtin_enrichment_impl.service.OpenAI")
-    @patch("aiecommerce.services.gtin_enrichment_impl.service.instructor.from_openai")
-    def test_initialization_success(self, mock_instructor, mock_openai, mock_settings):
-        """Test successful initialization with valid settings."""
-        service = GTINSearchService()
-
-        assert service.model_name == "test-model"
-        mock_openai.assert_called_once_with(base_url="https://test.url", api_key="test-key")
-        mock_instructor.assert_called_once()
-
-    def test_initialization_missing_api_key(self):
-        """Test initialization fails when API key is missing."""
-        with patch.object(settings, "OPENROUTER_API_KEY", ""):
-            with pytest.raises(ConfigurationError) as excinfo:
-                GTINSearchService()
-            assert "The following settings are required" in str(excinfo.value)
-
-    def test_initialization_missing_base_url(self):
-        """Test initialization fails when base URL is missing."""
-        with (
-            patch.object(settings, "OPENROUTER_API_KEY", "test-key"),
-            patch.object(settings, "OPENROUTER_BASE_URL", ""),
-        ):
-            with pytest.raises(ConfigurationError) as excinfo:
-                GTINSearchService()
-            assert "The following settings are required" in str(excinfo.value)
-
-    def test_initialization_missing_model(self):
-        """Test initialization fails when model is missing."""
-        with (
-            patch.object(settings, "OPENROUTER_API_KEY", "test-key"),
-            patch.object(settings, "OPENROUTER_BASE_URL", "https://test.url"),
-            patch.object(settings, "GTIN_SEARCH_MODEL", ""),
-        ):
-            with pytest.raises(ConfigurationError) as excinfo:
-                GTINSearchService()
-            assert "The following settings are required" in str(excinfo.value)
-
-    @patch("aiecommerce.services.gtin_enrichment_impl.service.OpenAI")
-    @patch("aiecommerce.services.gtin_enrichment_impl.service.instructor.from_openai")
-    def test_instructor_client_uses_json_mode(self, mock_instructor, mock_openai, mock_settings):
-        """Test that instructor client is initialized with JSON mode for structured output."""
-        GTINSearchService()
-
-        # Verify instructor.from_openai was called with JSON mode
-        mock_instructor.assert_called_once()
-        call_args = mock_instructor.call_args
-        assert call_args[1]["mode"] == instructor.Mode.JSON
+# Initialization tests removed - service uses dependency injection, settings validation happens in management command
 
 
 class TestGTINValidation:
