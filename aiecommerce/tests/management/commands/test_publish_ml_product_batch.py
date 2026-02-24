@@ -114,7 +114,7 @@ def test_publish_ml_product_batch_dry_run(mock_token_model, mock_auth_service, m
     mock_token = MagicMock()
     mock_token_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_token
     mock_auth_service.get_valid_token.return_value = mock_token
-    mock_batch_orchestrator.run.return_value = {"success": 0, "errors": 0, "skipped": 2, "published_ids": []}
+    mock_batch_orchestrator.run.return_value = {"success": 1, "errors": 0, "skipped": 2, "published_ids": ["MLB123"]}
 
     # Run
     out = io.StringIO()
@@ -123,6 +123,7 @@ def test_publish_ml_product_batch_dry_run(mock_token_model, mock_auth_service, m
     # Assert
     output = out.getvalue()
     assert "Dry run is enabled" in output
+    assert "1 succeeded" in output
     assert "2 skipped" in output
     mock_batch_orchestrator.run.assert_called_once_with(dry_run=True, sandbox=False)
 
