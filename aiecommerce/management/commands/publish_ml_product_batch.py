@@ -76,8 +76,9 @@ class Command(BaseCommand):
             logger.exception("Failed to publish batch of products")
             raise
         finally:
-            # Send Telegram notification regardless of success/failure
-            self._send_notification(stats, mode, dry_run)
+            # Send Telegram notification only if products were processed
+            if stats.get("success", 0) > 0 or stats.get("errors", 0) > 0:
+                self._send_notification(stats, mode, dry_run)
 
     def _get_valid_token(self, sandbox: bool) -> MercadoLibreToken:
         """Retrieve and validate MercadoLibre token for the specified environment."""
