@@ -13,151 +13,111 @@ Django-based ecommerce application with PostgreSQL and Redis support.
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url> cd django-projects
+git clone <repository-url>
+cd django-projects
 ```
 
-### 2. Set Up Virtual Environment
+### 2. Environment Configuration
 
-Create and activate a virtual environment:
-Create virtual environment
-
-```
-python3 -m venv venv
-```
-
-Activate virtual environment
-
-```
-source venv/bin/activate # On Linux/macOS
-venv\Scripts\activate # On Windows
-```
-
-### 3. Install Dependencies
+Copy the example environment file and configure it:
 
 ```bash
-pip install -r requirements.txt
-```
-
-- Environment Configuration
-
-Copy the example environment file and configure it:``` bash
-
-```
 cp .env.example .env
 ```
 
-Edit the.env file with your configuration settings.
+Edit the `.env` file with your configuration settings. The Docker setup uses default ports (8000 for Web, 5432 for Postgres, 6379 for Redis), but you can change these if they conflict with your host machine.
 
-- Start Docker Services
+### 3. Start Docker Environment (Recommended)
 
-Start PostgreSQL and Redis containers:
+This project includes a fully containerized development environment using Docker Compose. When started, it will automatically run migrations and create a superuser based on your `.env` file settings.
 
-``` bash
-docker-compose up -d
+```bash
+# Build and start the containers in the background
+docker compose up -d --build
+
+# View logs to ensure everything started correctly
+docker compose logs -f
 ```
 
-To stop the services:
+The application will be available at `http://localhost:<WEB_PORT>` (default: `8000`).
 
-``` bash
-docker-compose down
+### Alternative: Local Setup (Without Docker)
+
+If you prefer to run the project locally without Docker:
+
+1. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # Linux/macOS
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run migrations and create a superuser:
+   ```bash
+   python manage.py migrate
+   python manage.py createsuperuser
+   ```
+4. Start the development server:
+   ```bash
+   python manage.py runserver
+   ```
+
+## Common Commands
+
+### Running Commands in Docker
+
+When using the Docker environment, you should run management commands inside the `web` container:
+
+```bash
+# Run Django management commands
+docker compose exec web python manage.py makemigrations
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py createsuperuser
+
+# Open a Django shell
+docker compose exec web python manage.py shell
+
+# Run tests
+docker compose exec web pytest
 ```
 
-To view logs:
+### Dependency Management
 
-``` bash
-docker-compose logs -f
-```
+If you add a new package locally, you'll need to rebuild the Docker container:
 
-- Run Database Migrations
-
-``` bash
-python manage.py migrate
-```
-
-- Create Superuser
-
-Create an admin account:
-
-``` bash
-python manage.py createsuperuser
-```
-
-- Run Development Server
-
-``` bash
-python manage.py runserver
-```
-
-The application will be available at http://127.0.0.1:8000/
-Admin panel: http://127.0.0.1:8000/admin/
-
-Common Commands
-Django Management
-
-``` bash
-# Create new migrations
-python manage.py makemigrations
-
-# Apply migrations
-python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-
-# Run development server
-python manage.py runserver
-
-# Run on specific port
-python manage.py runserver 8080
-
-# Collect static files
-python manage.py collectstatic
-
-# Run Django shell
-python manage.py shell
-```
-
-Dependency Management
-``` bash
-# Install new package
-pip install <package-name>
-
-# Update requirements.txt
+```bash
+# Update requirements.txt locally first
 pip freeze > requirements.txt
 
-# Install from requirements.txt
-pip install -r requirements.txt
+# Then rebuild the container
+docker compose up -d --build
 ```
 
-Docker Commands
-``` bash
+### Docker Commands Quick Reference
+
+```bash
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Stop services
-docker-compose down
+docker compose down
+
+# Stop services and remove volumes (WARNING: This deletes your database!)
+docker compose down -v
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Restart services
-docker-compose restart
+docker compose restart
 
 # Rebuild containers
-docker-compose up -d --build
+docker compose up -d --build
 
-# Access database container
-docker-compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB
-```
-
-Virtual Environment
-``` bash
-# Activate virtual environment
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
-
-# Deactivate virtual environment
-deactivate
+# Access database container (psql)
+docker compose exec db psql -U myproject_user -d myproject_db
 ```
 
 Project Structure
