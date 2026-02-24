@@ -77,8 +77,11 @@ class Command(BaseCommand):
             raise
         finally:
             # Send Telegram notification only if products were processed
-            if stats.get("success", 0) > 0 or stats.get("errors", 0) > 0:
-                self._send_notification(stats, mode, dry_run)
+            success_count = stats.get("success", 0)
+            error_count = stats.get("errors", 0)
+            if isinstance(success_count, int) and isinstance(error_count, int):
+                if success_count > 0 or error_count > 0:
+                    self._send_notification(stats, mode, dry_run)
 
     def _get_valid_token(self, sandbox: bool) -> MercadoLibreToken:
         """Retrieve and validate MercadoLibre token for the specified environment."""
