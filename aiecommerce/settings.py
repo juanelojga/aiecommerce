@@ -54,8 +54,31 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_extensions",
+    "rest_framework",
     "aiecommerce",
 ]
+
+# --- Django REST Framework ---
+DRF_PAGE_SIZE = env.int("DRF_PAGE_SIZE", default=20)
+DRF_BROWSABLE_API = env.bool("DRF_BROWSABLE_API", default=False)
+
+_DRF_RENDERER_CLASSES = [
+    "rest_framework.renderers.JSONRenderer",
+]
+if DRF_BROWSABLE_API:
+    _DRF_RENDERER_CLASSES.append("rest_framework.renderers.BrowsableAPIRenderer")
+
+REST_FRAMEWORK: dict[str, object] = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": DRF_PAGE_SIZE,
+    "DEFAULT_RENDERER_CLASSES": _DRF_RENDERER_CLASSES,
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
