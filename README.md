@@ -121,6 +121,7 @@ docker compose exec db psql -U myproject_user -d myproject_db
 ```
 
 Project Structure
+
 ```
 django-projects/
 ├── aiecommerce/        # Django project settings
@@ -133,6 +134,7 @@ django-projects/
 ```
 
 ## Development Workflow
+
 1. Activate virtual environment: `source venv/bin/activate`
 2. Start Docker services: `docker-compose up -d`
 3. Run migrations: `python manage.py migrate`
@@ -141,24 +143,29 @@ django-projects/
 6. Update requirements if needed: `pip freeze > requirements.txt`
 
 ## Troubleshooting
+
 ### Database Connection Issues
+
 - Ensure Docker containers are running: `docker-compose ps`
 - Check environment variables in file `.env`
 - Verify database credentials match in and `.env``docker-compose.yml`
 
 ### Port Already in Use
+
 - Change the port in or file `docker-compose.yml``.env`
 - Or stop the service using the port
 
 ### Migration Errors
+
 - Try resetting migrations (development only!)
 - Ensure a database is running
 - Check for circular dependencies in models
 
 ### Code Quality & Tooling
+
 This project uses Ruff (linting/formatting) and Mypy (static typing). These run automatically on git commit, but you can run them manually:
 
-``` bash
+```bash
 # Format code and fix linting errors
 ruff format .
 ruff check . --fix
@@ -188,7 +195,7 @@ venv/bin/python -m pytest aiecommerce/tests/test_models.py
 One last tip for you
 Since you installed these packages manually, remember to freeze them into a requirements file so you don't lose track of them:
 
-``` bash
+```bash
 pip freeze > requirements.txt
 ```
 
@@ -236,8 +243,11 @@ API_ALLOWED_IPS=203.0.113.5,10.0.0.0/8,::1
 For full details, see [API Authentication Documentation](docs/api-authentication.md).
 
 ## License
+
 [Specify your license here]
+
 ## Contributing
+
 [Add contribution guidelines here]
 
 ## Management Commands: Scraping and Price List

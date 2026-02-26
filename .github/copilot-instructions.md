@@ -5,6 +5,7 @@
 This is a **Django 5.x + PostgreSQL** e-commerce application with AI-powered product enrichment and MercadoLibre marketplace integration.
 
 **Tech Stack:**
+
 - Django 5.x, Python 3.12
 - PostgreSQL (with Django ORM)
 - Redis + Celery for background tasks
@@ -13,6 +14,7 @@ This is a **Django 5.x + PostgreSQL** e-commerce application with AI-powered pro
 - Docker Compose for local development
 
 **Key Features:**
+
 - Web scraping pipeline (Tecnomega supplier)
 - AI content generation for product descriptions/specs
 - Image processing and upscaling
@@ -22,6 +24,7 @@ This is a **Django 5.x + PostgreSQL** e-commerce application with AI-powered pro
 ## Build, Test, and Lint Commands
 
 ### Development Setup
+
 ```bash
 # Start PostgreSQL and Redis
 docker-compose up -d
@@ -38,6 +41,7 @@ python manage.py runserver
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 venv/bin/python -m pytest
@@ -56,6 +60,7 @@ venv/bin/python -m pytest -k "test_mercadolibre"
 ```
 
 ### Linting and Formatting
+
 ```bash
 # Format code (auto-fix)
 ruff format .
@@ -71,6 +76,7 @@ pre-commit run --all-files
 ```
 
 ### Celery (Background Tasks)
+
 ```bash
 # Start Celery worker
 celery -A aiecommerce.config.celery worker -l info
@@ -83,6 +89,7 @@ celery -A aiecommerce.config.celery worker --beat -l info
 ```
 
 ### Key Management Commands
+
 ```bash
 # Scrape products from Tecnomega
 python manage.py scrape_tecnomega --categories notebook monitor
@@ -174,6 +181,7 @@ aiecommerce/
 ## Coding Standards
 
 ### Type Hints (MANDATORY)
+
 ```python
 # ✅ Good
 def get_product_by_id(product_id: int) -> Product | None:
@@ -185,31 +193,37 @@ def get_product_by_id(product_id):
 ```
 
 ### Imports
+
 - Use **absolute imports**: `from aiecommerce.models.product import Product`
 - NOT relative imports: `from .models import Product`
 
 ### Database
+
 - Use PostgreSQL-specific features when helpful: `ArrayField`, `JSONField`, `HStoreField`
 - **NEVER auto-run migrations** - user must explicitly run `python manage.py migrate`
 - Use `.select_related()` and `.prefetch_related()` to avoid N+1 queries
 
 ### Views
+
 - Prefer **Class-Based Views** (CBV) over function-based views
 - Keep views thin - move logic to services
 - Use DRF serializers for API validation
 
 ### Environment Variables
+
 - All secrets in `.env` (use `django-environ`)
 - Never hardcode credentials
 
 ## Testing Guidelines
 
 ### Framework & Location
+
 - Use **pytest** with `pytest-django`
 - Tests in `aiecommerce/tests/` mirroring app structure
 - Shared fixtures in `aiecommerce/tests/factories.py` (uses `model_bakery`)
 
 ### Naming Conventions
+
 ```python
 # File: test_<feature>.py
 # Function: test_<behavior>_<scenario>
@@ -222,6 +236,7 @@ def test_enrich_product_content_success(product_factory):
 ```
 
 ### Test Structure (Arrange-Act-Assert)
+
 ```python
 @pytest.mark.django_db
 def test_normalize_product_creates_master_record():
@@ -237,16 +252,19 @@ def test_normalize_product_creates_master_record():
 ```
 
 ### Fixtures
+
 - Use `model_bakery` for test data: `baker.make("Product", name="Test")`
 - Mock external APIs (HTTP, Celery tasks)
 - Use `freezegun` for time-dependent tests
 
 ### Coverage Requirements
+
 - Happy path + edge cases + failure scenarios
 - Test boundaries: empty lists, None values, invalid IDs
 - No trivial tests (tests must have assertions)
 
 ### Test Execution Rules (IMPORTANT)
+
 - **DO NOT auto-generate tests** unless explicitly requested
 - **DO NOT auto-run tests** after code changes
 - When asked to "generate tests", create test files in a **separate step** (don't modify prod code)
@@ -307,7 +325,7 @@ When reviewing changes, prioritize:
 
 When leaving review comments:
 
-- Be concise and specific; point to the exact lines and explain *why* something should change.
+- Be concise and specific; point to the exact lines and explain _why_ something should change.
 - When possible, propose a concrete Django‑idiomatic code snippet.
 - If the change is acceptable but could be improved, prefix with: "Optional improvement:".
 - If the issue is critical (security, data loss), clearly mark it as "High priority".

@@ -4,10 +4,10 @@ This document describes the two-layer security model protecting all `/api/v1/` e
 
 ## Overview
 
-| Layer            | Class                        | What it does                                              |
-|------------------|------------------------------|-----------------------------------------------------------|
-| Authentication   | `ApiKeyAuthentication`       | Validates the `X-API-KEY` request header                  |
-| Authorization    | `IPWhitelistPermission`      | Restricts access to a set of allowed IP addresses / CIDRs |
+| Layer          | Class                   | What it does                                              |
+| -------------- | ----------------------- | --------------------------------------------------------- |
+| Authentication | `ApiKeyAuthentication`  | Validates the `X-API-KEY` request header                  |
+| Authorization  | `IPWhitelistPermission` | Restricts access to a set of allowed IP addresses / CIDRs |
 
 Both classes are registered as **global DRF defaults** in `settings.REST_FRAMEWORK`, so every API view inherits them automatically. Individual views can override `authentication_classes` or `permission_classes` when justified.
 
@@ -72,11 +72,11 @@ API_ALLOWED_IPS=127.0.0.1,::1,10.0.0.0/8
 
 ### Behaviour
 
-| `API_ALLOWED_IPS` value        | Effect                                    |
-|-------------------------------|-------------------------------------------|
-| Empty / not set               | All IPs are allowed (dev convenience)     |
-| `127.0.0.1,::1`              | Only localhost (IPv4 + IPv6)              |
-| `203.0.113.0/24,10.0.0.0/8`  | Two CIDR ranges                           |
+| `API_ALLOWED_IPS` value     | Effect                                |
+| --------------------------- | ------------------------------------- |
+| Empty / not set             | All IPs are allowed (dev convenience) |
+| `127.0.0.1,::1`             | Only localhost (IPv4 + IPv6)          |
+| `203.0.113.0/24,10.0.0.0/8` | Two CIDR ranges                       |
 
 ### File location
 
@@ -90,10 +90,10 @@ aiecommerce/api/permissions/
 
 ## Environment Variables
 
-| Variable           | Required | Default | Description                                                                |
-|--------------------|----------|---------|----------------------------------------------------------------------------|
-| `API_KEY`          | Yes (prod) | `""`  | Secret key validated against the `X-API-KEY` header. Empty = fail-secure.  |
-| `API_ALLOWED_IPS`  | No       | `[]`   | Comma-separated IPs/CIDRs. Empty = allow all IPs.                         |
+| Variable          | Required   | Default | Description                                                               |
+| ----------------- | ---------- | ------- | ------------------------------------------------------------------------- |
+| `API_KEY`         | Yes (prod) | `""`    | Secret key validated against the `X-API-KEY` header. Empty = fail-secure. |
+| `API_ALLOWED_IPS` | No         | `[]`    | Comma-separated IPs/CIDRs. Empty = allow all IPs.                         |
 
 ---
 
