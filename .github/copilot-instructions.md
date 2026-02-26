@@ -112,6 +112,17 @@ python manage.py verify_ml_handshake
 
 ```
 aiecommerce/
+├── api/                 # DRF API layer
+│   ├── urls.py
+│   ├── authentication/  # Custom auth backends
+│   │   ├── __init__.py
+│   │   └── api_key_authentication.py
+│   ├── permissions/     # Custom permission classes
+│   │   ├── __init__.py
+│   │   └── ip_whitelist_permission.py
+│   └── v1/
+│       ├── views/
+│       └── serializers/
 ├── models/              # Each model in separate file
 │   ├── __init__.py      # MUST export: from .product import Product
 │   ├── product.py       # Product model only
@@ -257,6 +268,7 @@ When reviewing changes, prioritize:
    - Confirm permissions:
      - Views and DRF viewsets use appropriate authentication/permission classes.
      - Sensitive views are protected with `login_required` or equivalent.
+     - Verify that API views use `ApiKeyAuthentication` and `IPWhitelistPermission` (globally set in `REST_FRAMEWORK` defaults). Any view that overrides `permission_classes` should have explicit justification.
    - Watch for XSS/HTML injection issues in templates and API responses.
 
 3. **Django & DRF best practices**
@@ -318,3 +330,4 @@ When leaving review comments:
 - [MercadoLibre Integration](../docs/mercadolibre-verification.md) - API verification
 - [AI Content Pipeline](../docs/mercadolibre/ai_content_pipeline.md) - Product enrichment flow
 - [Celery Guide](../docs/infrastructure/celery_guide.md) - Background task setup
+- [API Authentication](../docs/api-authentication.md) - API key and IP whitelisting setup

@@ -15,6 +15,8 @@ The following environment variables are required for the application to run on R
 - `CELERY_BROKER_URL`: Railway provides `REDIS_URL`, so you can use that here.
 - `SESSION_COOKIE_SECURE`: Set to `True`.
 - `CSRF_COOKIE_SECURE`: Set to `True`.
+- `API_KEY`: A secret key for authenticating API requests via the `X-API-KEY` header. Generate a strong random value (e.g. `python -c 'import secrets; print(secrets.token_urlsafe(32))'`).
+- `API_ALLOWED_IPS`: Comma-separated list of IPs/CIDRs allowed to access the API (e.g. `203.0.113.5,10.0.0.0/8`). Leave empty to allow all IPs (not recommended for production).
 
 ### Third-Party Services
 - `OPENROUTER_API_KEY`: Your API key for OpenRouter.

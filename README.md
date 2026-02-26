@@ -199,6 +199,42 @@ For detailed information on setting up and verifying the Mercado Libre integrati
 - [HTTPS Setup for Local Development](docs/README_HTTPS.md) - Required for OAuth2 callbacks.
 - [Verifying Credentials and Tokens](docs/mercadolibre-verification.md) - Example of how to verify the API handshake.
 
+## API Authentication
+
+All `/api/v1/` endpoints are protected by two security layers:
+
+### 1. API Key (Header-Based)
+
+Every request must include a valid `X-API-KEY` header:
+
+```bash
+curl -H "X-API-KEY: your-secret-key" http://localhost:8000/api/v1/...
+```
+
+Set the key in your `.env` file:
+
+```dotenv
+API_KEY=your-secret-api-key-here
+```
+
+- **Missing key**: Falls through to session authentication (for Django admin / browsable API).
+- **Invalid key**: Returns `403 Forbidden`.
+- **Empty `API_KEY` setting**: All API-key requests are rejected (fail-secure).
+
+### 2. IP Whitelisting
+
+Restrict API access to specific IP addresses or CIDR ranges:
+
+```dotenv
+# Single IPs and CIDR ranges, comma-separated
+API_ALLOWED_IPS=203.0.113.5,10.0.0.0/8,::1
+```
+
+- **Empty list**: All IPs are allowed (convenient for local development).
+- Supports IPv4, IPv6, and CIDR notation.
+
+For full details, see [API Authentication Documentation](docs/api-authentication.md).
+
 ## License
 [Specify your license here]
 ## Contributing

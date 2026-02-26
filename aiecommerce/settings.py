@@ -58,6 +58,10 @@ INSTALLED_APPS = [
     "aiecommerce",
 ]
 
+# --- API Authentication ---
+API_KEY: str = env("API_KEY", default="")
+API_ALLOWED_IPS: list[str] = env.list("API_ALLOWED_IPS", default=[])
+
 # --- Django REST Framework ---
 DRF_PAGE_SIZE = env.int("DRF_PAGE_SIZE", default=20)
 DRF_BROWSABLE_API = env.bool("DRF_BROWSABLE_API", default=False)
@@ -73,10 +77,12 @@ REST_FRAMEWORK: dict[str, object] = {
     "PAGE_SIZE": DRF_PAGE_SIZE,
     "DEFAULT_RENDERER_CLASSES": _DRF_RENDERER_CLASSES,
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "aiecommerce.api.authentication.api_key_authentication.ApiKeyAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "aiecommerce.api.permissions.ip_whitelist_permission.IPWhitelistPermission",
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }
 
