@@ -102,11 +102,7 @@ class ProductMaster(models.Model):
         if not self._is_stock_available(self.stock_principal):
             return 0
 
-        return sum(
-            1
-            for field in self.BRANCH_FIELDS
-            if self._is_stock_available(getattr(self, field, None))
-        )
+        return sum(1 for field in self.BRANCH_FIELDS if self._is_stock_available(getattr(self, field, None)))
 
     def __str__(self) -> str:
         """Return string representation of the master product."""

@@ -119,6 +119,4 @@ class TestTotalAvailableStock:
 
         for kwargs in test_cases:
             product = ProductMasterFactory.build(**kwargs)
-            assert product.total_available_stock == engine.get_available_quantity(product), (
-                f"Mismatch for {kwargs}: property={product.total_available_stock}, engine={engine.get_available_quantity(product)}"
-            )
+            assert product.total_available_stock == engine.get_available_quantity(product), f"Mismatch for {kwargs}: property={product.total_available_stock}, engine={engine.get_available_quantity(product)}"
