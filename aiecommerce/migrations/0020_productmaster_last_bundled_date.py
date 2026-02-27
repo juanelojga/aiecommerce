@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('aiecommerce', '0019_mercadolibrelisting_attributes'),
+        ("aiecommerce", "0019_mercadolibrelisting_attributes"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='productmaster',
-            name='last_bundled_date',
-            field=models.DateTimeField(blank=True, help_text='Tracks when a component was last used in a published bundle.', null=True),
+            model_name="productmaster",
+            name="last_bundled_date",
+            field=models.DateTimeField(blank=True, help_text="Tracks when a component was last used in a published bundle.", null=True),
         ),
     ]
