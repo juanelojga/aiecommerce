@@ -19,6 +19,8 @@ services:
       - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
       - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-admin123}
       - CELERY_BROKER_URL=redis://redis:6379/0
+      - API_KEY=${API_KEY:-dev-test-key-change-me-in-production}
+      - API_ALLOWED_IPS=${API_ALLOWED_IPS:-127.0.0.1,::1}
     depends_on:
       - db
       - redis

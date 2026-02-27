@@ -60,7 +60,7 @@ INSTALLED_APPS = [
 
 # --- API Authentication ---
 API_KEY: str = env("API_KEY", default="")
-API_ALLOWED_IPS: list[str] = env.list("API_ALLOWED_IPS", default=[])
+API_ALLOWED_IPS: list[str] = env.list("API_ALLOWED_IPS", default=["127.0.0.1", "::1"])
 
 # --- Django REST Framework ---
 DRF_PAGE_SIZE = env.int("DRF_PAGE_SIZE", default=20)

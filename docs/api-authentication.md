@@ -170,3 +170,9 @@ def test_valid_api_key():
 ```
 
 See `aiecommerce/tests/api/` for the full test suite.
+
+---
+
+## Practical Testing with curl
+
+For hands-on examples of testing the API using `curl` (health check, authenticated requests, error troubleshooting), see the [API curl Testing Guide](../docs/testing/api-curl-guide.md).
