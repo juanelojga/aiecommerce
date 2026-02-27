@@ -72,6 +72,8 @@ class ProductMaster(models.Model):
     normalized_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Standardized name: [Brand] [Line] [Model] [Specs]")
     model_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="The specific model identifier (e.g., ProBook 440 G10).")
 
+    last_bundled_date = models.DateTimeField(null=True, blank=True, help_text="Tracks when a component was last used in a published bundle.")
+
     def __str__(self) -> str:
         """Return string representation of the master product."""
         has_images = self.images.exists()

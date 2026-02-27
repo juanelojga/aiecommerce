@@ -19,7 +19,7 @@ class GtinNotNullFilter(admin.SimpleListFilter):
 
 @admin.register(ProductMaster)
 class ProductMasterAdmin(admin.ModelAdmin):
-    list_display = ("code", "get_ml_id", "price", "is_active", "sku", "gtin", "is_for_mercadolibre", "last_updated")
+    list_display = ("code", "get_ml_id", "price", "is_active", "sku", "gtin", "is_for_mercadolibre", "last_updated", "last_bundled_date")
     list_filter = ("is_active", "category", GtinNotNullFilter)  # Add the custom filter here
     search_fields = ("code", "description", "mercadolibre_listing__ml_id")
 
