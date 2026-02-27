@@ -55,15 +55,12 @@ class UpdateMlEligibilityCandidateSelector:
             return query.order_by("id")[:3]
 
         if not force:
-            query = query.filter(stock_principal="Si")
+            query = query.filter(stock_principal__iexact="si")
 
-            # Define the branch fields to check
-            branch_fields = ["stock_colon", "stock_sur", "stock_gye_norte", "stock_gye_sur"]
-
-            # Build an OR condition: (stock_colon='SI' OR stock_sur='SI' OR ...)
+            # Use the canonical branch fields from ProductMaster
             branch_query = Q()
-            for field in branch_fields:
-                branch_query |= Q(**{field: "Si"})
+            for field in ProductMaster.BRANCH_FIELDS:
+                branch_query |= Q(**{f"{field}__iexact": "si"})
 
             query = query.filter(branch_query)
 

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 
 
@@ -46,6 +48,13 @@ class ProductRawWeb(models.Model):
 class ProductMaster(models.Model):
     """Normalized and master product record."""
 
+    BRANCH_FIELDS: ClassVar[list[str]] = [
+        "stock_colon",
+        "stock_sur",
+        "stock_gye_norte",
+        "stock_gye_sur",
+    ]
+
     code = models.CharField(max_length=255, null=True, blank=True, db_index=True)
     sku = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Manufacturer Part Number (MPN or SKU).")
     description = models.TextField(null=True, blank=True)
@@ -73,6 +82,31 @@ class ProductMaster(models.Model):
     model_name = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="The specific model identifier (e.g., ProBook 440 G10).")
 
     last_bundled_date = models.DateTimeField(null=True, blank=True, help_text="Tracks when a component was last used in a published bundle.")
+
+    @staticmethod
+    def _is_stock_available(value: str | None) -> bool:
+        """Check if a stock value indicates availability ('SI')."""
+        if not value or not isinstance(value, str):
+            return False
+        return value.strip().upper() == "SI"
+
+    @property
+    def total_available_stock(self) -> int:
+        """
+        Calculate total available stock across all branches.
+
+        Rules (mirrored from MercadoLibreStockEngine):
+        1. If stock_principal is not 'SI', the available quantity is 0.
+        2. Otherwise, count branches where stock is 'SI'.
+        """
+        if not self._is_stock_available(self.stock_principal):
+            return 0
+
+        return sum(
+            1
+            for field in self.BRANCH_FIELDS
+            if self._is_stock_available(getattr(self, field, None))
+        )
 
     def __str__(self) -> str:
         """Return string representation of the master product."""
