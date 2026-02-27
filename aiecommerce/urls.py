@@ -16,13 +16,15 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 
 from aiecommerce.views.mercadolibre_callback import MercadoLibreCallbackView
 from aiecommerce.views.mercadolibre_login import MercadoLibreLoginView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # API
+    path("api/v1/", include("aiecommerce.api.urls")),
     # Mercado Libre OAuth
     path("mercadolibre/login/", MercadoLibreLoginView.as_view(), name="mercadolibre-login"),
     path("mercadolibre/callback/", MercadoLibreCallbackView.as_view(), name="mercadolibre-callback"),

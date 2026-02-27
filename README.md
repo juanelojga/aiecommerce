@@ -121,6 +121,7 @@ docker compose exec db psql -U myproject_user -d myproject_db
 ```
 
 Project Structure
+
 ```
 django-projects/
 ├── aiecommerce/        # Django project settings
@@ -133,6 +134,7 @@ django-projects/
 ```
 
 ## Development Workflow
+
 1. Activate virtual environment: `source venv/bin/activate`
 2. Start Docker services: `docker-compose up -d`
 3. Run migrations: `python manage.py migrate`
@@ -141,24 +143,29 @@ django-projects/
 6. Update requirements if needed: `pip freeze > requirements.txt`
 
 ## Troubleshooting
+
 ### Database Connection Issues
+
 - Ensure Docker containers are running: `docker-compose ps`
 - Check environment variables in file `.env`
 - Verify database credentials match in and `.env``docker-compose.yml`
 
 ### Port Already in Use
+
 - Change the port in or file `docker-compose.yml``.env`
 - Or stop the service using the port
 
 ### Migration Errors
+
 - Try resetting migrations (development only!)
 - Ensure a database is running
 - Check for circular dependencies in models
 
 ### Code Quality & Tooling
+
 This project uses Ruff (linting/formatting) and Mypy (static typing). These run automatically on git commit, but you can run them manually:
 
-``` bash
+```bash
 # Format code and fix linting errors
 ruff format .
 ruff check . --fix
@@ -188,7 +195,7 @@ venv/bin/python -m pytest aiecommerce/tests/test_models.py
 One last tip for you
 Since you installed these packages manually, remember to freeze them into a requirements file so you don't lose track of them:
 
-``` bash
+```bash
 pip freeze > requirements.txt
 ```
 
@@ -199,9 +206,48 @@ For detailed information on setting up and verifying the Mercado Libre integrati
 - [HTTPS Setup for Local Development](docs/README_HTTPS.md) - Required for OAuth2 callbacks.
 - [Verifying Credentials and Tokens](docs/mercadolibre-verification.md) - Example of how to verify the API handshake.
 
+## API Authentication
+
+All `/api/v1/` endpoints are protected by two security layers:
+
+### 1. API Key (Header-Based)
+
+Every request must include a valid `X-API-KEY` header:
+
+```bash
+curl -H "X-API-KEY: your-secret-key" http://localhost:8000/api/v1/...
+```
+
+Set the key in your `.env` file:
+
+```dotenv
+API_KEY=your-secret-api-key-here
+```
+
+- **Missing key**: Falls through to session authentication (for Django admin / browsable API).
+- **Invalid key**: Returns `403 Forbidden`.
+- **Empty `API_KEY` setting**: All API-key requests are rejected (fail-secure).
+
+### 2. IP Whitelisting
+
+Restrict API access to specific IP addresses or CIDR ranges:
+
+```dotenv
+# Single IPs and CIDR ranges, comma-separated
+API_ALLOWED_IPS=203.0.113.5,10.0.0.0/8,::1
+```
+
+- **Empty list**: All IPs are allowed (convenient for local development).
+- Supports IPv4, IPv6, and CIDR notation.
+
+For full details, see [API Authentication Documentation](docs/api-authentication.md).
+
 ## License
+
 [Specify your license here]
+
 ## Contributing
+
 [Add contribution guidelines here]
 
 ## Management Commands: Scraping and Price List

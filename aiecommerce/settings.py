@@ -54,8 +54,37 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_extensions",
+    "rest_framework",
     "aiecommerce",
 ]
+
+# --- API Authentication ---
+API_KEY: str = env("API_KEY", default="")
+API_ALLOWED_IPS: list[str] = env.list("API_ALLOWED_IPS", default=["127.0.0.1", "::1"])
+
+# --- Django REST Framework ---
+DRF_PAGE_SIZE = env.int("DRF_PAGE_SIZE", default=20)
+DRF_BROWSABLE_API = env.bool("DRF_BROWSABLE_API", default=False)
+
+_DRF_RENDERER_CLASSES = [
+    "rest_framework.renderers.JSONRenderer",
+]
+if DRF_BROWSABLE_API:
+    _DRF_RENDERER_CLASSES.append("rest_framework.renderers.BrowsableAPIRenderer")
+
+REST_FRAMEWORK: dict[str, object] = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": DRF_PAGE_SIZE,
+    "DEFAULT_RENDERER_CLASSES": _DRF_RENDERER_CLASSES,
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "aiecommerce.api.authentication.api_key_authentication.ApiKeyAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "aiecommerce.api.permissions.ip_whitelist_permission.IPWhitelistPermission",
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
