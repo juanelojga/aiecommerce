@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "rest_framework",
+    "django_filters",
     "aiecommerce",
 ]
 
@@ -83,6 +84,10 @@ REST_FRAMEWORK: dict[str, object] = {
     "DEFAULT_PERMISSION_CLASSES": [
         "aiecommerce.api.permissions.ip_whitelist_permission.IPWhitelistPermission",
         "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.OrderingFilter",
     ],
 }
 
