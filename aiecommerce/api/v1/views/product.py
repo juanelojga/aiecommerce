@@ -1,20 +1,26 @@
 from django.db.models import Case, IntegerField, QuerySet, Value, When
-from rest_framework import mixins
+from rest_framework import mixins, serializers
 from rest_framework.viewsets import GenericViewSet
 
 from aiecommerce.api.v1.filters.product import ProductFilter
 from aiecommerce.api.v1.serializers.product import ProductSerializer
+from aiecommerce.api.v1.serializers.product_detail import ProductDetailSerializer
 from aiecommerce.models.product import ProductMaster
 
 
-class ProductViewSet(mixins.ListModelMixin, GenericViewSet):
+class ProductViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet):
     """
-    List-only viewset for the product catalog.
+    Viewset for the product catalog.
 
-    GET /api/v1/products/
+    GET /api/v1/products/          — Paginated product list.
+    GET /api/v1/products/{id}/     — Full technical details for a single product.
 
-    Supports filtering by category, has_stock, is_active and
+    The list action supports filtering by category, has_stock, is_active and
     ordering by last_bundled_date (ascending = oldest first).
+
+    The retrieve action returns the complete technical profile including
+    the ``specs`` JSONField, used by the Dependency Resolver for
+    compatibility checks (TDP, socket types, dimensions).
     """
 
     serializer_class = ProductSerializer
@@ -22,8 +28,24 @@ class ProductViewSet(mixins.ListModelMixin, GenericViewSet):
     ordering_fields = ["last_bundled_date"]
     ordering = ["last_bundled_date"]
 
+    def get_serializer_class(self) -> type[serializers.Serializer]:
+        """Return the appropriate serializer for the current action."""
+        if self.action == "retrieve":
+            return ProductDetailSerializer
+        return ProductSerializer
+
     def get_queryset(self) -> QuerySet[ProductMaster]:
-        """Return annotated queryset with total_available_stock computed at DB level."""
+        """Return the appropriate queryset for the current action.
+
+        For *list*: annotated with ``computed_total_available_stock`` at DB
+        level and projected via ``.only()`` for performance.
+
+        For *retrieve*: full model (no ``.only()``) so that every field
+        (``specs``, ``seo_title``, etc.) is available to the serializer.
+        """
+        if self.action == "retrieve":
+            return ProductMaster.objects.all()
+
         branch_cases = [When(**{f"{field}__iexact": "SI"}, then=Value(1)) for field in ProductMaster.BRANCH_FIELDS]
 
         # Mirror the @property logic:
