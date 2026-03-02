@@ -7,7 +7,7 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from aiecommerce.tests.factories import ProductMasterFactory
+from aiecommerce.tests.factories import ProductImageFactory, ProductMasterFactory
 
 API_KEY = "test-secret-key"
 PRODUCTS_URL = "/api/v1/products/"
@@ -87,6 +87,7 @@ class TestProductDetailEndpoint:
         assert data["gtin"] == "1234567890123"
         assert data["specs"] == {"processor": "Intel i7-1355U", "ram": "16GB", "tdp": "15W"}
         assert data["image_url"] == "https://example.com/image.jpg"
+        assert data["image_urls"] == []
         assert data["total_available_stock"] == 2  # colon + gye_norte
 
     # -- specs field ----------------------------------------------------------
@@ -199,3 +200,34 @@ class TestProductDetailEndpoint:
         assert "results" not in response.data
         assert "count" not in response.data
         assert "id" in response.data
+
+    # -- Image URLs -----------------------------------------------------------
+
+    @_api_settings
+    def test_image_urls_returns_ordered_list_of_objects(self) -> None:
+        """image_urls contains {url, order} objects sorted by order."""
+        product = ProductMasterFactory(is_active=True)
+        ProductImageFactory(product=product, url="https://cdn.example.com/b.jpg", order=2)
+        ProductImageFactory(product=product, url="https://cdn.example.com/a.jpg", order=0)
+        ProductImageFactory(product=product, url="https://cdn.example.com/c.jpg", order=1)
+        client = _auth_client()
+
+        response = client.get(_detail_url(product.pk))
+
+        assert response.status_code == status.HTTP_200_OK
+        image_urls = response.data["image_urls"]
+        assert len(image_urls) == 3
+        assert image_urls[0] == {"url": "https://cdn.example.com/a.jpg", "order": 0}
+        assert image_urls[1] == {"url": "https://cdn.example.com/c.jpg", "order": 1}
+        assert image_urls[2] == {"url": "https://cdn.example.com/b.jpg", "order": 2}
+
+    @_api_settings
+    def test_image_urls_empty_when_no_images(self) -> None:
+        """Products with no associated images return an empty list."""
+        product = ProductMasterFactory(is_active=True)
+        client = _auth_client()
+
+        response = client.get(_detail_url(product.pk))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["image_urls"] == []

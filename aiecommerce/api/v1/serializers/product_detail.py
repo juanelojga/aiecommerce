@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from aiecommerce.api.v1.serializers.product_image import ProductImageSerializer
 from aiecommerce.models.product import ProductMaster
 
 
@@ -12,6 +13,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     """
 
     total_available_stock = serializers.SerializerMethodField()
+    image_urls = ProductImageSerializer(source="images", many=True, read_only=True)
 
     class Meta:
         model = ProductMaster
@@ -29,6 +31,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "gtin",
             "specs",
             "image_url",
+            "image_urls",
             "total_available_stock",
         ]
         read_only_fields = fields
