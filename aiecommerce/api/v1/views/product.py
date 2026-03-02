@@ -44,7 +44,7 @@ class ProductViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericVi
         (``specs``, ``seo_title``, etc.) is available to the serializer.
         """
         if self.action == "retrieve":
-            return ProductMaster.objects.all()
+            return ProductMaster.objects.prefetch_related("images").all()
 
         branch_cases = [When(**{f"{field}__iexact": "SI"}, then=Value(1)) for field in ProductMaster.BRANCH_FIELDS]
 
