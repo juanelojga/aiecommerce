@@ -42,10 +42,12 @@ class MercadoLibrePublisherService:
 
         price = float(listing.final_price) if listing.final_price is not None else 0.0
 
-        title = "Item de test - No ofertar" if test else product.seo_title
+        title = "Item de test - No ofertar" if test else (product.seo_title or "")
+        family_name = (product.model_name or title)[:60]
 
         return {
             "title": title,
+            "family_name": family_name,
             "category_id": listing.category_id,
             "price": price,
             "currency_id": "USD",
