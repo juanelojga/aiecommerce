@@ -26,7 +26,7 @@ def publisher_service(ml_client, attribute_fixer):
 
 @pytest.fixture
 def product(db):
-    product = ProductMaster.objects.create(code="PROD001", seo_title="Test Product SEO Title", seo_description="Test Product SEO Description")
+    product = ProductMaster.objects.create(code="PROD001", seo_title="Test Product SEO Title", seo_description="Test Product SEO Description", model_name="Test Model Name")
     # Add an image
     ProductImage.objects.create(product=product, url="http://example.com/image.jpg", order=1)
 
@@ -41,6 +41,7 @@ class TestMercadoLibrePublisherService:
         payload = publisher_service.build_payload(product)
 
         assert payload["title"] == "Test Product SEO Title"
+        assert payload["family_name"] == "Test Model Name"
         assert payload["category_id"] == "MLA1234"
         assert payload["price"] == 100.5
         assert payload["currency_id"] == "USD"
@@ -55,6 +56,7 @@ class TestMercadoLibrePublisherService:
     def test_build_payload_test_mode(self, publisher_service, product):
         payload = publisher_service.build_payload(product, test=True)
         assert payload["title"] == "Item de test - No ofertar"
+        assert payload["family_name"] == "Test Model Name"
 
     def test_publish_product_success(self, publisher_service, ml_client, product):
         # Mock responses
