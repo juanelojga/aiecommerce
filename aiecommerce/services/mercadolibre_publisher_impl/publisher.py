@@ -46,7 +46,6 @@ class MercadoLibrePublisherService:
         family_name = (product.model_name or title)[:60]
 
         return {
-            "title": title,
             "family_name": family_name,
             "category_id": listing.category_id,
             "price": price,

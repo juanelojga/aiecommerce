@@ -40,7 +40,6 @@ class TestMercadoLibrePublisherService:
     def test_build_payload(self, publisher_service, product):
         payload = publisher_service.build_payload(product)
 
-        assert payload["title"] == "Test Product SEO Title"
         assert payload["family_name"] == "Test Model Name"
         assert payload["category_id"] == "MLA1234"
         assert payload["price"] == 100.5
@@ -55,7 +54,6 @@ class TestMercadoLibrePublisherService:
 
     def test_build_payload_test_mode(self, publisher_service, product):
         payload = publisher_service.build_payload(product, test=True)
-        assert payload["title"] == "Item de test - No ofertar"
         assert payload["family_name"] == "Test Model Name"
 
     def test_publish_product_success(self, publisher_service, ml_client, product):
