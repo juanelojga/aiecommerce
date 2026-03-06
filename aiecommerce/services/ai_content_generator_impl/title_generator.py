@@ -3,7 +3,7 @@ import logging
 
 import instructor
 from django.conf import settings
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from aiecommerce.models import ProductMaster
 
@@ -20,7 +20,7 @@ Tu objetivo es generar un TÍTULO DE PRODUCTO que cumpla exactamente con estas r
    - Información de stock, garantía, envíos, promociones o descuentos.
    - Nombres de marcas de terceros salvo que indique compatibilidad.
 3. Separa las palabras con espacios, sin guiones ni símbolos.
-4. Mantén el título con un máximo de 60 caracteres.
+4. El título DEBE tener un MÁXIMO DE 60 CARACTERES (incluyendo espacios). Cuenta cada carácter antes de responder. Si excede 60 caracteres, elimina las especificaciones menos importantes hasta cumplir el límite.
 5. Usa formato consistente en mayúsculas y números (por ejemplo, 16GB o 512GB SSD).
 Input (datos del producto en formato JSON):
 {product_data}
@@ -35,8 +35,19 @@ class AITitle(BaseModel):
     title: str = Field(
         ...,
         description="The generated product title, optimized for Mercado Libre.",
-        max_length=MAX_TITLE_LENGTH,
     )
+
+    @field_validator("title")
+    @classmethod
+    def truncate_to_max_length(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) <= MAX_TITLE_LENGTH:
+            return v
+        truncated = v[:MAX_TITLE_LENGTH]
+        last_space = truncated.rfind(" ")
+        if last_space > 0:
+            truncated = truncated[:last_space]
+        return truncated.strip()
 
 
 class TitleGeneratorService:
