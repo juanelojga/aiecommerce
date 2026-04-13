@@ -1,11 +1,14 @@
 from django.db.models import Case, IntegerField, QuerySet, Value, When
-from rest_framework import mixins, serializers
+from rest_framework import mixins, serializers, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from aiecommerce.api.v1.filters.product import ProductFilter
 from aiecommerce.api.v1.serializers.product import ProductSerializer
 from aiecommerce.api.v1.serializers.product_detail import ProductDetailSerializer
 from aiecommerce.models.product import ProductMaster
+from aiecommerce.services.product_images import refresh_product_images
 
 
 class ProductViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet):
@@ -70,4 +73,18 @@ class ProductViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericVi
             "is_active",
             "stock_principal",
             *ProductMaster.BRANCH_FIELDS,
+        )
+
+    @action(detail=True, methods=["post"], url_path="refresh-images")
+    def refresh_images(self, request, pk=None):
+        """Delete this product's images (DB + S3) and enqueue a re-fetch task.
+
+        Returns 202 Accepted with the Celery task id; the actual work runs
+        asynchronously on a worker.
+        """
+        product = self.get_object()
+        task_id = refresh_product_images(product.code)
+        return Response(
+            {"task_id": task_id, "product_code": product.code},
+            status=status.HTTP_202_ACCEPTED,
         )
