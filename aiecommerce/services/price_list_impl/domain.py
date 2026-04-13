@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-import numpy as np
 import pandas as pd
 
 from aiecommerce.services.price_list_impl.interfaces import CategoryResolver
@@ -26,8 +25,8 @@ class StandardCategoryResolver(CategoryResolver):
         is_header = (df_copy["_temp_price"].isna()) & (df_copy["raw_description"].notna())
 
         # 4. Assign Categories
-        df_copy["category_header"] = np.nan
-        df_copy.loc[is_header, "category_header"] = df_copy["raw_description"]
+        df_copy["category_header"] = pd.Series(pd.NA, index=df_copy.index, dtype="object")
+        df_copy.loc[is_header, "category_header"] = df_copy.loc[is_header, "raw_description"]
         df_copy["category_header"] = df_copy["category_header"].ffill()
 
         # 5. Apply Fallback Rule

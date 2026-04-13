@@ -1,4 +1,6 @@
 import logging
+import uuid
+from datetime import UTC, datetime
 from typing import List
 
 from aiecommerce.models import ProductRawWeb
@@ -35,11 +37,9 @@ class ScrapeCoordinator:
         self.persister = persister
         self.reporter = reporter
         self.previewer = previewer
-        import uuid
-        from datetime import datetime
 
         # Format: 20251222T143022_a1b2c3d4
-        self.scrape_session_id = f"{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}_{str(uuid.uuid4())[:8]}"
+        self.scrape_session_id = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}_{str(uuid.uuid4())[:8]}"
         logger.info(f"Coordinator initialized with config: {config}")
         logger.info(f"Scrape Session ID: {self.scrape_session_id}")
 

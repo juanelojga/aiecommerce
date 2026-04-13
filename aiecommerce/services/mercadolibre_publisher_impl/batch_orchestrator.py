@@ -1,4 +1,5 @@
 import logging
+from typing import cast
 
 from django.db import transaction
 
@@ -87,8 +88,7 @@ class BatchPublisherOrchestrator:
                     # Collect ML ID after successful publication
                     listing.refresh_from_db()
                     if listing.ml_id:
-                        published_ids = stats["published_ids"]
-                        assert isinstance(published_ids, list)
+                        published_ids = cast(list[str], stats["published_ids"])
                         published_ids.append(listing.ml_id)
 
                 except Exception as e:
