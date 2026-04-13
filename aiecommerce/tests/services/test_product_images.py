@@ -25,9 +25,7 @@ def mock_boto3_client():
 
 @pytest.fixture
 def mock_task_delay():
-    with patch(
-        "aiecommerce.services.product_images.process_highres_image_task.delay"
-    ) as mock:
+    with patch("aiecommerce.services.product_images.process_highres_image_task.delay") as mock:
         result = MagicMock()
         result.id = "task-xyz"
         mock.return_value = result
@@ -125,9 +123,7 @@ def test_delete_s3_objects_logs_per_key_errors(mock_boto3_client, caplog):
     caplog.set_level("ERROR")
     s3_client = mock_boto3_client.return_value
     paginator = MagicMock()
-    paginator.paginate.return_value = [
-        {"Contents": [{"Key": "products/E/a.jpg"}, {"Key": "products/E/b.jpg"}]}
-    ]
+    paginator.paginate.return_value = [{"Contents": [{"Key": "products/E/a.jpg"}, {"Key": "products/E/b.jpg"}]}]
     s3_client.get_paginator.return_value = paginator
     s3_client.delete_objects.return_value = {
         "Deleted": [{"Key": "products/E/a.jpg"}],
