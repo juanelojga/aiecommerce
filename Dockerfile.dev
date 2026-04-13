@@ -13,12 +13,23 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
-COPY requirements.txt requirements-dev.txt /app/
-RUN pip install --upgrade pip && pip install -r requirements.txt && pip install -r requirements-dev.txt
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
+
+# Install python dependencies (cached layer — only re-runs when lock/manifest change)
+COPY pyproject.toml uv.lock /app/
+RUN uv sync --frozen --no-install-project
 
 # Copy project
 COPY . /app/
+
+# Install the project itself into the venv
+RUN uv sync --frozen
 
 # Copy entrypoint script and make it executable
 COPY docker-entrypoint.sh /app/

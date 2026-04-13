@@ -24,7 +24,7 @@ python --version  # Should match project requirements
 
 # Check virtual environment
 which python
-pip list --outdated
+uv tree --outdated
 
 # Verify environment variables
 python -c "import os; import environ; print('DJANGO_SECRET_KEY set' if os.environ.get('DJANGO_SECRET_KEY') else 'MISSING: DJANGO_SECRET_KEY')"
@@ -119,11 +119,11 @@ Coverage targets:
 
 ```bash
 # Dependency vulnerabilities
-pip-audit
-safety check --full-report
+uvx pip-audit
+uvx safety check --full-report
 
 # Django security checks
-python manage.py check --deploy
+uv run python manage.py check --deploy
 
 # Bandit security linter
 bandit -r . -f json -o bandit-report.json
@@ -412,40 +412,31 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: '3.11'
-
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          enable-cache: true
+          python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install ruff black mypy pytest pytest-django pytest-cov bandit safety pip-audit
+        run: uv sync --frozen
 
       - name: Code quality checks
         run: |
-          ruff check .
-          black . --check
-          isort . --check-only
-          mypy .
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy .
 
       - name: Security scan
         run: |
-          bandit -r . -f json -o bandit-report.json
-          safety check --full-report
-          pip-audit
+          uvx bandit -r . -f json -o bandit-report.json
+          uvx safety check --full-report
+          uvx pip-audit
 
       - name: Run tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
           DJANGO_SECRET_KEY: test-secret-key
-        run: |
-          pytest --cov=apps --cov-report=xml --cov-report=term-missing
+        run: uv run pytest --cov=apps --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
@@ -461,7 +452,7 @@ jobs:
 | Formatting | `black . --check` |
 | Migrations | `python manage.py makemigrations --check` |
 | Tests | `pytest --cov=apps` |
-| Security | `pip-audit && bandit -r .` |
+| Security | `uvx pip-audit && uvx bandit -r .` |
 | Django check | `python manage.py check --deploy` |
 | Collectstatic | `python manage.py collectstatic --noinput` |
 | Diff stats | `git diff --stat` |
