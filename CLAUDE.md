@@ -8,18 +8,18 @@ Django 5.x + DRF on Python 3.12, PostgreSQL, Redis, Celery. Tooling: Ruff (lint/
 
 ## Common Commands
 
-Dev runs in Docker; prefix commands with `docker compose exec web` or activate `venv/` and run directly.
+Dev runs in Docker; prefix commands with `docker compose exec web`, or run locally via `uv run …` (uv manages `.venv/`).
 
 ```bash
 # Tests
-venv/bin/python -m pytest                                   # all
-venv/bin/python -m pytest aiecommerce/tests/test_models.py  # single file
-venv/bin/python -m pytest path::test_name                   # single test
+uv run pytest                                   # all
+uv run pytest aiecommerce/tests/test_models.py  # single file
+uv run pytest path::test_name                   # single test
 
 # Lint / format / types
-ruff format .
-ruff check . --fix
-mypy .   # excludes aiecommerce/tests/ and venv/
+uv run ruff format .
+uv run ruff check . --fix
+uv run mypy .   # excludes aiecommerce/tests/, venv/, .venv/
 
 # Django
 docker compose exec web python manage.py migrate

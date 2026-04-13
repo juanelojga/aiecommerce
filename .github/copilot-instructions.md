@@ -29,34 +29,33 @@ This is a **Django 5.x + PostgreSQL** e-commerce application with AI-powered pro
 # Start PostgreSQL and Redis
 docker-compose up -d
 
-# Install dependencies
-pip install -r requirements.txt        # Production deps
-pip install -r requirements-dev.txt    # Adds testing/linting tools
+# Install dependencies (runtime + dev groups, creates .venv/)
+uv sync
 
 # Run migrations (manual step - never auto-migrate)
-python manage.py migrate
+uv run python manage.py migrate
 
 # Start dev server
-python manage.py runserver
+uv run python manage.py runserver
 ```
 
 ### Testing
 
 ```bash
 # Run all tests
-venv/bin/python -m pytest
+uv run pytest
 
 # Run specific test file
-venv/bin/python -m pytest aiecommerce/tests/test_models.py
+uv run pytest aiecommerce/tests/test_models.py
 
 # Run specific test function
-venv/bin/python -m pytest aiecommerce/tests/services/test_enrichment.py::test_enrich_product_specs
+uv run pytest aiecommerce/tests/services/test_enrichment.py::test_enrich_product_specs
 
 # Run with coverage
-venv/bin/python -m pytest --cov=aiecommerce
+uv run pytest --cov=aiecommerce
 
 # Run tests matching a pattern
-venv/bin/python -m pytest -k "test_mercadolibre"
+uv run pytest -k "test_mercadolibre"
 ```
 
 ### Linting and Formatting

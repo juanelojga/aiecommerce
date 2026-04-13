@@ -45,23 +45,19 @@ The application will be available at `http://localhost:<WEB_PORT>` (default: `80
 
 If you prefer to run the project locally without Docker:
 
-1. Create and activate a virtual environment:
+1. Install [uv](https://docs.astral.sh/uv/) if you haven't already.
+2. Install dependencies (creates `.venv/` automatically):
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # Linux/macOS
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+   uv sync
    ```
 3. Run migrations and create a superuser:
    ```bash
-   python manage.py migrate
-   python manage.py createsuperuser
+   uv run python manage.py migrate
+   uv run python manage.py createsuperuser
    ```
 4. Start the development server:
    ```bash
-   python manage.py runserver
+   uv run python manage.py runserver
    ```
 
 ## Common Commands
@@ -85,13 +81,19 @@ docker compose exec web pytest
 
 ### Dependency Management
 
-If you add a new package locally, you'll need to rebuild the Docker container:
+Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`. Use uv to add or update them:
 
 ```bash
-# Update requirements.txt locally first
-pip freeze > requirements.txt
+# Add a runtime dependency
+uv add <package>
 
-# Then rebuild the container
+# Add a dev/test dependency
+uv add --dev <package>
+
+# Upgrade everything to latest allowed versions
+uv lock --upgrade
+
+# Rebuild the Docker container to pick up the new lock
 docker compose up -d --build
 ```
 
@@ -125,22 +127,23 @@ Project Structure
 ```
 django-projects/
 ├── aiecommerce/        # Django project settings
-├── venv/               # Virtual environment
+├── .venv/              # Virtual environment (uv-managed)
 ├── docker-compose.yml  # Docker services configuration
 ├── manage.py           # Django management script
-├── requirements.txt    # Python dependencies
+├── pyproject.toml      # Python dependencies + tool config
+├── uv.lock             # Fully-pinned dependency lockfile
 ├── .env                # Environment variables
 └── .gitignore          # Git ignore rules
 ```
 
 ## Development Workflow
 
-1. Activate virtual environment: `source venv/bin/activate`
-2. Start Docker services: `docker-compose up -d`
-3. Run migrations: `python manage.py migrate`
-4. Start development server: `python manage.py runserver`
+1. Sync dependencies: `uv sync`
+2. Start Docker services: `docker compose up -d`
+3. Run migrations: `uv run python manage.py migrate`
+4. Start development server: `uv run python manage.py runserver`
 5. Make changes and test
-6. Update requirements if needed: `pip freeze > requirements.txt`
+6. Add dependencies as needed with `uv add <pkg>` / `uv add --dev <pkg>`
 
 ## Troubleshooting
 
@@ -167,36 +170,23 @@ This project uses Ruff (linting/formatting) and Mypy (static typing). These run 
 
 ```bash
 # Format code and fix linting errors
-ruff format .
-ruff check . --fix
+uv run ruff format .
+uv run ruff check . --fix
 
 # Run type checking
-mypy .
+uv run mypy .
 ```
 
 ## Testing
 
-To run the test suite, first ensure all development dependencies are installed:
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-Then, you can execute tests using `pytest`:
+Development dependencies are installed as part of `uv sync`. Run the suite with:
 
 ```bash
 # Run all tests
-venv/bin/python -m pytest
+uv run pytest
 
 # Run tests for a specific file
-venv/bin/python -m pytest aiecommerce/tests/test_models.py
-```
-
-One last tip for you
-Since you installed these packages manually, remember to freeze them into a requirements file so you don't lose track of them:
-
-```bash
-pip freeze > requirements.txt
+uv run pytest aiecommerce/tests/test_models.py
 ```
 
 ## Mercado Libre Integration
