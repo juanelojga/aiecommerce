@@ -53,12 +53,13 @@ def refresh_product_images(product_code: str) -> str:
     Returns the Celery task id so callers can surface it to operators.
     """
     product = ProductMaster.objects.get(code=product_code)
+    code = product.code or product_code
 
-    _delete_s3_objects_for_product(product.code)
+    _delete_s3_objects_for_product(code)
 
     deleted_count, _ = product.images.all().delete()
-    logger.info("Deleted %d ProductImage row(s) for product %s", deleted_count, product.code)
+    logger.info("Deleted %d ProductImage row(s) for product %s", deleted_count, code)
 
-    async_result = process_highres_image_task.delay(product.code)
-    logger.info("Enqueued process_highres_image_task %s for product %s", async_result.id, product.code)
+    async_result = process_highres_image_task.delay(code)
+    logger.info("Enqueued process_highres_image_task %s for product %s", async_result.id, code)
     return async_result.id
