@@ -331,3 +331,20 @@ python manage.py enrich_products
 # Force reprocessing of all products with a 2-second delay
 python manage.py enrich_products --force --delay 2
 ```
+
+### 4) Refresh Product Images
+
+Discards a single product's current images (DB rows + S3 objects under
+`products/<code>/`) and enqueues the high-resolution image pipeline to
+rebuild them. Also available as a REST endpoint at
+`POST /api/v1/products/{id}/refresh-images/`. See the
+[Image Refresh guide](docs/mercadolibre/image_refresh.md) for full details.
+
+- **Command:**
+
+```bash
+python manage.py refresh_product_images <product_code>
+```
+
+Requires a running Celery worker; the command returns immediately with the
+queued task id.

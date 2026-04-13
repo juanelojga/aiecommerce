@@ -45,7 +45,15 @@ This optional flag allows you to limit the number of products for which images w
 
 When this flag is used, the command will execute all identification and selection logic but will *not* perform any actual image fetching, processing, or database writes. It will report what *would* have happened, making it useful for verifying the selection criteria and preventing unintended changes.
 
-## 4. Storage Model: `ProductImage` Records
+## 4. On-Demand Refresh
+
+To discard a single product's current images and re-run the pipeline from
+scratch (useful when the source images are wrong or stale), see
+[`image_refresh.md`](image_refresh.md). Both a management command
+(`python manage.py refresh_product_images <code>`) and a REST endpoint
+(`POST /api/v1/products/{id}/refresh-images/`) are provided.
+
+## 5. Storage Model: `ProductImage` Records
 
 Image URLs and their associated metadata are stored in the database using the `ProductImage` model (defined in `aiecommerce/models/product.py`).
 
