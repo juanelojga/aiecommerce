@@ -5,6 +5,8 @@ from PIL import Image, ImageFilter
 
 logger = logging.getLogger(__name__)
 
+remove = None
+
 
 class ImageTransformer:
     """Handles image transformations like background removal and resizing."""
@@ -56,7 +58,11 @@ class ImageTransformer:
 
                 if with_background_removal:
                     logger.info("Performing color-safe background removal.")
-                    from rembg import remove
+                    global remove
+                    if remove is None:
+                        from rembg import remove as _remove
+
+                        remove = _remove
 
                     processed_bytes = remove(image_bytes, session=self.rembg_session)
 
