@@ -2,9 +2,10 @@ import logging
 from io import BytesIO
 
 from PIL import Image, ImageFilter
-from rembg import new_session, remove
 
 logger = logging.getLogger(__name__)
+
+remove = None
 
 
 class ImageTransformer:
@@ -29,6 +30,8 @@ class ImageTransformer:
     def rembg_session(self):
         """Lazy-load the background removal session."""
         if self._rembg_session is None:
+            from rembg import new_session
+
             self._rembg_session = new_session()
         return self._rembg_session
 
@@ -44,21 +47,27 @@ class ImageTransformer:
             The transformed image bytes, or None if transformation fails.
         """
         try:
-            with Image.open(BytesIO(image_bytes)) as img:
+            with Image.open(BytesIO(image_bytes)) as opened:
                 # 1. Background Check
-                if background_analyzer and background_analyzer.is_dark_background(img):
+                if background_analyzer and background_analyzer.is_dark_background(opened):
                     logger.info("Image detected with dark/black background. Ignoring.")
                     return None
 
-                img = img.convert("RGBA")
+                img: Image.Image = opened.convert("RGBA")
                 icc_profile = img.info.get("icc_profile")
 
                 if with_background_removal:
                     logger.info("Performing color-safe background removal.")
+                    global remove
+                    if remove is None:
+                        from rembg import remove as _remove
+
+                        remove = _remove
+
                     processed_bytes = remove(image_bytes, session=self.rembg_session)
 
-                    with Image.open(BytesIO(processed_bytes)) as rembg_img:
-                        rembg_img = rembg_img.convert("RGBA")
+                    with Image.open(BytesIO(processed_bytes)) as rembg_opened:
+                        rembg_img: Image.Image = rembg_opened.convert("RGBA")
                         # Perform edge dilation on the alpha mask
                         split_result = rembg_img.split()
                         if len(split_result) == 4:

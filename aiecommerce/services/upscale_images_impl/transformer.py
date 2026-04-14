@@ -29,9 +29,9 @@ class HighResImageTransformer:
         Returns:
             The bytes of the transformed JPEG image.
         """
-        with Image.open(io.BytesIO(image_bytes)) as img:
+        with Image.open(io.BytesIO(image_bytes)) as opened:
             # Convert to RGBA to handle transparency and different color modes
-            img = img.convert("RGBA")
+            img: Image.Image = opened.convert("RGBA")
 
             # Calculate scaling factor to fit within the target size, maintaining aspect ratio.
             # This ensures that smaller images are upscaled to fill the canvas.

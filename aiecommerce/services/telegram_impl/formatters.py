@@ -1,6 +1,31 @@
 from datetime import datetime
 
 
+def format_remediation_stats(stats: dict[str, int]) -> str:
+    """Format ML error-remediation run stats into an HTML Telegram message."""
+    total = stats.get("total", 0)
+    gtin = stats.get("gtin", 0)
+    price = stats.get("price", 0)
+    other = stats.get("other", 0)
+    failed = stats.get("failed", 0)
+
+    header_emoji = "⚠️" if failed > 0 else "🧹"
+    lines = [
+        f"<b>{header_emoji} ML Listing Error Remediation</b>",
+        "",
+        f"<b>Timestamp:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        "<b>Results:</b>",
+        f"📦 Total processed: {total}",
+        f"🔖 GTIN cleared + listing removed: {gtin}",
+        f"💲 Price errors removed: {price}",
+        f"🗑 Other errors removed: {other}",
+    ]
+    if failed > 0:
+        lines.append(f"❌ Failed: {failed}")
+    return "\n".join(lines)
+
+
 def format_batch_publish_stats(
     stats: dict[str, int],
     mode: str,

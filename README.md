@@ -179,13 +179,23 @@ uv run mypy .
 
 ## Testing
 
-Development dependencies are installed as part of `uv sync`. Run the suite with:
+Development dependencies are installed as part of `uv sync`. Tests require PostgreSQL, so the simplest path is to run them inside the `web` container (which has the DB and Redis wired up via `docker compose`):
 
 ```bash
-# Run all tests
-uv run pytest
+# Run all tests (inside the web container)
+docker compose exec web pytest
 
 # Run tests for a specific file
+docker compose exec web pytest aiecommerce/tests/test_models.py
+
+# Run a single test
+docker compose exec web pytest aiecommerce/tests/test_models.py::test_product_image_str
+```
+
+To run locally against a running database (`docker compose up -d db` with `POSTGRES_PORT=5432` so it matches the `DATABASE_URL` in `.env`):
+
+```bash
+uv run pytest
 uv run pytest aiecommerce/tests/test_models.py
 ```
 
