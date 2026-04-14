@@ -7,9 +7,12 @@ from django.utils import timezone
 
 from aiecommerce.models.mercadolibre import MercadoLibreListing
 from aiecommerce.models.product import ProductMaster
+from aiecommerce.services.gtin_enrichment_impl.validation import validate_gtin13
 from aiecommerce.services.mercadolibre_category_impl.attribute_fixer import MercadolibreAttributeFixer
 from aiecommerce.services.mercadolibre_impl.client import MercadoLibreClient
 from aiecommerce.services.mercadolibre_impl.exceptions import MLAPIError
+
+GTIN_ATTRIBUTE_IDS = {"GTIN", "EAN", "UPC"}
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +47,8 @@ class MercadoLibrePublisherService:
 
         title = "Item de test - No ofertar" if test else (product.seo_title or "")
 
+        attributes = self._sanitize_attributes(listing.attributes)
+
         return {
             "family_name": title[:60],
             "category_id": listing.category_id,
@@ -54,9 +59,30 @@ class MercadoLibrePublisherService:
             "listing_type_id": "bronze",
             "condition": "new",
             "pictures": pictures,
-            "attributes": listing.attributes,
+            "attributes": attributes,
             "sale_terms": [{"id": "WARRANTY_TYPE", "value_name": "Garantía de fábrica"}, {"id": "WARRANTY_TIME", "value_name": "12 meses"}],
         }
+
+    @staticmethod
+    def _sanitize_attributes(attributes: Optional[list]) -> list:
+        """Drop PRICE entries and GTIN attributes with invalid checksums."""
+        if not attributes:
+            return []
+        cleaned: list[Dict[str, Any]] = []
+        for attr in attributes:
+            if not isinstance(attr, dict):
+                continue
+            attr_id = attr.get("id", "")
+            if attr_id == "PRICE":
+                logger.warning("Dropping PRICE entry from attributes array (belongs in final_price).")
+                continue
+            if attr_id in GTIN_ATTRIBUTE_IDS:
+                value = attr.get("value_name") or attr.get("value_id")
+                if not validate_gtin13(value if isinstance(value, str) else None):
+                    logger.warning(f"Dropping invalid GTIN attribute value={value!r}.")
+                    continue
+            cleaned.append(attr)
+        return cleaned
 
     def _extract_error_body(self, error_str: str) -> Optional[str]:
         """Extract the JSON body from an HTTP Error 400 response.
@@ -172,6 +198,26 @@ class MercadoLibrePublisherService:
         Raises:
             MLAPIError: If publication fails after all retries.
         """
+        listing = product.mercadolibre_listing
+
+        if not listing.category_id:
+            msg = f"Refusing to publish {product.code}: listing has no category_id."
+            logger.error(msg)
+            self._mark_listing_failed(product, msg)
+            return None
+
+        if listing.final_price is None or listing.final_price <= 0:
+            fallback = product.price
+            if fallback is not None and fallback > 0:
+                listing.final_price = fallback
+                listing.save(update_fields=["final_price"])
+                logger.info(f"Filled listing.final_price from ProductMaster.price for {product.code}.")
+            else:
+                msg = f"Refusing to publish {product.code}: no final_price and ProductMaster.price is empty/zero."
+                logger.error(msg)
+                self._mark_listing_failed(product, msg)
+                return None
+
         for attempt in range(1, self.MAX_RETRY_ATTEMPTS + 1):
             payload = self.build_payload(product, test=test)
 

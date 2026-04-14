@@ -1,6 +1,27 @@
 from unittest.mock import MagicMock, patch
 
-from aiecommerce.services.telegram_impl.formatters import format_batch_publish_stats
+from aiecommerce.services.telegram_impl.formatters import format_batch_publish_stats, format_remediation_stats
+
+
+class TestFormatRemediationStats:
+    def test_includes_all_counts(self) -> None:
+        stats = {"total": 90, "gtin": 53, "price": 14, "other": 23, "failed": 0}
+        result = format_remediation_stats(stats)
+        assert "ML Listing Error Remediation" in result
+        assert "Total processed: 90" in result
+        assert "GTIN cleared + listing removed: 53" in result
+        assert "Price errors removed: 14" in result
+        assert "Other errors removed: 23" in result
+        assert "Failed" not in result
+
+    def test_header_switches_to_warning_when_failures(self) -> None:
+        stats = {"total": 5, "gtin": 2, "price": 1, "other": 1, "failed": 1}
+        result = format_remediation_stats(stats)
+        assert "⚠️" in result
+        assert "Failed: 1" in result
+
+    def test_empty_stats_defaults(self) -> None:
+        assert "Total processed: 0" in format_remediation_stats({})
 
 
 class TestFormatBatchPublishStats:

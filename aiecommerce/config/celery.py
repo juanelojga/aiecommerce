@@ -38,6 +38,10 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_close_ml_listings",
         "schedule": crontab(minute=0, hour=2),
     },
+    "remediate-ml-listing-errors-daily": {
+        "task": "aiecommerce.tasks.periodic.run_remediate_ml_listing_errors",
+        "schedule": crontab(minute=0, hour=3),
+    },
     "normalize-hourly-mon-sat": {
         "task": "aiecommerce.tasks.periodic.run_normalize_products",
         "schedule": crontab(minute=10, hour="8-18/2", day_of_week="mon-sat"),

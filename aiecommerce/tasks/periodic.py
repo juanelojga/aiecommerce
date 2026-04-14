@@ -110,3 +110,9 @@ def run_close_ml_listings():
 def run_enrich_products_gtin():
     """Run the enrich_products_gtin management command."""
     call_command("enrich_products_gtin")
+
+
+@shared_task
+def run_remediate_ml_listing_errors():
+    """Run the remediate_ml_listing_errors management command."""
+    call_command("remediate_ml_listing_errors")

@@ -64,9 +64,18 @@ class MercadolibreAIAttributeFiller:
                         "2. MAP SPECIFIC FIELDS: Use 'gtin' for GTIN/EAN/UPC attributes, 'brand' for BRAND/MARCA, and 'model_name' for MODEL/MODELO.\n"
                         "3. UNIT FORMATTING: For numeric attributes like 'DISPLAY_SIZE', 'SCREEN_SIZE', or 'MEM_CAPACITY', extract the number and use the standard symbol.\n"
                         "   - For inches, ALWAYS use the double quote symbol (e.g., '65\"') instead of 'inch', 'pulgadas', or 'in'.\n"
-                        "4. VALUES LIST: If an attribute definition contains a 'values' list, you MUST select the exact 'id' and 'name' from that list if a match exists.\n"
-                        "5. DATA INTEGRITY: The GTIN is already validated; ensure it is mapped to the correct GTIN attribute ID if required. "
-                        "Do not invent data; if a value is truly missing from all source data (specs, name, model), omit the attribute."
+                        "4. VALUES LIST: If an attribute definition contains a non-empty 'values' list, you MUST select the exact 'id' and 'name' from that list. "
+                        "The 'value_name' MUST come from the chosen entry's 'name' field — never invent free-text when a catalog list is provided.\n"
+                        "5. MODEL ATTRIBUTE (STRICT): For the 'MODEL' attribute specifically, only include it when the product's model matches an entry in the 'values' list "
+                        "(emit both value_id and value_name from that entry). If the 'values' list is empty or no entry matches, OMIT the MODEL attribute entirely. "
+                        "Do NOT emit free-text for MODEL — Mercado Libre will reject unresolvable model strings. "
+                        "Never emit internal SKU codes, distributor part numbers, or product code fragments as the MODEL value_name.\n"
+                        "6. GTIN (STRICT): Only include a GTIN attribute if 'gtin' is exactly 13 numeric digits. If the provided 'gtin' is shorter, longer, non-numeric, "
+                        "or looks like an internal/distributor code, OMIT the GTIN attribute entirely.\n"
+                        "7. REQUIRED COVERAGE: For every attribute in the definitions whose 'tags.required' is true, emit an entry. If data is thin, use the best-available "
+                        "value derived from 'name'/'specs' rather than omitting a required attribute. Only omit a required attribute if there is truly no information available.\n"
+                        "8. DATA INTEGRITY: Do not invent data. If a value is genuinely missing from all source data (specs, name, model), omit the attribute — "
+                        "with the exception of rule 7 for required attributes."
                     ),
                 },
                 {"role": "user", "content": f"Product Data: {product_context}\n\nAttribute Definitions: {relevant_defs}"},

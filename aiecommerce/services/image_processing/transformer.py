@@ -2,7 +2,6 @@ import logging
 from io import BytesIO
 
 from PIL import Image, ImageFilter
-from rembg import new_session, remove
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,8 @@ class ImageTransformer:
     def rembg_session(self):
         """Lazy-load the background removal session."""
         if self._rembg_session is None:
+            from rembg import new_session
+
             self._rembg_session = new_session()
         return self._rembg_session
 
@@ -55,6 +56,8 @@ class ImageTransformer:
 
                 if with_background_removal:
                     logger.info("Performing color-safe background removal.")
+                    from rembg import remove
+
                     processed_bytes = remove(image_bytes, session=self.rembg_session)
 
                     with Image.open(BytesIO(processed_bytes)) as rembg_opened:
