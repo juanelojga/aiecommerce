@@ -1,6 +1,56 @@
 from unittest.mock import MagicMock, patch
 
-from aiecommerce.services.telegram_impl.formatters import format_batch_publish_stats, format_remediation_stats
+from aiecommerce.services.telegram_impl.formatters import (
+    format_batch_publish_stats,
+    format_incorrect_ml_images_stats,
+    format_remediation_stats,
+)
+
+
+class TestFormatIncorrectMlImagesStats:
+    @patch("aiecommerce.services.telegram_impl.formatters.datetime")
+    def test_dry_run_header_and_would_refresh_line(self, mock_datetime: MagicMock) -> None:
+        mock_datetime.now.return_value.strftime.return_value = "2026-04-16 10:00:00"
+        result = format_incorrect_ml_images_stats({"queued": 5, "skipped": 0}, dry_run=True)
+        assert "ℹ️" in result
+        assert "Dry Run" in result
+        assert "Would refresh: 5" in result
+
+    @patch("aiecommerce.services.telegram_impl.formatters.datetime")
+    def test_queued_header_when_queued_nonzero(self, mock_datetime: MagicMock) -> None:
+        mock_datetime.now.return_value.strftime.return_value = "2026-04-16 10:00:00"
+        result = format_incorrect_ml_images_stats({"queued": 3, "skipped": 0}, dry_run=False)
+        assert "🖼" in result
+        assert "Chains queued: 3" in result
+
+    @patch("aiecommerce.services.telegram_impl.formatters.datetime")
+    def test_nothing_to_do_header_when_queued_zero(self, mock_datetime: MagicMock) -> None:
+        mock_datetime.now.return_value.strftime.return_value = "2026-04-16 10:00:00"
+        result = format_incorrect_ml_images_stats({"queued": 0, "skipped": 0}, dry_run=False)
+        assert "✅" in result
+
+    @patch("aiecommerce.services.telegram_impl.formatters.datetime")
+    def test_skipped_line_shown_when_nonzero(self, mock_datetime: MagicMock) -> None:
+        mock_datetime.now.return_value.strftime.return_value = "2026-04-16 10:00:00"
+        result = format_incorrect_ml_images_stats({"queued": 1, "skipped": 2}, dry_run=False)
+        assert "Skipped" in result
+        assert "2" in result
+
+    @patch("aiecommerce.services.telegram_impl.formatters.datetime")
+    def test_skipped_line_hidden_when_zero(self, mock_datetime: MagicMock) -> None:
+        mock_datetime.now.return_value.strftime.return_value = "2026-04-16 10:00:00"
+        result = format_incorrect_ml_images_stats({"queued": 1, "skipped": 0}, dry_run=False)
+        assert "Skipped" not in result
+
+    def test_empty_stats_defaults_to_zero_without_error(self) -> None:
+        result = format_incorrect_ml_images_stats({})
+        assert "Chains queued: 0" in result
+
+    @patch("aiecommerce.services.telegram_impl.formatters.datetime")
+    def test_timestamp_present_in_output(self, mock_datetime: MagicMock) -> None:
+        mock_datetime.now.return_value.strftime.return_value = "2026-04-16 10:00:00"
+        result = format_incorrect_ml_images_stats({"queued": 1, "skipped": 0})
+        assert "2026-04-16 10:00:00" in result
 
 
 class TestFormatRemediationStats:

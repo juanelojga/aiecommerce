@@ -42,6 +42,10 @@ app.conf.beat_schedule = {
         "task": "aiecommerce.tasks.periodic.run_remediate_ml_listing_errors",
         "schedule": crontab(minute=0, hour=3),
     },
+    "refresh-incorrect-ml-images-daily": {
+        "task": "aiecommerce.tasks.periodic.run_refresh_incorrect_ml_images",
+        "schedule": crontab(minute=0, hour=3),
+    },
     "normalize-hourly-mon-sat": {
         "task": "aiecommerce.tasks.periodic.run_normalize_products",
         "schedule": crontab(minute=10, hour="8-18/2", day_of_week="mon-sat"),

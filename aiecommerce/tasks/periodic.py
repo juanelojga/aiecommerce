@@ -116,3 +116,9 @@ def run_enrich_products_gtin():
 def run_remediate_ml_listing_errors():
     """Run the remediate_ml_listing_errors management command."""
     call_command("remediate_ml_listing_errors")
+
+
+@shared_task
+def run_refresh_incorrect_ml_images():
+    """Run the refresh_incorrect_ml_images management command."""
+    call_command("refresh_incorrect_ml_images")
