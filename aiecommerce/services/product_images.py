@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import boto3
+from celery import Signature
 from django.conf import settings
 
 from aiecommerce.models.product import ProductMaster
@@ -47,10 +48,10 @@ def _delete_s3_objects_for_product(product_code: str) -> int:
     return deleted
 
 
-def refresh_product_images(product_code: str) -> str:
-    """Delete existing images (DB + S3) and enqueue a fresh upscale task.
+def delete_product_image_artifacts(product_code: str) -> None:
+    """Delete a product's stored images from S3 and the ProductImage table.
 
-    Returns the Celery task id so callers can surface it to operators.
+    Raises ProductMaster.DoesNotExist if the product code is unknown.
     """
     product = ProductMaster.objects.get(code=product_code)
     code = product.code or product_code
@@ -60,6 +61,18 @@ def refresh_product_images(product_code: str) -> str:
     deleted_count, _ = product.images.all().delete()
     logger.info("Deleted %d ProductImage row(s) for product %s", deleted_count, code)
 
-    async_result = process_highres_image_task.delay(code)
-    logger.info("Enqueued process_highres_image_task %s for product %s", async_result.id, code)
+
+def refresh_product_images(product_code: str, link: Signature | None = None) -> str:
+    """Delete existing images (DB + S3) and enqueue a fresh upscale task.
+
+    Pass a Celery signature as *link* to chain work after the image task completes.
+    Returns the Celery task id so callers can surface it to operators.
+    """
+    delete_product_image_artifacts(product_code)
+
+    if link is not None:
+        async_result = process_highres_image_task.apply_async(args=(product_code,), link=link)
+    else:
+        async_result = process_highres_image_task.delay(product_code)
+    logger.info("Enqueued process_highres_image_task %s for product %s", async_result.id, product_code)
     return async_result.id

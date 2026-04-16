@@ -32,6 +32,15 @@ def mock_task_delay():
         yield mock
 
 
+@pytest.fixture
+def mock_task_apply_async():
+    with patch("aiecommerce.services.product_images.process_highres_image_task.apply_async") as mock:
+        result = MagicMock()
+        result.id = "task-linked"
+        mock.return_value = result
+        yield mock
+
+
 @override_settings(
     AWS_STORAGE_BUCKET_NAME="test-bucket",
     AWS_ACCESS_KEY_ID="k",
@@ -55,6 +64,26 @@ def test_refresh_product_images_deletes_rows_and_enqueues(mock_boto3_client, moc
     mock_task_delay.assert_called_once_with("REFRESH-1")
     paginator.paginate.assert_called_once_with(Bucket="test-bucket", Prefix="products/REFRESH-1/")
     s3_client.delete_objects.assert_called_once()
+
+
+@override_settings(
+    AWS_STORAGE_BUCKET_NAME="test-bucket",
+    AWS_ACCESS_KEY_ID="k",
+    AWS_SECRET_ACCESS_KEY="s",
+    AWS_S3_REGION_NAME="us-east-1",
+)
+def test_refresh_product_images_with_link_uses_apply_async(mock_boto3_client, mock_task_apply_async):
+    ProductMasterFactory(code="LINKED-1")
+    s3_client = mock_boto3_client.return_value
+    paginator = MagicMock()
+    paginator.paginate.return_value = [{}]
+    s3_client.get_paginator.return_value = paginator
+    link = MagicMock()
+
+    task_id = refresh_product_images("LINKED-1", link=link)
+
+    assert task_id == "task-linked"
+    mock_task_apply_async.assert_called_once_with(args=("LINKED-1",), link=link)
 
 
 def test_refresh_product_images_raises_for_missing_product(mock_task_delay):

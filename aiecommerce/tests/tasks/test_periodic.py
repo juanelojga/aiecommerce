@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from aiecommerce.tasks.periodic import (
+    run_close_ml_listings,
     run_create_ml_test_user,
     run_enrich_mercadolibre_category,
     run_enrich_products_content,
@@ -9,12 +10,17 @@ from aiecommerce.tasks.periodic import (
     run_enrich_products_images,
     run_enrich_products_specs,
     run_normalize_products,
+    run_pause_ml_listings,
     run_prune_scrapes,
     run_publish_ml_product,
+    run_publish_ml_product_batch,
+    run_refresh_incorrect_ml_images,
+    run_remediate_ml_listing_errors,
     run_scrape_tecnomega,
     run_sync_ml_listings,
     run_sync_price_list,
     run_update_ml_eligibility,
+    run_upscale_scraped_images,
 )
 
 
@@ -114,3 +120,45 @@ def test_run_enrich_products_gtin(mock_call_command):
     """Verify that the run_enrich_products_gtin task calls the correct management command."""
     run_enrich_products_gtin()
     mock_call_command.assert_called_once_with("enrich_products_gtin")
+
+
+@patch("aiecommerce.tasks.periodic.call_command")
+def test_run_publish_ml_product_batch(mock_call_command):
+    """Verify that the run_publish_ml_product_batch task calls the correct management command."""
+    run_publish_ml_product_batch()
+    mock_call_command.assert_called_once_with("publish_ml_product_batch")
+
+
+@patch("aiecommerce.tasks.periodic.call_command")
+def test_run_upscale_scraped_images(mock_call_command):
+    """Verify that the run_upscale_scraped_images task calls the correct management command."""
+    run_upscale_scraped_images()
+    mock_call_command.assert_called_once_with("upscale_scraped_images")
+
+
+@patch("aiecommerce.tasks.periodic.call_command")
+def test_run_pause_ml_listings(mock_call_command):
+    """Verify that the run_pause_ml_listings task calls the correct management command."""
+    run_pause_ml_listings()
+    mock_call_command.assert_called_once_with("pause_ml_listings")
+
+
+@patch("aiecommerce.tasks.periodic.call_command")
+def test_run_close_ml_listings(mock_call_command):
+    """Verify that the run_close_ml_listings task calls the correct management command."""
+    run_close_ml_listings()
+    mock_call_command.assert_called_once_with("close_ml_listings")
+
+
+@patch("aiecommerce.tasks.periodic.call_command")
+def test_run_remediate_ml_listing_errors(mock_call_command):
+    """Verify that the run_remediate_ml_listing_errors task calls the correct management command."""
+    run_remediate_ml_listing_errors()
+    mock_call_command.assert_called_once_with("remediate_ml_listing_errors")
+
+
+@patch("aiecommerce.tasks.periodic.call_command")
+def test_run_refresh_incorrect_ml_images(mock_call_command):
+    """Verify that the run_refresh_incorrect_ml_images task calls the correct management command."""
+    run_refresh_incorrect_ml_images()
+    mock_call_command.assert_called_once_with("refresh_incorrect_ml_images")

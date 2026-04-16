@@ -26,6 +26,34 @@ def format_remediation_stats(stats: dict[str, int]) -> str:
     return "\n".join(lines)
 
 
+def format_incorrect_ml_images_stats(stats: dict[str, int], dry_run: bool = False) -> str:
+    """Format the refresh-incorrect-ML-images run stats into an HTML Telegram message."""
+    queued = stats.get("queued", 0)
+    skipped = stats.get("skipped", 0)
+
+    if dry_run:
+        header = "ℹ️ <b>ML Image Refresh (Dry Run)</b>"
+    elif queued > 0:
+        header = "🖼 <b>ML Image Refresh Queued</b>"
+    else:
+        header = "✅ <b>ML Image Refresh — Nothing to do</b>"
+
+    lines = [
+        header,
+        "",
+        f"<b>Timestamp:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        "<b>Results:</b>",
+    ]
+    if dry_run:
+        lines.append(f"🔍 Would refresh: {queued}")
+    else:
+        lines.append(f"🔄 Chains queued: {queued}")
+    if skipped > 0:
+        lines.append(f"⏭️ Skipped (no product code): {skipped}")
+    return "\n".join(lines)
+
+
 def format_batch_publish_stats(
     stats: dict[str, int],
     mode: str,
